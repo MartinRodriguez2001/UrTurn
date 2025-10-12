@@ -98,7 +98,7 @@ export default function PassengerHomePage() {
             <View style={styles.searchButtonContainer}>
                 <TouchableOpacity 
                     style={styles.searchButton}
-                    onPress={() => router.push("/Passenger/PassagerSearchRider")}
+                    onPress={() => router.push("/Passenger/PassengerSearchRider")}
                 >
                     <Text style={styles.searchIcon}>🔍</Text>
                     <Text style={styles.searchText}>Buscar Nuevo Viaje</Text>

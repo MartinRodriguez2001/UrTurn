@@ -1,18 +1,18 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const imgDepth3Frame0 =
   "http://localhost:3845/assets/c0569bb0c4ca8b5554b1b3fc9930287f768da18d.png";
-const imgDepth3Frame1 =
-  "http://localhost:3845/assets/02b0beac4266c208fec8ce95795c591c4dc34b61.png";
+const imgDepth5Frame0 =
+  "http://localhost:3845/assets/c8dc8417e6bbe488252da444e586cd8dffb67a7e.png";
 const imgDepth4Frame0 =
   "http://localhost:3845/assets/45cbddf4ea78015be6a898e3eff4d182ef6ed62d.svg";
 const imgDepth4Frame1 =
@@ -22,14 +22,14 @@ const imgDepth4Frame2 =
 const imgDepth4Frame3 =
   "http://localhost:3845/assets/065b377f553169d9f1adc65ef07c4f4aae1eb3e2.svg";
 
-export default function DriverTravel() {
+export default function PassengerConfirmation() {
     const router = useRouter();
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Image source={{ uri: imgDepth4Frame0 }} style={styles.headerIcon} />
-          <Text style={styles.headerTitle}>Viaje</Text>
+          <Text style={styles.headerTitle}>Viaje confirmado</Text>
         </View>
 
         <View style={styles.imageCard}>
@@ -62,7 +62,6 @@ export default function DriverTravel() {
           <View style={styles.iconBox}>
             <Image source={{ uri: imgDepth4Frame2 }} style={styles.icon} />
           </View>
-          ∏
           <View style={styles.detailText}>
             <Text style={styles.detailLabel}>Hora de Inicio</Text>
             <Text style={styles.detailValue}>15:30</Text>
@@ -85,12 +84,12 @@ export default function DriverTravel() {
 
         <View style={styles.passengerRow}>
           <Image
-            source={{ uri: imgDepth3Frame1 }}
+            source={{ uri: imgDepth5Frame0 }}
             style={styles.passengerAvatar}
           />
           <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.passengerName}>Sofia Mendoza</Text>
-            <Text style={styles.passengerRole}>Pasajero</Text>
+            <Text style={styles.passengerName}>Victor Lazcano</Text>
+            <Text style={styles.passengerRole}>Conductor</Text>
           </View>
 
           <TouchableOpacity style={styles.contactButton} activeOpacity={0.8}>
@@ -100,15 +99,10 @@ export default function DriverTravel() {
       </ScrollView>
 
       <View style={styles.footerContainer}>
-        <TouchableOpacity style={styles.primaryButton} 
-        activeOpacity={0.8}
-        onPress={
-                () => router.push("/Driver/DriverOnTravel")
-            }
-        >
+        <TouchableOpacity style={styles.primaryButton}  onPress={
+          () => router.push("/Passenger/PassengerHomePage") 
+        } activeOpacity={0.8}>
           <Text style={styles.primaryButtonText}
-            
-          
           >Empezar viaje</Text>
         </TouchableOpacity>
       </View>
@@ -161,9 +155,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   passengerAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 55,
+    height: 57,
+    borderRadius: 64,
     resizeMode: "cover",
   },
   passengerName: { fontSize: 16, fontWeight: "500", color: "#121417" },
