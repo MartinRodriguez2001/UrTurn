@@ -218,11 +218,13 @@ export default function PassagerDriverProfile() {
 
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity style={styles.requestButton}>
-                    <Text style={styles.requestButtonText}
+                <TouchableOpacity style={styles.requestButton}
                     onPress={
-                        () => router.push("/Passenger/PassagerConfirmRider")
-                    }
+                            () => router.push("/Passenger/PassagerConfirmRider")
+                        }
+                >
+                    <Text style={styles.requestButtonText}
+                    
                     >Solicitar viaje</Text>
 
                 </TouchableOpacity>

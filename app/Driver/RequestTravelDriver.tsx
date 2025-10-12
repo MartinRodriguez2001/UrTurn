@@ -82,8 +82,14 @@ export default function RequestTravelDriver() {
                     <TouchableOpacity style={styles.rejectButton}>
                         <Text style={styles.rejectButtonText}>Rechazar</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.acceptButton}>
-                        <Text style={styles.acceptButtonText}>Aceptar</Text>
+                    <TouchableOpacity style={styles.acceptButton}
+                        onPress={
+                                () => router.push("/Driver/DriverTravel")
+                            }
+                    >
+                        <Text style={styles.acceptButtonText}
+                            
+                        >Aceptar</Text>
                     </TouchableOpacity>
                 </View>
 
