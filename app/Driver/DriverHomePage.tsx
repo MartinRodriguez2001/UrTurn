@@ -1,5 +1,7 @@
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import RequestsCard from '@/components/RequestsCard';
+import NextTravelCard from '@/components/NextTravelCard';
 
 export default function DriverHomePage() {
     const router = useRouter();
@@ -30,32 +32,13 @@ export default function DriverHomePage() {
                 {/* Published Trips Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Viajes Publicados</Text>
-                    
-                    <View style={styles.tripCard}>
-                        <View style={styles.tripInfo}>
-                            <Text style={styles.tripLabel}>Próximo</Text>
-                            <Text style={styles.tripDestination}>Universidad de los Andes, Álvaro del portillo</Text>
-                            <Text style={styles.tripTime}>Hoy, 17:00 - 17:30</Text>
-                        </View>
-                        <View style={styles.tripImageContainer}>
-                            <View style={styles.tripImagePlaceholder} />
-                        </View>
-                    </View>
+                    <NextTravelCard Route="Universidad de los Andes" Date="Hoy" Time="15:00 - 15:30"/>
                 </View>
 
                 {/* Pending Requests Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Solicitudes Pendientes</Text>
-                    
-                    <View style={styles.requestCard}>
-                        <View style={styles.requestIcon}>
-                            <Text style={styles.carIcon}>🚗</Text>
-                        </View>
-                        <View style={styles.requestInfo}>
-                            <Text style={styles.requestCount}>1 solicitud</Text>
-                            <Text style={styles.requestRoute}>Campus Central a Residencia Sur</Text>
-                        </View>
-                    </View>
+                    <RequestsCard RequestCount={1} Route='Santiago'/>
                 </View>
 
                 {/* Spacer for bottom navigation */}
@@ -145,81 +128,10 @@ const styles = StyleSheet.create({
         color: '#121417',
         marginBottom: 16,
     },
-    tripCard: {
-        flexDirection: 'row',
-        backgroundColor: '#F8F9FA',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-    },
-    tripInfo: {
-        flex: 1,
-        paddingRight: 16,
-    },
-    tripLabel: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 14,
-        lineHeight: 21,
-        color: '#876363',
-        marginBottom: 4,
-    },
-    tripDestination: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontWeight: '600',
-        fontSize: 16,
-        lineHeight: 20,
-        color: '#121417',
-        marginBottom: 4,
-    },
-    tripTime: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 14,
-        lineHeight: 21,
-        color: '#876363',
-    },
-    tripImageContainer: {
-        width: 130,
-        height: 90,
-    },
-    tripImagePlaceholder: {
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#E5E7EB',
-        borderRadius: 8,
-    },
     requestCard: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
-    },
-    requestIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        backgroundColor: '#F8F9FA',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 16,
-    },
-    carIcon: {
-        fontSize: 24,
-    },
-    requestInfo: {
-        flex: 1,
-    },
-    requestCount: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontWeight: '600',
-        fontSize: 16,
-        lineHeight: 24,
-        color: '#121417',
-        marginBottom: 2,
-    },
-    requestRoute: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 14,
-        lineHeight: 21,
-        color: '#876363',
     },
     bottomSpacer: {
         height: 200, // Space for bottom elements
