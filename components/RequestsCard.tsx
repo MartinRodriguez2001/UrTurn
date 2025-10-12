@@ -1,4 +1,5 @@
-import { Text, View, StyleSheet } from "react-native";
+import { useRouter } from "expo-router";
+import { Text, View, StyleSheet, TouchableOpacity } from "react-native";
 
 export interface RequestCardProps {
     RequestCount: number;
@@ -6,8 +7,9 @@ export interface RequestCardProps {
 }
 
 export default function RequestsCard({RequestCount, Route}: RequestCardProps) {
+    const router = useRouter();
   return (
-    <View style={styles.requestCard}>
+    <TouchableOpacity style={styles.requestCard} onPress={() => router.push("/Driver/RequestTravelDriver")}>
       <View style={styles.requestIcon}>
         <Text style={styles.carIcon}>🚗</Text>
       </View>
@@ -15,7 +17,7 @@ export default function RequestsCard({RequestCount, Route}: RequestCardProps) {
         <Text style={styles.requestCount}>{RequestCount} solicitud</Text>
         <Text style={styles.requestRoute}>{Route}</Text>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
