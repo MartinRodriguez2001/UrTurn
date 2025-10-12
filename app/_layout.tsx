@@ -3,22 +3,22 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
+export function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name='ChooseModeScreen'/>
+        <Stack.Screen name="Driver/DriverHomePage"/>
+        <Stack.Screen name="Driver/PublishTravel"/>
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
   );
+}
+
+export function AuthStack() {
+  return (
+    <Stack>
+      <Stack.Screen name="index"/>
+      <Stack.Screen name="register"/>
+    </Stack>
+  )
 }
