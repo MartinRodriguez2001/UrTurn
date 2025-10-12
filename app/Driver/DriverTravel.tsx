@@ -1,12 +1,13 @@
 import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  SafeAreaView,
 } from "react-native";
 
 const imgDepth3Frame0 =
@@ -23,96 +24,109 @@ const imgDepth4Frame3 =
   "http://localhost:3845/assets/065b377f553169d9f1adc65ef07c4f4aae1eb3e2.svg";
 
 export default function DriverTravel() {
-    const router = useRouter();
+  const router = useRouter();
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Image source={{ uri: imgDepth4Frame0 }} style={styles.headerIcon} />
-          <Text style={styles.headerTitle}>Viaje</Text>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle}>Pagina Principal</Text>
         </View>
+      </View>
 
-        <View style={styles.imageCard}>
-          <Image source={{ uri: imgDepth3Frame0 }} style={styles.cardImage} />
-        </View>
-
-        <Text style={styles.sectionTitle}>Detalles del viaje</Text>
-
-        <View style={styles.detailRow}>
-          <View style={styles.iconBox}>
-            <Image source={{ uri: imgDepth4Frame1 }} style={styles.icon} />
-          </View>
-          <View style={styles.detailText}>
-            <Text style={styles.detailLabel}>Origen</Text>
-            <Text style={styles.detailValue}>Universidad de los Andes</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View style={styles.iconBox}>
-            <Image source={{ uri: imgDepth4Frame1 }} style={styles.icon} />
-          </View>
-          <View style={styles.detailText}>
-            <Text style={styles.detailLabel}>Destino</Text>
-            <Text style={styles.detailValue}>Francisco Bilbao 2567</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View style={styles.iconBox}>
-            <Image source={{ uri: imgDepth4Frame2 }} style={styles.icon} />
-          </View>
-          ∏
-          <View style={styles.detailText}>
-            <Text style={styles.detailLabel}>Hora de Inicio</Text>
-            <Text style={styles.detailValue}>15:30</Text>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View style={styles.iconBox}>
-            <Image source={{ uri: imgDepth4Frame3 }} style={styles.icon} />
-          </View>
-          <View style={styles.detailText}>
-            <Text style={styles.detailLabel}>Precio</Text>
-            <Text style={styles.detailValue}>1.000 CLP</Text>
-          </View>
-        </View>
-
-        <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
-          Pasajeros confirmados
-        </Text>
-
-        <View style={styles.passengerRow}>
-          <Image
-            source={{ uri: imgDepth3Frame1 }}
-            style={styles.passengerAvatar}
-          />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.passengerName}>Sofia Mendoza</Text>
-            <Text style={styles.passengerRole}>Pasajero</Text>
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <View style={styles.header}>
+            <Image
+              source={{ uri: imgDepth4Frame0 }}
+              style={styles.headerIcon}
+            />
+            <Text style={styles.headerTitle}>Viaje</Text>
           </View>
 
-          <TouchableOpacity style={styles.contactButton} activeOpacity={0.8}>
-            <Text style={styles.contactButtonText}>Contactar</Text>
+          <View style={styles.imageCard}>
+            <Image source={{ uri: imgDepth3Frame0 }} style={styles.cardImage} />
+          </View>
+
+          <Text style={styles.sectionTitle}>Detalles del viaje</Text>
+
+          <View style={styles.detailRow}>
+            <View style={styles.iconBox}>
+              <Image source={{ uri: imgDepth4Frame1 }} style={styles.icon} />
+            </View>
+            <View style={styles.detailText}>
+              <Text style={styles.detailLabel}>Origen</Text>
+              <Text style={styles.detailValue}>Universidad de los Andes</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.iconBox}>
+              <Image source={{ uri: imgDepth4Frame1 }} style={styles.icon} />
+            </View>
+            <View style={styles.detailText}>
+              <Text style={styles.detailLabel}>Destino</Text>
+              <Text style={styles.detailValue}>Francisco Bilbao 2567</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.iconBox}>
+              <Image source={{ uri: imgDepth4Frame2 }} style={styles.icon} />
+            </View>
+            <View style={styles.detailText}>
+              <Text style={styles.detailLabel}>Hora de Inicio</Text>
+              <Text style={styles.detailValue}>15:30</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailRow}>
+            <View style={styles.iconBox}>
+              <Image source={{ uri: imgDepth4Frame3 }} style={styles.icon} />
+            </View>
+            <View style={styles.detailText}>
+              <Text style={styles.detailLabel}>Precio</Text>
+              <Text style={styles.detailValue}>1.000 CLP</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.sectionTitle, { marginTop: 24 }]}>
+            Pasajeros confirmados
+          </Text>
+
+          <View style={styles.passengerRow}>
+            <Image
+              source={{ uri: imgDepth3Frame1 }}
+              style={styles.passengerAvatar}
+            />
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={styles.passengerName}>Sofia Mendoza</Text>
+              <Text style={styles.passengerRole}>Pasajero</Text>
+            </View>
+
+            <TouchableOpacity style={styles.contactButton} activeOpacity={0.8}>
+              <Text style={styles.contactButtonText}>Contactar</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+
+        <View style={styles.footerContainer}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            activeOpacity={0.8}
+            onPress={() => router.push("/Driver/DriverOnTravel")}
+          >
+            <Text style={styles.primaryButtonText}>Empezar viaje</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
-
-      <View style={styles.footerContainer}>
-        <TouchableOpacity style={styles.primaryButton} 
-        activeOpacity={0.8}
-        onPress={
-                () => router.push("/Driver/DriverOnTravel")
-            }
-        >
-          <Text style={styles.primaryButtonText}
-            
-          
-          >Empezar viaje</Text>
-        </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -191,4 +205,41 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   primaryButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  backButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backIcon: {
+    fontSize: 24,
+    color: "#121417",
+    fontWeight: "bold",
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: "center",
+    textAlign: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  profileButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileImage: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F99F7C",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  profileInitial: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
 });

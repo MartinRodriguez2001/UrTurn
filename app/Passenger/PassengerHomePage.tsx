@@ -221,11 +221,11 @@ const styles = StyleSheet.create({
         color: '#61758A',
     },
     bottomSpacer: {
-        height: 200,
+        height: 120, // Ajustado para el navbar
     },
     searchButtonContainer: {
         position: 'absolute',
-        bottom: 151,
+        bottom: 91, // Ajustado para quedar encima del navbar
         left: 20,
         right: 20,
         zIndex: 1,

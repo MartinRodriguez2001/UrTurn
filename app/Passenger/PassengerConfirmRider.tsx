@@ -115,27 +115,6 @@ export default function PassengerConfirmRider() {
             </View>
 
             {/* Bottom Navigation */}
-            <View style={styles.bottomNavigation}>
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIcon}>🏠</Text>
-                    <Text style={styles.navLabel}>Inicio</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIconActive}>🔍</Text>
-                    <Text style={styles.navLabelActive}>Búsqueda</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIcon}>📋</Text>
-                    <Text style={styles.navLabel}>Historial</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIcon}>👤</Text>
-                    <Text style={styles.navLabel}>Perfil</Text>
-                </TouchableOpacity>
-            </View>
         </SafeAreaView>
     );
 }

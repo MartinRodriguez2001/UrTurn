@@ -1,7 +1,7 @@
 import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
-import RequestsCard from '@/components/RequestsCard';
-import NextTravelCard from '@/components/NextTravelCard';
+import RequestsCard from '@/components/driverComps/RequestsCard';
+import NextTravelCard from '@/components/driverComps/NextTravelCard';
 
 export default function DriverHomePage() {
     const router = useRouter();
@@ -134,11 +134,11 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     bottomSpacer: {
-        height: 200, // Space for bottom elements
+        height: 120, // Ajustado para el navbar
     },
     publishButtonContainer: {
         position: 'absolute',
-        bottom: 151,
+        bottom: 91, // Ajustado para quedar encima del navbar
         left: 20,
         right: 20,
         zIndex: 1,
@@ -164,30 +164,5 @@ const styles = StyleSheet.create({
         fontSize: 16,
         lineHeight: 24,
         color: '#FFFFFF',
-    },
-    bottomNavigation: {
-        flexDirection: 'row',
-        height: 75,
-        backgroundColor: '#FFFFFF',
-        paddingTop: 9,
-        paddingHorizontal: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#E5E7EB',
-    },
-    navItem: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    navIcon: {
-        fontSize: 24,
-        marginBottom: 4,
-    },
-    navLabel: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 12,
-        lineHeight: 18,
-        color: '#121417',
-        textAlign: 'center',
     },
 });

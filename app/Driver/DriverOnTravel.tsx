@@ -1,11 +1,13 @@
+import { useRouter } from "expo-router";
 import React from "react";
 import {
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const imgDepth3Frame0 =
@@ -24,8 +26,24 @@ const imgDepth4Frame1 =
   "http://localhost:3845/assets/629cc3192dacb040da73496cb8c1c028c2e2e4ea.svg";
 
 export default function DriverOnTravel() {
+  const router = useRouter();
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.backIcon}>←</Text>
+        </TouchableOpacity>
+
+        <View style={styles.titleContainer}>
+          <Text style={styles.headerTitle}>Solicitar un viaje</Text>
+        </View>
+
+        <View style={styles.placeholder} />
+      </View>
+
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <Image source={{ uri: imgDepth4Frame0 }} style={styles.headerIcon} />
@@ -82,7 +100,7 @@ export default function DriverOnTravel() {
           <Text style={styles.finishButtonText}>Terminar viaje</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -163,4 +181,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   finishButtonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  backButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backIcon: {
+    fontSize: 24,
+    color: "#121417",
+    fontWeight: "bold",
+  },
+  titleContainer: {
+    flex: 1,
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  placeholder: {
+    width: 48,
+    height: 48,
+  },
 });

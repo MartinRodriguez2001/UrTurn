@@ -232,29 +232,6 @@ export default function PassengerDriverProfile() {
                     <Text style={styles.messageButtonText}>Mensaje</Text>
                 </TouchableOpacity>
             </View>
-
-            {/* Bottom Navigation */}
-            <View style={styles.bottomNavigation}>
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIcon}>🏠</Text>
-                    <Text style={styles.navLabel}>Inicio</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIcon}>🔍</Text>
-                    <Text style={styles.navLabel}>Búsqueda</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIcon}>📋</Text>
-                    <Text style={styles.navLabel}>Historial</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity style={styles.navItem}>
-                    <Text style={styles.navIconActive}>👤</Text>
-                    <Text style={styles.navLabelActive}>Perfil</Text>
-                </TouchableOpacity>
-            </View>
         </SafeAreaView>
     );
 }

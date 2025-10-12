@@ -134,8 +134,6 @@ export default function PassengerRiderOffers() {
                 {/* Bottom Spacer */}
                 <View style={styles.bottomSpacer} />
             </ScrollView>
-
-            
         </SafeAreaView>
     );
 }
@@ -229,6 +227,7 @@ const styles = StyleSheet.create({
     },
     driversList: {
         paddingHorizontal: 0,
+        paddingRight: 80,
     },
     driverCard: {
         flexDirection: 'row',
@@ -278,7 +277,7 @@ const styles = StyleSheet.create({
     price: {
         fontFamily: 'Plus Jakarta Sans',
         fontSize: 16,
-        lineHeight: 24,
+        lineHeight: 20,
         color: '#121417',
     },
     bottomSpacer: {

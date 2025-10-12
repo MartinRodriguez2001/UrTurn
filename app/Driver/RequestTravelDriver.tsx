@@ -42,6 +42,11 @@ export default function RequestTravelDriver() {
                         <Text style={styles.passengerName}>Sofía</Text>
                         <Text style={styles.passengerRole}>Pasajero</Text>
                     </View>
+                    <View style={styles.contactButtonContainer}>
+                    <TouchableOpacity style={styles.contactButton}>
+                        <Text style={styles.contactButtonText}>Contactar</Text>
+                    </TouchableOpacity>
+                </View>
                 </View>
 
                 {/* Origin Section */}
@@ -90,13 +95,6 @@ export default function RequestTravelDriver() {
                         <Text style={styles.acceptButtonText}
                             
                         >Aceptar</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Contact Button */}
-                <View style={styles.contactButtonContainer}>
-                    <TouchableOpacity style={styles.contactButton}>
-                        <Text style={styles.contactButtonText}>Contactar</Text>
                     </TouchableOpacity>
                 </View>
 
