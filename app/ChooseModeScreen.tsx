@@ -1,6 +1,5 @@
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, ImageBackground } from 'react-native';
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ChooseModeScreen() {
     const router = useRouter();
@@ -12,6 +11,7 @@ export default function ChooseModeScreen() {
 
     const handlePassengerMode = () => {
         console.log('Passenger mode selected');
+        router.push('/Passenger/PassengerHomePage');
     };
 
     return (
