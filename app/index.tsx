@@ -1,21 +1,54 @@
 import { Image } from "expo-image";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  ScrollView,
   StyleSheet,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
+  View,
 } from "react-native";
-import { useState } from "react";
-import { Link, useRouter } from "expo-router";
+import { useAuth } from "../context/UserContext";
 
 export default function LogInScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { login } = useAuth();
+
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Error', 'Por favor completa todos los campos');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const result = await login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      if (result.success) {
+        console.log('✅ Login exitoso! Navegando...');
+        router.replace("/ChooseModeScreen");
+      } else {
+        Alert.alert('Error', result.message || 'Credenciales inválidas');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Error de conexión. Verifica que el servidor esté corriendo.');
+      console.error('Error en login:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -80,10 +113,15 @@ export default function LogInScreen() {
         {/* Login Button */}
         <View style={styles.buttonContainer}>
           <TouchableOpacity
-            style={styles.loginButton}
-            onPress={() => router.push("/ChooseModeScreen")}
+            style={[styles.loginButton, loading && styles.loginButtonDisabled]}
+            onPress={handleLogin}
+            disabled={loading}
           >
-            <Text style={styles.loginButtonText}>Iniciar sesion</Text>
+            {loading ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.loginButtonText}>Iniciar sesion</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -215,6 +253,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: "#FFFFFF",
     textAlign: "center",
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
   registerButton: {
     backgroundColor: "#F5F0F0",

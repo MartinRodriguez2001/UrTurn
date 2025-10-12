@@ -1,7 +1,7 @@
-import { Image } from 'expo-image';
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
-import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../context/UserContext';
 
 export default function RegisterScreen() {
   const [name, setName] = useState('');
@@ -9,7 +9,76 @@ export default function RegisterScreen() {
   const [rut, setRut] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { register } = useAuth();
+
+  const handleSignUp = async () => {
+    // Validaciones básicas
+    if (!name.trim()) {
+      Alert.alert('Error', 'Por favor ingresa tu nombre');
+      return;
+    }
+
+    if (!email.trim()) {
+      Alert.alert('Error', 'Por favor ingresa tu email');
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert('Error', 'Por favor ingresa una contraseña');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log('Intentando registrar usuario...', {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        role: 'passenger'
+      });
+
+      const result = await register({
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+        role: 'passenger',
+      });
+
+      console.log('Resultado del registro:', result);
+
+      if (result.success) {
+        console.log('✅ Registro exitoso! Navegando...');
+        // Navegar directamente sin Alert
+        router.replace('/ChooseModeScreen');
+      } else {
+        console.log('❌ Error en registro:', result.message);
+        Alert.alert('Error', result.message || 'No se pudo registrar el usuario');
+      }
+    } catch (error) {
+      console.error('Error completo en registro:', error);
+      Alert.alert(
+        'Error de conexión', 
+        'No se pudo conectar con el servidor. Verifica:\n\n' +
+        '1. Que el backend esté corriendo\n' +
+        '2. La URL en services/api.ts\n' +
+        '3. Si usas Android Emulator: http://10.0.2.2:3000'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -106,8 +175,16 @@ export default function RegisterScreen() {
         {/* Sign Up Button */}
         <View style={styles.bottomContainer}>
           <View style={styles.signUpButtonContainer}>
-            <TouchableOpacity style={styles.signUpButton}>
-              <Text style={styles.signUpButtonText}>Sign Up</Text>
+            <TouchableOpacity 
+              style={[styles.signUpButton, loading && styles.signUpButtonDisabled]}
+              onPress={handleSignUp}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.signUpButtonText}>Sign Up</Text>
+              )}
             </TouchableOpacity>
           </View>
           <View style={styles.spacer} />
@@ -233,6 +310,9 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: '#FFFFFF',
     textAlign: 'center',
+  },
+  signUpButtonDisabled: {
+    opacity: 0.6,
   },
   spacer: {
     height: 20,
