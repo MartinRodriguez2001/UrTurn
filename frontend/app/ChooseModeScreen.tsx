@@ -24,7 +24,7 @@ export default function ChooseModeScreen() {
                         <View style={styles.illustrationPlaceholder}>
                             {/* Placeholder for the illustration - can be replaced with actual image */}
                            
-                           <Image source={require('../assets/IMG_2788.jpeg')} style={styles.illustrationBackground}/>
+                           <Image source={require('../assets/e7f1b601fa443db232a43e22613f96d9d29cbde9.png')} style={styles.illustrationBackground}/>
                         </View>
                     </View>
 

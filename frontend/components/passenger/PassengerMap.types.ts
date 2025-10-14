@@ -19,4 +19,5 @@ export type PassengerMapProps = {
     onRegionChangeComplete?: (region: MapRegion) => void;
     allowManualSelection?: boolean;
     onSelectCoordinate?: (coordinate: MapCoordinate) => void;
+    showsUserLocation?: boolean;
 };
