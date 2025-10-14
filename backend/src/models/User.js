@@ -7,21 +7,32 @@ class User {
   /**
    * Crear un nuevo usuario
    */
-  static async create({ email, password, name, isDriver = false, phone_number = null, description = null }) {
+  static async create({ email, password, name, role = 'passenger' }) {
     try {
       // Hash de la contraseña
       const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+      
+      // Convertir role a isDriver (booleano)
+      const isDriver = role === 'driver';
 
       const text = `
-        INSERT INTO users (email, password, name, isDriver, phone_number, description, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-        RETURNING id, email, name, isDriver, phone_number, description, created_at
+        INSERT INTO users (email, password, names, isDriver, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+        RETURNING id, email, names, isDriver, created_at
       `;
-
-      const values = [email.toLowerCase(), hashedPassword, name, isDriver, phone_number, description];
+      
+      const values = [email.toLowerCase(), hashedPassword, name, isDriver];
       const result = await query(text, values);
-
-      return result.rows[0];
+      
+      // Mapear el resultado al formato esperado por el frontend
+      const user = result.rows[0];
+      return {
+        id: user.id,
+        email: user.email,
+        names: user.names,
+        role: user.isdriver ? 'driver' : 'passenger',
+        created_at: user.created_at
+      };
     } catch (error) {
       throw error;
     }
@@ -32,10 +43,26 @@ class User {
    */
   static async findByEmail(email) {
     try {
-      const text = 'SELECT * FROM users WHERE email = $1';
+      const text = 'SELECT id, email, password, names, isDriver, phone_number, descriptions, created_at, updated_at FROM users WHERE email = $1';
       const result = await query(text, [email.toLowerCase()]);
       
-      return result.rows[0] || null;
+      if (!result.rows[0]) {
+        return null;
+      }
+      
+      // Mapear el resultado al formato esperado, manteniendo password para verificación
+      const user = result.rows[0];
+      return {
+        id: user.id,
+        email: user.email,
+        password: user.password, // Necesario para verificación de contraseña
+        names: user.names,
+        role: user.isdriver ? 'driver' : 'passenger',
+        phone_number: user.phone_number,
+        descriptions: user.descriptions,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      };
     } catch (error) {
       throw error;
     }
@@ -46,10 +73,25 @@ class User {
    */
   static async findById(id) {
     try {
-      const text = 'SELECT id, email, name, isDriver, phone_number, description, created_at, updated_at FROM users WHERE id = $1';
+      const text = 'SELECT id, email, names, isDriver, phone_number, descriptions, created_at, updated_at FROM users WHERE id = $1';
       const result = await query(text, [id]);
-
-      return result.rows[0] || null;
+      
+      if (!result.rows[0]) {
+        return null;
+      }
+      
+      // Mapear el resultado al formato esperado
+      const user = result.rows[0];
+      return {
+        id: user.id,
+        email: user.email,
+        names: user.names,
+        role: user.isdriver ? 'driver' : 'passenger',
+        phone_number: user.phone_number,
+        descriptions: user.descriptions,
+        created_at: user.created_at,
+        updated_at: user.updated_at
+      };
     } catch (error) {
       throw error;
     }
@@ -69,23 +111,36 @@ class User {
   /**
    * Actualizar información del usuario
    */
-  static async update(id, { name, isDriver, phone_number, description }) {
+  static async update(id, { name, role }) {
     try {
+      // Convertir role a isDriver si se proporciona
+      const isDriver = role ? (role === 'driver') : undefined;
+      
       const text = `
-        UPDATE users
-        SET name = COALESCE($1, name),
+        UPDATE users 
+        SET names = COALESCE($1, names),
             isDriver = COALESCE($2, isDriver),
-            phone_number = COALESCE($3, phone_number),
-            description = COALESCE($4, description),
             updated_at = NOW()
-        WHERE id = $5
-        RETURNING id, email, name, isDriver, phone_number, description, updated_at
+        WHERE id = $3
+        RETURNING id, email, names, isDriver, updated_at
       `;
-
-      const values = [name, isDriver, phone_number, description, id];
+      
+      const values = [name, isDriver, id];
       const result = await query(text, values);
-
-      return result.rows[0];
+      
+      if (!result.rows[0]) {
+        return null;
+      }
+      
+      // Mapear el resultado al formato esperado
+      const user = result.rows[0];
+      return {
+        id: user.id,
+        email: user.email,
+        names: user.names,
+        role: user.isdriver ? 'driver' : 'passenger',
+        updated_at: user.updated_at
+      };
     } catch (error) {
       throw error;
     }

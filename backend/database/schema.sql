@@ -3,6 +3,14 @@
 
 -- Eliminar tablas si existen (para desarrollo)
 DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS travel CASCADE;
+DROP TABLE IF EXISTS travel_request CASCADE;
+DROP TABLE IF EXISTS vehicle CASCADE;
+DROP TABLE IF EXISTS confirmation CASCADE;
+DROP TABLE IF EXISTS rating CASCADE;
+DROP TABLE IF EXISTS travel_message CASCADE;
+DROP TABLE IF EXISTS payment CASCADE;
+DROP TABLE IF EXISTS report_incident CASCADE;
 
 -- Crear tabla de usuarios
 CREATE TABLE users (
@@ -20,12 +28,14 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE travel_request (
+CREATE TABLE vehicle (
     id SERIAL PRIMARY KEY,
-    passenger_id INT REFERENCES users(id) ON DELETE CASCADE,
-    travel_id INT REFERENCES travel(id) ON DELETE CASCADE,
-    location VARCHAR(255) NOT NULL,
-    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    user_id INT REFERENCES users(id) ON DELETE CASCADE,
+    license_plate VARCHAR(20) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    brand VARCHAR(50) NOT NULL,
+    year INT,
+    validations BOOLEAN,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -46,14 +56,12 @@ CREATE TABLE travel (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE vehicle (
+CREATE TABLE travel_request (
     id SERIAL PRIMARY KEY,
-    user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    license_plate VARCHAR(20) NOT NULL,
-    model VARCHAR(100) NOT NULL,
-    brand VARCHAR(50) NOT NULL,
-    year INT,
-    validations BOOLEAN,
+    passenger_id INT REFERENCES users(id) ON DELETE CASCADE,
+    travel_id INT REFERENCES travel(id) ON DELETE CASCADE,
+    location VARCHAR(255) NOT NULL,
+    status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -85,7 +93,7 @@ CREATE TABLE travel_message (
 CREATE TABLE payment (
     id SERIAL PRIMARY KEY,
     user_id INT REFERENCES users(id) ON DELETE CASCADE,
-    travel_id INT REFERENCES travel(id) ON DELETE CASCADE,
+    travel_id INT REFERENCES travel(id) ON DELETE CASCADE
     -- Pantallazo del comprobante de pago
 );
 
