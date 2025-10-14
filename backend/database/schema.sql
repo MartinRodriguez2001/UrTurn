@@ -17,10 +17,10 @@ CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
-    name VARCHAR(100) NOT NULL,
+    names VARCHAR(100) NOT NULL,
     isDriver BOOLEAN DEFAULT FALSE,
     phone_number VARCHAR(20),
-    description TEXT,
+    descriptions TEXT,
     -- Archivo de la credencial institucional
     -- Foto de perfil
     -- Certificado estudiantil
@@ -109,8 +109,8 @@ CREATE TABLE report_incident (
 
 
 -- Insertar datos de prueba (opcional)
-INSERT INTO users (email, password, name, isDriver, phone_number, description) VALUES
-('test@example.com', '$2b$10$rQZ5YqHqVqKq5YqHqVqKq.abcdefghijklmnopqrstuvwxyz1234567', 'Usuario Test', FALSE, '+598 99 123 456', 'Estudiante de Ingeniería'),
+INSERT INTO users (email, password, names, isDriver, phone_number, descriptions) VALUES
+('test@example.com', '$2b$10$BeVhkSZwAAZZDjUcWaBqm.nD4qgTYK6fJjtSSBMFT8/94qOXt8dPS', 'Usuario Test', FALSE, '+598 99 123 456', 'Estudiante de Ingeniería'),
 ('driver@example.com', '$2b$10$rQZ5YqHqVqKq5YqHqVqKq.abcdefghijklmnopqrstuvwxyz1234567', 'Conductor Test', TRUE, '+598 99 654 321', 'Conductor experimentado con vehículo propio');
 
 -- Mostrar estructura de la tabla
