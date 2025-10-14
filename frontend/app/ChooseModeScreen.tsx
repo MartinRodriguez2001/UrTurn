@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ChooseModeScreen() {
     const router = useRouter();
@@ -23,7 +23,8 @@ export default function ChooseModeScreen() {
                     <View style={styles.illustrationContainer}>
                         <View style={styles.illustrationPlaceholder}>
                             {/* Placeholder for the illustration - can be replaced with actual image */}
-                            <View style={styles.illustrationBackground} />
+                           
+                           <Image source={require('../assets/IMG_2788.jpeg')} style={styles.illustrationBackground}/>
                         </View>
                     </View>
 
