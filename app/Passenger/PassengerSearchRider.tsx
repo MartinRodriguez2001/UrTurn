@@ -9,7 +9,6 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
 export default function PassengerSearchRider() {
     const router = useRouter();
@@ -46,7 +45,7 @@ export default function PassengerSearchRider() {
             {/* Map Section */}
             <View style={styles.mapContainer}>
                 <View style={styles.mapBackground}>
-                    <MapView
+                    {/* <MapView
                         style={styles.map}
                         provider={PROVIDER_GOOGLE}
                         initialRegion={defaultRegion}
@@ -61,7 +60,7 @@ export default function PassengerSearchRider() {
                                 longitude: defaultRegion.longitude,
                             }}
                         />
-                    </MapView>
+                    </MapView> */}
 
                     {/* Destination Input */}
                     <View style={styles.destinationInputContainer}>

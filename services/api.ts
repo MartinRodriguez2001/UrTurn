@@ -1,6 +1,6 @@
 // Configuración de la API
 // Para desarrollo en dispositivo móvil físico - USA LA IP DE TU PC
-const API_URL = 'Aca va su ip:3000';
+const API_URL = 'http://localhost:3000';
 
 // Otras opciones según el entorno:
 // const API_URL = 'http://localhost:3000'; // Para desarrollo en navegador web
@@ -14,7 +14,7 @@ export const authAPI = {
   /**
    * Registrar nuevo usuario
    */
-  register: async (userData) => {
+  register: async (userData: { email: string; password: string; name?: string; isDriver?: boolean; phone_number?: string; description?: string }) => {
     try {
       console.log('[API] Enviando petición de registro a:', `${API_URL}/api/auth/register`);
       console.log('[API] Datos:', userData);
@@ -40,7 +40,7 @@ export const authAPI = {
   /**
    * Iniciar sesión
    */
-  login: async (credentials) => {
+  login: async (credentials: { email: string; password: string }) => {
     try {
       const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
@@ -61,7 +61,7 @@ export const authAPI = {
   /**
    * Obtener perfil del usuario
    */
-  getProfile: async (token) => {
+  getProfile: async (token: string) => {
     try {
       const response = await fetch(`${API_URL}/api/auth/profile`, {
         method: 'GET',
