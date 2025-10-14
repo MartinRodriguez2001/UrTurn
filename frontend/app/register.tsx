@@ -6,7 +6,8 @@ import { useAuth } from '../context/UserContext';
 export default function RegisterScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [rut, setRut] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [description, setDescription] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,8 +21,32 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (name.trim().length < 2) {
+      Alert.alert('Error', 'El nombre debe tener al menos 2 caracteres');
+      return;
+    }
+
     if (!email.trim()) {
       Alert.alert('Error', 'Por favor ingresa tu email');
+      return;
+    }
+
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'Por favor ingresa un email válido');
+      return;
+    }
+
+    if (!phoneNumber.trim()) {
+      Alert.alert('Error', 'Por favor ingresa tu número de teléfono');
+      return;
+    }
+
+    // Validar formato de teléfono (básico)
+    const phoneRegex = /^[+]?[\d\s-()]+$/;
+    if (!phoneRegex.test(phoneNumber.trim())) {
+      Alert.alert('Error', 'Por favor ingresa un número de teléfono válido');
       return;
     }
 
@@ -30,13 +55,19 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Las contraseñas no coinciden');
+    if (password.length < 6) {
+      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'La contraseña debe tener al menos 6 caracteres');
+    // Validar que la contraseña tenga al menos un número
+    if (!/\d/.test(password)) {
+      Alert.alert('Error', 'La contraseña debe contener al menos un número');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert('Error', 'Las contraseñas no coinciden');
       return;
     }
 
@@ -46,6 +77,8 @@ export default function RegisterScreen() {
       console.log('Intentando registrar usuario...', {
         name: name.trim(),
         email: email.trim().toLowerCase(),
+        phoneNumber: phoneNumber.trim(),
+        description: description.trim() || undefined,
         role: 'passenger'
       });
 
@@ -54,14 +87,24 @@ export default function RegisterScreen() {
         email: email.trim().toLowerCase(),
         password,
         role: 'passenger',
+        phone_number: phoneNumber.trim(),
+        description: description.trim() || undefined,
       });
 
       console.log('Resultado del registro:', result);
 
       if (result.success) {
         console.log('✅ Registro exitoso! Navegando...');
-        // Navegar directamente sin Alert
-        router.replace('/ChooseModeScreen');
+        Alert.alert(
+          'Registro Exitoso', 
+          '¡Bienvenido a UrTurn! Tu cuenta ha sido creada.',
+          [
+            {
+              text: 'Continuar',
+              onPress: () => router.replace('/ChooseModeScreen')
+            }
+          ]
+        );
       } else {
         console.log('❌ Error en registro:', result.message);
         Alert.alert('Error', result.message || 'No se pudo registrar el usuario');
@@ -122,15 +165,33 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {/* RUT Input */}
+          {/* Phone Number Input */}
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder="RUT"
+              placeholder="Phone Number (ej: +56912345678)"
               placeholderTextColor="#876363"
-              value={rut}
-              onChangeText={setRut}
+              value={phoneNumber}
+              onChangeText={setPhoneNumber}
+              keyboardType="phone-pad"
             />
+          </View>
+
+          {/* Description Input */}
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Description (Ej: Estudiante de 3er año, Conductor con 5 años de experiencia)"
+              placeholderTextColor="#876363"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+            />
+            <Text style={styles.helperText}>
+              Opcional: Cuéntanos un poco sobre ti
+            </Text>
           </View>
 
           {/* Password Input */}
@@ -143,6 +204,9 @@ export default function RegisterScreen() {
               onChangeText={setPassword}
               secureTextEntry
             />
+            <Text style={styles.helperText}>
+              Mínimo 6 caracteres y debe contener al menos un número
+            </Text>
           </View>
 
           {/* Confirm Password Input */}
@@ -254,6 +318,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Plus Jakarta Sans',
     color: '#171212',
+  },
+  textArea: {
+    height: 100,
+    paddingTop: 12,
+    paddingBottom: 12,
+  },
+  helperText: {
+    fontFamily: 'Plus Jakarta Sans',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#61758A',
+    marginTop: 4,
+    paddingHorizontal: 4,
   },
   uploadContainer: {
     paddingHorizontal: 16,

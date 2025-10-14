@@ -22,6 +22,8 @@ interface RegisterData {
   password: string;
   name: string;
   role: 'passenger' | 'driver';
+  phone_number?: string;
+  description?: string;
 }
 
 interface LoginData {
