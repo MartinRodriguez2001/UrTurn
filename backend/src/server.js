@@ -3,6 +3,13 @@ import dotenv from 'dotenv';
 import express from 'express';
 import { testConnection } from './config/database.js';
 import authRoutes from './routes/authRoutes.js';
+import userRoutes from './routes/userRoutes.js';
+import vehicleRoutes from './routes/vehicleRoutes.js';
+import travelRoutes from './routes/travelRoutes.js';
+import travelRequestRoutes from './routes/travelRequestRoutes.js';
+import ratingRoutes from './routes/ratingRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import reportRoutes from './routes/reportRoutes.js';
 
 // Configurar variables de entorno
 dotenv.config();
@@ -26,6 +33,13 @@ app.get('/', (req, res) => {
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/travels', travelRoutes);
+app.use('/api/travel-requests', travelRequestRoutes);
+app.use('/api/ratings', ratingRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/reports', reportRoutes);
 
 // Manejo de rutas no encontradas
 app.use('*', (req, res) => {
