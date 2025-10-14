@@ -27,7 +27,7 @@ export const register = async (req, res) => {
       });
     }
 
-    const { email, password, name, role } = req.body;
+    const { email, password, name, role, phone_number, description } = req.body;
 
     // Verificar si el usuario ya existe
     const existingUser = await User.findByEmail(email);
@@ -43,7 +43,9 @@ export const register = async (req, res) => {
       email,
       password,
       name,
-      role: role || 'passenger'
+      role: role || 'passenger',
+      phone_number,
+      description
     });
 
     // Generar token JWT

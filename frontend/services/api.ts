@@ -14,7 +14,14 @@ export const authAPI = {
   /**
    * Registrar nuevo usuario
    */
-  register: async (userData: { email: string; password: string; name?: string; isDriver?: boolean; phone_number?: string; description?: string }) => {
+  register: async (userData: { 
+    email: string; 
+    password: string; 
+    name: string; 
+    role: 'passenger' | 'driver';
+    phone_number?: string; 
+    description?: string;
+  }) => {
     try {
       console.log('[API] Enviando petición de registro a:', `${API_URL}/api/auth/register`);
       console.log('[API] Datos:', userData);
