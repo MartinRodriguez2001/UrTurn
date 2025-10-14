@@ -11,6 +11,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import * as Location from 'expo-location';
 import PassengerMap from '../../components/passenger/PassengerMap';
 import type {
     MapCoordinate,
@@ -62,6 +63,9 @@ export default function PassengerSearchRider() {
     const [mapRegion, setMapRegion] = useState<MapRegion>(defaultRegion);
     const [markerCoordinate, setMarkerCoordinate] = useState<MapCoordinate | null>(null);
     const [focusRegion, setFocusRegion] = useState<MapRegion | null>(null);
+    const [userLocation, setUserLocation] = useState<MapCoordinate | null>(null);
+    const [isLocatingUser, setIsLocatingUser] = useState(false);
+    const searchInputRef = React.useRef<TextInput | null>(null);
     React.useEffect(() => {
         if (!focusRegion) {
             return;
@@ -71,8 +75,75 @@ export default function PassengerSearchRider() {
         return () => clearTimeout(timeoutId);
     }, [focusRegion]);
 
+    const locateUserAndCenter = React.useCallback(
+        async (options?: { withMarker?: boolean; label?: string }) => {
+            try {
+                setIsLocatingUser(true);
+
+                let permission = await Location.getForegroundPermissionsAsync();
+                if (permission.status !== Location.PermissionStatus.GRANTED) {
+                    permission = await Location.requestForegroundPermissionsAsync();
+                }
+
+                if (permission.status !== Location.PermissionStatus.GRANTED) {
+                    return false;
+                }
+
+                const position = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced,
+                });
+
+                const coordinate: MapCoordinate = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                };
+
+                setUserLocation(coordinate);
+
+                setMapRegion((current) => ({
+                    latitude: coordinate.latitude,
+                    longitude: coordinate.longitude,
+                    latitudeDelta: current.latitudeDelta,
+                    longitudeDelta: current.longitudeDelta,
+                }));
+
+                const focusDelta = Math.max(defaultRegion.latitudeDelta / 4, 0.01);
+                setFocusRegion({
+                    latitude: coordinate.latitude,
+                    longitude: coordinate.longitude,
+                    latitudeDelta: focusDelta,
+                    longitudeDelta: focusDelta,
+                });
+
+                if (options?.withMarker) {
+                    setMarkerCoordinate(coordinate);
+                    const resolvedLabel = options.label ?? 'Tu ubicación actual';
+                    setSelectedLocationLabel(resolvedLabel);
+                    setSearchQuery(resolvedLabel);
+                    setPredictions([]);
+                    setIsLoadingPredictions(false);
+                    setSessionToken(createPlacesSessionToken());
+                } else {
+                    setIsLoadingPredictions(false);
+                }
+
+                return true;
+            } catch (error) {
+                console.warn('No se pudo obtener la ubicación actual', error);
+                return false;
+            } finally {
+                setIsLocatingUser(false);
+            }
+        },
+        [defaultRegion],
+    );
+
     React.useEffect(() => {
-        if (!searchQuery || searchQuery.trim().length < 3) {
+        void locateUserAndCenter({ withMarker: true, label: 'Tu ubicación actual' });
+    }, [locateUserAndCenter]);
+
+    React.useEffect(() => {
+        if (!searchQuery || searchQuery.trim().length < 2) {
             setPredictions([]);
             setIsLoadingPredictions(false);
             return;
@@ -89,10 +160,13 @@ export default function PassengerSearchRider() {
         const fetchPredictions = async () => {
             try {
                 setIsLoadingPredictions(true);
+                const locationBias = userLocation
+                    ? `&locationbias=point:${userLocation.latitude.toFixed(6)},${userLocation.longitude.toFixed(6)}`
+                    : '';
                 const response = await fetch(
                     `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
                         inputValue,
-                    )}&key=${googleMapsApiKey}&language=es&sessiontoken=${sessionToken}&types=geocode`,
+                    )}&key=${googleMapsApiKey}&language=es&sessiontoken=${sessionToken}&types=geocode${locationBias}`,
                     { signal: controller.signal },
                 );
 
@@ -113,6 +187,7 @@ export default function PassengerSearchRider() {
             } catch (error) {
                 if (!isCancelled) {
                     setPredictions([]);
+                    console.warn('Error obteniendo sugerencias de Places', error);
                 }
             } finally {
                 if (!isCancelled) {
@@ -128,7 +203,7 @@ export default function PassengerSearchRider() {
             controller.abort();
             clearTimeout(timeoutId);
         };
-    }, [searchQuery, googleMapsApiKey, sessionToken]);
+    }, [searchQuery, googleMapsApiKey, sessionToken, userLocation]);
 
     const handleSelectPrediction = React.useCallback(
         async (prediction: AutocompletePrediction) => {
@@ -139,16 +214,16 @@ export default function PassengerSearchRider() {
             try {
                 setPredictions([]);
                 setIsLoadingPredictions(false);
-                setSearchQuery('');
                 const primaryText = prediction.structured_formatting?.main_text ?? prediction.description;
                 const secondaryText = prediction.structured_formatting?.secondary_text;
                 const formattedLabel = secondaryText ? `${primaryText}, ${secondaryText}` : primaryText;
+                setSearchQuery(formattedLabel);
                 Keyboard.dismiss();
 
                 const response = await fetch(
                     `https://maps.googleapis.com/maps/api/place/details/json?place_id=${
                         prediction.place_id
-                    }&key=${googleMapsApiKey}&language=es&sessiontoken=${sessionToken}`,
+                    }&key=${googleMapsApiKey}&language=es&sessiontoken=${sessionToken}&fields=geometry%2Cname%2Cformatted_address`,
                 );
 
                 if (!response.ok) {
@@ -181,6 +256,7 @@ export default function PassengerSearchRider() {
                 setSessionToken(createPlacesSessionToken());
             } catch (error) {
                 // Autocomplete errors are non-critical; suppressing UI error for now.
+                console.warn('Error obteniendo detalles del lugar', error);
             }
         },
         [googleMapsApiKey, sessionToken],
@@ -196,12 +272,11 @@ export default function PassengerSearchRider() {
         setMarkerCoordinate(coordinate);
         setMapRegion(manualRegion);
         setFocusRegion(manualRegion);
-        setSearchQuery('');
+        const manualLabel = `Ubicación manual: ${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
+        setSearchQuery(manualLabel);
         setPredictions([]);
         setIsLoadingPredictions(false);
-        setSelectedLocationLabel(
-            `Ubicación manual: ${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`,
-        );
+        setSelectedLocationLabel(manualLabel);
         setSessionToken(createPlacesSessionToken());
     }, []);
     const handleRegionChange = React.useCallback((region: MapRegion) => {
@@ -215,9 +290,13 @@ export default function PassengerSearchRider() {
 
             setSearchQuery(text);
 
-            if (text.trim().length < 3) {
+            if (text.trim().length < 2) {
                 setPredictions([]);
                 setIsLoadingPredictions(false);
+            }
+
+            if (text.length > 0) {
+                setSelectedLocationLabel('');
             }
         },
         [searchQuery],
@@ -253,6 +332,7 @@ export default function PassengerSearchRider() {
                         onRegionChangeComplete={handleRegionChange}
                         allowManualSelection
                         onSelectCoordinate={handleManualCoordinateSelection}
+                        showsUserLocation
                     />
 
                     {/* Destination Input */}
@@ -269,7 +349,13 @@ export default function PassengerSearchRider() {
                                 onChangeText={handleSearchQueryChange}
                                 autoCorrect={false}
                                 autoCapitalize="none"
+                                ref={searchInputRef}
                                 returnKeyType="search"
+                                onSubmitEditing={() => {
+                                    if (predictions[0]) {
+                                        void handleSelectPrediction(predictions[0]);
+                                    }
+                                }}
                             />
                         </View>
 
@@ -310,22 +396,43 @@ export default function PassengerSearchRider() {
 
                         {predictions.length === 0 ? (
                             <Text style={styles.manualSelectionHint}>
-                                Mantén presionado el mapa para seleccionar una ubicación manualmente.
+                                Mantén presionado el mapa o usa el botón 📍 para seleccionar tu ubicación.
                             </Text>
                         ) : null}
                     </View>
 
                     {/* Map Controls */}
                     <View style={styles.mapControls}>
-                        <View style={styles.controlButton}>
+                        <TouchableOpacity
+                            style={styles.controlButton}
+                            onPress={() => searchInputRef.current?.focus()}
+                            accessibilityLabel="Abrir buscador de destinos"
+                        >
                             <Text style={styles.controlIcon}>🔍</Text>
-                        </View>
-                        <View style={styles.controlButton}>
-                            <Text style={styles.controlIcon}>📍</Text>
-                        </View>
-                        <View style={styles.controlButton}>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[
+                                styles.controlButton,
+                                isLocatingUser ? styles.controlButtonDisabled : null,
+                            ]}
+                            onPress={() => {
+                                void locateUserAndCenter({
+                                    withMarker: true,
+                                    label: 'Tu ubicación actual',
+                                });
+                            }}
+                            accessibilityLabel="Centrar en mi ubicación actual"
+                            disabled={isLocatingUser}
+                        >
+                            {isLocatingUser ? (
+                                <ActivityIndicator size="small" color="#F99F7C" />
+                            ) : (
+                                <Text style={styles.controlIcon}>📍</Text>
+                            )}
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.controlButton} disabled>
                             <Text style={styles.controlIcon}>⚙️</Text>
-                        </View>
+                        </TouchableOpacity>
                     </View>
                 </View>
             </View>
@@ -616,6 +723,9 @@ const styles = StyleSheet.create({
     },
     controlIcon: {
         fontSize: 24,
+    },
+    controlButtonDisabled: {
+        opacity: 0.5,
     },
     bottomPanel: {
         backgroundColor: '#FFFFFF',

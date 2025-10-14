@@ -11,6 +11,7 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
     onRegionChangeComplete,
     allowManualSelection = false,
     onSelectCoordinate,
+    showsUserLocation = false,
 }) => {
     const mapRef = React.useRef<MapView | null>(null);
 
@@ -45,6 +46,7 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
             toolbarEnabled={false}
             onRegionChangeComplete={onRegionChangeComplete}
             onLongPress={handleMapLongPress}
+            showsUserLocation={showsUserLocation}
         >
             {markerCoordinate ? <Marker coordinate={markerCoordinate} /> : null}
         </MapView>
