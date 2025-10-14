@@ -1,5 +1,5 @@
 import React from 'react';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { MapLongPressEvent, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { PassengerMapProps } from './PassengerMap.types';
 
 const PassengerMap: React.FC<PassengerMapProps> = ({
@@ -9,6 +9,8 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
     markerCoordinate,
     focusRegion,
     onRegionChangeComplete,
+    allowManualSelection = false,
+    onSelectCoordinate,
 }) => {
     const mapRef = React.useRef<MapView | null>(null);
 
@@ -17,6 +19,18 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
             mapRef.current.animateToRegion(focusRegion, 600);
         }
     }, [focusRegion]);
+
+    const handleMapLongPress = React.useCallback(
+        (event: MapLongPressEvent) => {
+            if (!allowManualSelection || !onSelectCoordinate) {
+                return;
+            }
+
+            const { latitude, longitude } = event.nativeEvent.coordinate;
+            onSelectCoordinate({ latitude, longitude });
+        },
+        [allowManualSelection, onSelectCoordinate],
+    );
 
     return (
         <MapView
@@ -30,6 +44,7 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
             showsIndoors={false}
             toolbarEnabled={false}
             onRegionChangeComplete={onRegionChangeComplete}
+            onLongPress={handleMapLongPress}
         >
             {markerCoordinate ? <Marker coordinate={markerCoordinate} /> : null}
         </MapView>
@@ -37,4 +52,3 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
 };
 
 export default PassengerMap;
-

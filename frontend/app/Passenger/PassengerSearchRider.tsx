@@ -17,6 +17,9 @@ import type {
     MapRegion,
 } from '../../components/passenger/PassengerMap.types';
 
+const createPlacesSessionToken = () =>
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
+
 type AutocompletePrediction = {
     description: string;
     place_id: string;
@@ -40,10 +43,12 @@ type PlaceDetailsResponse = {
 
 export default function PassengerSearchRider() {
     const router = useRouter();
-    const [destination, setDestination] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [showTimePicker, setShowTimePicker] = useState(false);
     const [predictions, setPredictions] = useState<AutocompletePrediction[]>([]);
     const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
+    const [selectedLocationLabel, setSelectedLocationLabel] = useState('');
+    const [sessionToken, setSessionToken] = useState(() => createPlacesSessionToken());
     const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_ID ?? process.env.GOOGLE_MAPS_ID ?? '';
     const defaultRegion = React.useMemo<MapRegion>(
         () => ({
@@ -67,26 +72,27 @@ export default function PassengerSearchRider() {
     }, [focusRegion]);
 
     React.useEffect(() => {
-        if (!destination || destination.trim().length < 3) {
+        if (!searchQuery || searchQuery.trim().length < 3) {
             setPredictions([]);
             setIsLoadingPredictions(false);
             return;
         }
 
         if (!googleMapsApiKey) {
+            setIsLoadingPredictions(false);
             return;
         }
 
         let isCancelled = false;
         const controller = new AbortController();
-        const inputValue = destination.trim();
+        const inputValue = searchQuery.trim();
         const fetchPredictions = async () => {
             try {
                 setIsLoadingPredictions(true);
                 const response = await fetch(
                     `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
                         inputValue,
-                    )}&key=${googleMapsApiKey}&language=es`,
+                    )}&key=${googleMapsApiKey}&language=es&sessiontoken=${sessionToken}&types=geocode`,
                     { signal: controller.signal },
                 );
 
@@ -122,7 +128,7 @@ export default function PassengerSearchRider() {
             controller.abort();
             clearTimeout(timeoutId);
         };
-    }, [destination, googleMapsApiKey]);
+    }, [searchQuery, googleMapsApiKey, sessionToken]);
 
     const handleSelectPrediction = React.useCallback(
         async (prediction: AutocompletePrediction) => {
@@ -131,14 +137,18 @@ export default function PassengerSearchRider() {
             }
 
             try {
-                setDestination(prediction.description);
                 setPredictions([]);
+                setIsLoadingPredictions(false);
+                setSearchQuery('');
+                const primaryText = prediction.structured_formatting?.main_text ?? prediction.description;
+                const secondaryText = prediction.structured_formatting?.secondary_text;
+                const formattedLabel = secondaryText ? `${primaryText}, ${secondaryText}` : primaryText;
                 Keyboard.dismiss();
 
                 const response = await fetch(
                     `https://maps.googleapis.com/maps/api/place/details/json?place_id=${
                         prediction.place_id
-                    }&key=${googleMapsApiKey}&language=es`,
+                    }&key=${googleMapsApiKey}&language=es&sessiontoken=${sessionToken}`,
                 );
 
                 if (!response.ok) {
@@ -167,15 +177,51 @@ export default function PassengerSearchRider() {
 
                 setMarkerCoordinate(coordinate);
                 setFocusRegion(updatedRegion);
+                setSelectedLocationLabel(formattedLabel);
+                setSessionToken(createPlacesSessionToken());
             } catch (error) {
                 // Autocomplete errors are non-critical; suppressing UI error for now.
             }
         },
-        [googleMapsApiKey],
+        [googleMapsApiKey, sessionToken],
     );
+    const handleManualCoordinateSelection = React.useCallback((coordinate: MapCoordinate) => {
+        const manualRegion: MapRegion = {
+            latitude: coordinate.latitude,
+            longitude: coordinate.longitude,
+            latitudeDelta: 0.01,
+            longitudeDelta: 0.01,
+        };
+
+        setMarkerCoordinate(coordinate);
+        setMapRegion(manualRegion);
+        setFocusRegion(manualRegion);
+        setSearchQuery('');
+        setPredictions([]);
+        setIsLoadingPredictions(false);
+        setSelectedLocationLabel(
+            `Ubicación manual: ${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`,
+        );
+        setSessionToken(createPlacesSessionToken());
+    }, []);
     const handleRegionChange = React.useCallback((region: MapRegion) => {
         setMapRegion(region);
     }, []);
+    const handleSearchQueryChange = React.useCallback(
+        (text: string) => {
+            if ((searchQuery.length === 0 && text.length > 0) || text.length === 0) {
+                setSessionToken(createPlacesSessionToken());
+            }
+
+            setSearchQuery(text);
+
+            if (text.trim().length < 3) {
+                setPredictions([]);
+                setIsLoadingPredictions(false);
+            }
+        },
+        [searchQuery],
+    );
 
     return (
         <SafeAreaView style={styles.container}>
@@ -205,6 +251,8 @@ export default function PassengerSearchRider() {
                         markerCoordinate={markerCoordinate}
                         focusRegion={focusRegion}
                         onRegionChangeComplete={handleRegionChange}
+                        allowManualSelection
+                        onSelectCoordinate={handleManualCoordinateSelection}
                     />
 
                     {/* Destination Input */}
@@ -217,10 +265,11 @@ export default function PassengerSearchRider() {
                                 style={styles.destinationTextInput}
                                 placeholder="Donde Vas?"
                                 placeholderTextColor="#61758A"
-                                value={destination}
-                                onChangeText={setDestination}
+                                value={searchQuery}
+                                onChangeText={handleSearchQueryChange}
                                 autoCorrect={false}
                                 autoCapitalize="none"
+                                returnKeyType="search"
                             />
                         </View>
 
@@ -250,6 +299,19 @@ export default function PassengerSearchRider() {
                                     </TouchableOpacity>
                                 ))}
                             </View>
+                        ) : null}
+
+                        {selectedLocationLabel ? (
+                            <View style={styles.selectedLocationContainer}>
+                                <Text style={styles.selectedLocationTitle}>Ubicación seleccionada</Text>
+                                <Text style={styles.selectedLocationText}>{selectedLocationLabel}</Text>
+                            </View>
+                        ) : null}
+
+                        {predictions.length === 0 ? (
+                            <Text style={styles.manualSelectionHint}>
+                                Mantén presionado el mapa para seleccionar una ubicación manualmente.
+                            </Text>
                         ) : null}
                     </View>
 
@@ -493,6 +555,42 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 18,
         color: '#61758A',
+    },
+    selectedLocationContainer: {
+        marginTop: 8,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 2,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    selectedLocationTitle: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '600',
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#121417',
+        marginBottom: 4,
+    },
+    selectedLocationText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 13,
+        lineHeight: 18,
+        color: '#61758A',
+    },
+    manualSelectionHint: {
+        marginTop: 8,
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 12,
+        lineHeight: 16,
+        color: '#4B5563',
     },
     mapControls: {
         position: 'absolute',

@@ -17,5 +17,6 @@ export type PassengerMapProps = {
     markerCoordinate: MapCoordinate | null;
     focusRegion?: MapRegion | null;
     onRegionChangeComplete?: (region: MapRegion) => void;
+    allowManualSelection?: boolean;
+    onSelectCoordinate?: (coordinate: MapCoordinate) => void;
 };
-
