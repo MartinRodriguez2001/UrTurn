@@ -48,8 +48,6 @@ export default function LogInScreen() {
       console.log('🔄 Iniciando login...');
       console.log('📱 Platform:', Platform.OS);
       console.log('📧 Email:', email.trim().toLowerCase());
-
-      // Corregir: login espera email y password directamente, no un objeto
       const result = await login(email.trim().toLowerCase(), password.trim());
 
       console.log('📥 Resultado del login:', result);
@@ -67,8 +65,6 @@ export default function LogInScreen() {
                 setEmail('');
                 setPassword('');
                 setRememberMe(false);
-                
-                // Navegar al dashboard o pantalla principal
                 router.replace("/ChooseModeScreen");
               }
             }

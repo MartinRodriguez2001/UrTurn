@@ -1,5 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Slot, useRouter } from 'expo-router';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function PassengerLayout() {
     const router = useRouter()
@@ -12,12 +12,12 @@ export default function PassengerLayout() {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNavigation}>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/Passenger/PassengerHomePage")}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace("/Passenger/PassengerHomePage")}>
           <Text style={styles.navIcon}>🏠</Text>
           <Text style={styles.navLabel}>Inicio</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/Passenger/PassengerSearchRider")}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace("/Passenger/PassengerSearchRider")}>
           <Text style={styles.navIcon}>🔍</Text>
           <Text style={styles.navLabel}>Buscar</Text>
         </TouchableOpacity>

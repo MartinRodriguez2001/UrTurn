@@ -2,38 +2,23 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useAuth } from '../context/authContext';
 
 export default function ProfilePictureRegister() {
   const router = useRouter();
-  const { register } = useAuth();
-  
-  // Recibir datos de la pantalla anterior
   const { name, email, password, phoneNumber, description } = useLocalSearchParams();
   
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // Función para generar credenciales automáticamente
-  const generateCredentials = () => {
-    const timestamp = Date.now();
-    const randomSuffix = Math.random().toString(36).substr(2, 6).toUpperCase();
-    
-    return {
-      institution_credential: `CRED-${timestamp}-${randomSuffix}`,
-      student_certificate: `CERT-STU-${timestamp}-${randomSuffix}`
-    };
-  };
 
   // Función para seleccionar imagen desde galería
   const pickImageFromGallery = async () => {
@@ -116,72 +101,54 @@ export default function ProfilePictureRegister() {
     );
   };
 
-  // Función para continuar sin foto
-  const skipPhoto = async () => {
-    await handleCompleteRegistration('');
-  };
-
   // Función para completar el registro
-  const handleCompleteRegistration = async (profilePictureUri: string) => {
-    setLoading(true);
+  const handleContinueToCredentials = async (profilePictureUri: string) => {
+  setLoading(true);
 
-    try {
-      console.log('🔄 Completando registro...');
-      console.log('📧 Email:', email);
-      console.log('📱 Phone:', phoneNumber);
-      console.log('🖼️ Profile Picture URI:', profilePictureUri);
+  try {
+    console.log('🔄 Pasando a credenciales...');
+    console.log('📧 Email:', email);
+    console.log('📱 Phone:', phoneNumber);
+    console.log('🖼️ Profile Picture URI:', profilePictureUri);
 
-      // Generar credenciales automáticamente
-      const credentials = generateCredentials();
-      
-      const userData = {
+    // Simular un pequeño delay para mostrar el loading
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Navegar a credentialsRegister con todos los datos
+    router.push({
+      pathname: "/credentialsRegister",
+      params: {
         name: name as string,
         email: email as string,
         password: password as string,
-        phone_number: phoneNumber as string,
+        phoneNumber: phoneNumber as string,
         description: (description as string) || '',
-        // Campos generados automáticamente
-        institution_credential: credentials.institution_credential,
-        student_certificate: credentials.student_certificate,
-        IsDriver: false, // Por defecto es pasajero
-        profile_picture: profilePictureUri, // URI de la imagen o string vacío
-      };
+        profilePicture: profilePictureUri, // URI de la imagen o string vacío
+      },
+    });
 
-      console.log('📤 Datos de registro completos:', userData);
+  } catch (error) {
+    console.error('❌ Error al navegar:', error);
+    Alert.alert('Error', 'Hubo un problema al continuar. Intenta de nuevo.');
+  } finally {
+    setLoading(false);
+  }
+};
 
-      const result = await register(userData);
+// Función para continuar sin foto
+const skipPhoto = async () => {
+  await handleContinueToCredentials('');
+};
 
-      console.log('📥 Resultado del registro:', result);
-
-      if (result.success) {
-        console.log('✅ Registro completado! Navegando...');
-        
-        // Navegar a ChooseModeScreen
-        router.replace('/ChooseModeScreen');
-      } else {
-        console.log('❌ Error en registro:', result.message);
-        Alert.alert('Error de Registro', result.message || 'No se pudo completar el registro');
-      }
-    } catch (error) {
-      console.error('❌ Error completo en registro:', error);
-      Alert.alert(
-        'Error de Conexión',
-        'No se pudo completar el registro. Verifica tu conexión e intenta de nuevo.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Función para continuar con foto
-  const continueWithPhoto = async () => {
-    if (!imageUri) {
-      Alert.alert('Error', 'Por favor selecciona una foto primero');
-      return;
-    }
-    
-    await handleCompleteRegistration(imageUri);
-  };
+// Función para continuar con foto
+const continueWithPhoto = async () => {
+  if (!imageUri) {
+    Alert.alert('Error', 'Por favor selecciona una foto primero');
+    return;
+  }
+  
+  await handleContinueToCredentials(imageUri);
+};
 
   return (
     <SafeAreaView style={styles.container}>

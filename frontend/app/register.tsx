@@ -200,7 +200,7 @@ export default function RegisterScreen() {
               placeholderTextColor="#876363"
               value={password}
               onChangeText={setPassword}
-              secureTextEntry
+              
             />
             <Text style={styles.helperText}>
               Mínimo 6 caracteres y debe contener al menos un número
@@ -215,7 +215,7 @@ export default function RegisterScreen() {
               placeholderTextColor="#876363"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              secureTextEntry
+              
             />
           </View>
 
