@@ -12,7 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useAuth } from "../context/UserContext";
+import { useAuth } from "../context/authContext";
 
 export default function LogInScreen() {
   const [email, setEmail] = useState("");
