@@ -1,0 +1,157 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TravelStatus {
+  pendiente
+  confirmado
+  cancelado
+  finalizado
+}
+
+enum RequestStatus {
+  pendiente
+  aceptada
+  rechazada
+}
+
+enum ReportStatus {
+  abierto
+  en_revision
+  resuelto
+}
+
+model User {
+  id Int @id @default(autoincrement())
+  name String
+  institutional_email String @unique
+  password_hash String
+  institution_credential String
+  student_certificate String
+  IsDriver Boolean @default(false)
+  phone_number String
+  active Boolean @default(false)
+  profile_picture String?
+  description String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  // Relaciones existentes
+  travel Travel[]
+  vehicles Vehicle[]
+  travelRequests TravelRequest[]
+  confirmations Confirmation[]
+  reports Report[]
+  
+  // Relaciones para reviews
+  reviewsGiven Review[] @relation("ReviewerToTarget")    // Reviews que este usuario ha dado
+  reviewsReceived Review[] @relation("TargetToReviewer") // Reviews que este usuario ha recibido
+}
+
+model Travel {
+  id Int @id @default(autoincrement())
+  start_location String
+  end_location String
+  capacity Int
+  price Float
+  start_time DateTime
+  end_time DateTime
+  spaces_available Int
+  status TravelStatus @default(pendiente)
+
+  carId Int
+
+  reviews Review[]
+  requests TravelRequest[]
+  confirmations Confirmation[]
+  reports Report[]
+
+  userId Int
+  driver_id User @relation(fields: [userId], references: [id])
+}
+
+model Vehicle {
+  id Int @id @default(autoincrement())
+  licence_plate String @unique
+  model String
+  brand String
+  year Int
+  validation Boolean @default(false)
+
+  userId Int
+  owner User @relation(fields: [userId], references: [id])
+}
+
+model Review {
+  id Int @id @default(autoincrement())
+  
+  // Relación con el usuario que da el review
+  reviewer_id Int
+  reviewer User @relation("ReviewerToTarget", fields: [reviewer_id], references: [id])
+  
+  // Relación con el usuario que recibe el review
+  user_target_id Int
+  user_target User @relation("TargetToReviewer", fields: [user_target_id], references: [id])
+
+  // Relación con el viaje
+  travel_id Int
+  travel Travel @relation(fields: [travel_id], references: [id])
+  
+  starts Int 
+  review String
+  date DateTime @default(now())
+}
+
+model TravelRequest {
+  id Int @id @default(autoincrement())
+
+  travelId Int
+  travel Travel @relation(fields: [travelId], references: [id])
+  location String
+  status RequestStatus @default(pendiente)
+
+
+  passengerId Int
+  passenger User @relation(fields: [passengerId], references: [id])
+
+  created_at DateTime @default(now())
+
+}
+
+model Confirmation {
+  id Int @id @default(autoincrement())
+
+  travelId Int
+  travel Travel @relation(fields: [travelId], references: [id])
+
+  usuarioId Int
+  usuario User @relation(fields: [usuarioId], references: [id])
+
+  date DateTime @default(now())
+}
+
+model Report {
+  id Int @id @default(autoincrement())
+  usuarioId Int
+  usuario User @relation(fields: [usuarioId], references: [id])
+  travelId Int
+  travel Travel @relation(fields: [travelId], references: [id])
+
+
+  description String
+  date DateTime @default(now())
+}
+
+
