@@ -27,6 +27,7 @@ export class UserService {
       data: {
         ...userDataWithoutPassword,
         password_hash: hashedPassword,
+        active: true
       },
       select: {
         id: true,

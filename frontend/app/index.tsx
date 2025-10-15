@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -23,28 +24,75 @@ export default function LogInScreen() {
   const { login } = useAuth();
 
   const handleLogin = async () => {
-    if (!email.trim() || !password.trim()) {
-      Alert.alert('Error', 'Por favor completa todos los campos');
+    // Validaciones básicas
+    if (!email.trim()) {
+      Alert.alert('Error', 'Por favor ingresa tu correo institucional');
+      return;
+    }
+
+    if (!password.trim()) {
+      Alert.alert('Error', 'Por favor ingresa tu contraseña');
+      return;
+    }
+
+    // Validar formato de email institucional
+    const emailRegex = /^[^\s@]+@miuandes\.cl$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Error', 'Por favor ingresa un email institucional válido (@miuandes.cl)');
       return;
     }
 
     setLoading(true);
 
     try {
-      const result = await login({
-        email: email.trim().toLowerCase(),
-        password,
-      });
+      console.log('🔄 Iniciando login...');
+      console.log('📱 Platform:', Platform.OS);
+      console.log('📧 Email:', email.trim().toLowerCase());
+
+      // Corregir: login espera email y password directamente, no un objeto
+      const result = await login(email.trim().toLowerCase(), password.trim());
+
+      console.log('📥 Resultado del login:', result);
 
       if (result.success) {
         console.log('✅ Login exitoso! Navegando...');
-        router.replace("/ChooseModeScreen");
+        Alert.alert(
+          'Login Exitoso',
+          '¡Bienvenido de vuelta!',
+          [
+            {
+              text: 'Continuar',
+              onPress: () => {
+                // Limpiar formulario
+                setEmail('');
+                setPassword('');
+                setRememberMe(false);
+                
+                // Navegar al dashboard o pantalla principal
+                router.replace("/ChooseModeScreen");
+              }
+            }
+          ]
+        );
       } else {
-        Alert.alert('Error', result.message || 'Credenciales inválidas');
+        console.log('❌ Error en login:', result.message);
+        Alert.alert('Error de Autenticación', result.message || 'Credenciales inválidas');
       }
     } catch (error) {
-      Alert.alert('Error', 'Error de conexión. Verifica que el servidor esté corriendo.');
-      console.error('Error en login:', error);
+      console.error('❌ Error completo en login:', error);
+      
+      let errorMessage = 'Error de conexión. ';
+      
+      if (Platform.OS === 'android') {
+        errorMessage += 'Si usas Android Emulator, asegúrate de que el backend esté en http://10.0.2.2:3000';
+      } else {
+        errorMessage += 'Asegúrate de que el backend esté corriendo en http://localhost:3000';
+      }
+      
+      Alert.alert(
+        'Error de Conexión',
+        errorMessage + '\n\nVerifica también:\n• Que el backend esté ejecutándose\n• Tus credenciales de acceso'
+      );
     } finally {
       setLoading(false);
     }
@@ -65,19 +113,24 @@ export default function LogInScreen() {
         {/* Title */}
         <View style={styles.titleContainer}>
           <Text style={styles.title}>Viaja Seguro</Text>
+          <Text style={styles.subtitle}>Inicia sesión en tu cuenta</Text>
         </View>
 
         {/* Email Input */}
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="Correo Institucional"
+            placeholder="Correo Institucional (ejemplo@miuandes.cl)"
             placeholderTextColor="#876363"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoComplete="email"
           />
+          <Text style={styles.helperText}>
+            Usa tu correo institucional de UAndes
+          </Text>
         </View>
 
         {/* Password Input */}
@@ -89,13 +142,14 @@ export default function LogInScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            autoComplete="password"
           />
         </View>
 
         {/* Forgot Password and Remember Me */}
         <View style={styles.optionsContainer}>
-          <TouchableOpacity>
-            <Text style={styles.forgotPassword}>Olvidaste tu contaseña?</Text>
+          <TouchableOpacity onPress={() => Alert.alert('Próximamente', 'Esta funcionalidad estará disponible pronto')}>
+            <Text style={styles.forgotPassword}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.rememberMeContainer}
@@ -106,7 +160,7 @@ export default function LogInScreen() {
             >
               {rememberMe && <Text style={styles.checkmark}>✓</Text>}
             </View>
-            <Text style={styles.rememberMeText}>Recuerdame</Text>
+            <Text style={styles.rememberMeText}>Recuérdame</Text>
           </TouchableOpacity>
         </View>
 
@@ -118,9 +172,14 @@ export default function LogInScreen() {
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={[styles.loginButtonText, { marginLeft: 8 }]}>
+                  Iniciando sesión...
+                </Text>
+              </View>
             ) : (
-              <Text style={styles.loginButtonText}>Iniciar sesion</Text>
+              <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -131,13 +190,13 @@ export default function LogInScreen() {
             style={styles.registerButton}
             onPress={() => router.push("/register")}
           >
-            <Text style={styles.registerButtonText}>Registrarse</Text>
+            <Text style={styles.registerButtonText}>¿No tienes cuenta? Regístrate</Text>
           </TouchableOpacity>
         </View>
 
         {/* Background Design */}
         <View style={styles.backgroundContainer}>
-          {/* Background decorative elements will be added later */}
+          {/* Background decorative elements */}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -165,11 +224,10 @@ const styles = StyleSheet.create({
     height: 65,
   },
   titleContainer: {
-    height: 60,
     paddingVertical: 15,
     paddingHorizontal: 16,
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 20,
   },
   title: {
     fontFamily: "Plus Jakarta Sans",
@@ -177,6 +235,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     color: "#171212",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    lineHeight: 20,
+    color: "#61758A",
     textAlign: "center",
   },
   inputContainer: {
@@ -194,19 +260,28 @@ const styles = StyleSheet.create({
     fontFamily: "Plus Jakarta Sans",
     color: "#171212",
   },
+  helperText: {
+    fontFamily: 'Plus Jakarta Sans',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#61758A',
+    marginTop: 4,
+    paddingHorizontal: 4,
+  },
   optionsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 4,
-    marginBottom: 8,
+    paddingVertical: 8,
+    marginBottom: 16,
   },
   forgotPassword: {
     fontSize: 14,
     fontFamily: "Plus Jakarta Sans",
-    color: "#876363",
+    color: "#F99F7C",
     lineHeight: 21,
+    fontWeight: '500',
   },
   rememberMeContainer: {
     flexDirection: "row",
@@ -215,14 +290,17 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 18,
     height: 18,
-    borderRadius: 2,
+    borderRadius: 3,
     backgroundColor: "rgba(29, 27, 32, 0.1)",
+    borderWidth: 1,
+    borderColor: "#876363",
     marginRight: 8,
     alignItems: "center",
     justifyContent: "center",
   },
   checkboxChecked: {
-    backgroundColor: "#6750A4",
+    backgroundColor: "#F99F7C",
+    borderColor: "#F99F7C",
   },
   checkmark: {
     color: "#FFFFFF",
@@ -236,7 +314,7 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
   },
   loginButton: {
     backgroundColor: "#F99F7C",
@@ -245,6 +323,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
+    marginBottom: 8,
   },
   loginButtonText: {
     fontFamily: "Plus Jakarta Sans",
@@ -257,19 +336,26 @@ const styles = StyleSheet.create({
   loginButtonDisabled: {
     opacity: 0.6,
   },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   registerButton: {
-    backgroundColor: "#F5F0F0",
+    backgroundColor: "transparent",
     height: 40,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#F5F0F0",
   },
   registerButtonText: {
     fontFamily: "Plus Jakarta Sans",
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#171212",
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#61758A",
     textAlign: "center",
   },
   backgroundContainer: {
@@ -279,9 +365,5 @@ const styles = StyleSheet.create({
     right: 0,
     height: 320,
     zIndex: -1,
-  },
-  backgroundVector: {
-    width: "100%",
-    height: "100%",
   },
 });

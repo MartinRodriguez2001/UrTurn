@@ -1,7 +1,11 @@
+import { userApi } from '@/Services/UserApiService';
+import { User } from '@/types/user';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function ChooseModeScreen() {
+    const [users, setUsers] = useState<User[]>([])
     const router = useRouter();
 
     const handleDriverMode = () => {
@@ -13,6 +17,15 @@ export default function ChooseModeScreen() {
         console.log('Passenger mode selected');
         router.push('/Passenger/PassengerHomePage');
     };
+
+    const getAllUsers = async () => {
+        const response = await userApi.getAllUsers()
+        console.log(response)
+    }
+
+    useEffect(() => {
+        getAllUsers()
+    })
 
     return (
         <SafeAreaView style={styles.container}>
