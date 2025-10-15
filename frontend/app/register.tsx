@@ -3,14 +3,13 @@ import { useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { useAuth } from "../context/authContext";
 
@@ -94,72 +93,29 @@ export default function RegisterScreen() {
     setLoading(true);
 
     try {
-      console.log("🔄 Iniciando registro...");
-      console.log("📱 Platform:", Platform.OS);
-      console.log("📧 Email:", email.trim().toLowerCase());
+      console.log("✅ Validaciones pasadas, navegando a siguiente pantalla...");
+      await new Promise(resolve => setTimeout(resolve, 500));
 
-      const result = await register({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        password: password.trim(),
-        phone_number: phoneNumber.trim(),
-        description: description.trim() || undefined,
-        institution_credential: institutionCredential.trim(),
-        student_certificate: studentCertificate.trim(),
-        IsDriver: isDriver,
-        profile_picture: "", // Campo opcional
+      router.push({
+        pathname: "/profilePictureRegister",
+        params: {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password: password.trim(),
+          phoneNumber: phoneNumber.trim(),
+          description: description.trim() || "",
+        },
       });
+      setName("");
+      setEmail("");
+      setPhoneNumber("");
+      setDescription("");
+      setPassword("");
+      setConfirmPassword("");
 
-      console.log("📥 Resultado del registro:", result);
-
-      if (result.success) {
-        console.log("✅ Registro exitoso! Navegando...");
-        Alert.alert(
-          "Registro Exitoso",
-          "¡Bienvenido a UrTurn! Tu cuenta ha sido creada correctamente.",
-          [
-            {
-              text: "Continuar",
-              onPress: () => {
-                // Limpiar el formulario
-                setName("");
-                setEmail("");
-                setPhoneNumber("");
-                setDescription("");
-                setPassword("");
-                setConfirmPassword("");
-
-                // Navegar a la siguiente pantalla
-                router.replace("/ChooseModeScreen");
-              },
-            },
-          ]
-        );
-      } else {
-        console.log("❌ Error en registro:", result.message);
-        Alert.alert(
-          "Error de Registro",
-          result.message || "No se pudo registrar el usuario"
-        );
-      }
     } catch (error) {
-      console.error("❌ Error completo en registro:", error);
-
-      let errorMessage = "Error de conexión. ";
-
-      if (Platform.OS === "android") {
-        errorMessage +=
-          "Si usas Android Emulator, asegúrate de que el backend esté en http://10.0.2.2:3000";
-      } else {
-        errorMessage +=
-          "Asegúrate de que el backend esté corriendo en http://localhost:3000";
-      }
-
-      Alert.alert(
-        "Error de Conexión",
-        errorMessage +
-          "\n\nVerifica también:\n• Que el backend esté ejecutándose\n• La configuración de red"
-      );
+      console.error("❌ Error al navegar:", error);
+      Alert.alert("Error", "Hubo un problema al continuar. Intenta de nuevo.");
     } finally {
       setLoading(false);
     }
@@ -264,19 +220,19 @@ export default function RegisterScreen() {
           </View>
 
           {/* Upload University ID Button */}
-          <View style={styles.uploadContainer}>
+          {/* <View style={styles.uploadContainer}>
             <TouchableOpacity style={styles.uploadButton}>
               <Text style={styles.uploadButtonText}>Upload University ID</Text>
             </TouchableOpacity>
-          </View>
+          </View> */}
 
           {/* Terms and Privacy Policy */}
-          <View style={styles.termsContainer}>
+          {/* <View style={styles.termsContainer}>
             <Text style={styles.termsText}>
               By signing up, you agree to our Terms of Service and Privacy
               Policy.
             </Text>
-          </View>
+          </View> */}
         </View>
 
         {/* Sign Up Button */}
@@ -293,7 +249,7 @@ export default function RegisterScreen() {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.signUpButtonText}>Sign Up</Text>
+                <Text style={styles.signUpButtonText}>Next</Text>
               )}
             </TouchableOpacity>
           </View>
