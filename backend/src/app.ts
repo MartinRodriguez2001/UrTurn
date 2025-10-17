@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { PrismaClient } from '../generated/prisma/index.js';
 import userRoutes from "./routes/user.route.js";
+import vehicleRoutes from "./routes/vehicle.route.js";
 
 dotenv.config();
 
@@ -50,6 +51,7 @@ app.get('/health', async (req, res) => {
 
 // API Routes
 app.use('/api/users', userRoutes);
+app.use("/api/vehicles", vehicleRoutes)
 
 // Manejo de errores 404
 app.use((req, res) => {

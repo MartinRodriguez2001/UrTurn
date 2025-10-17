@@ -49,7 +49,7 @@ export default function PassengerHomePage() {
       router.push("/Driver/DriverHomePage");
     } else {
       // Si no es driver, navegar a la página para convertirse en driver
-    //   router.push("/BecomeDriverScreen");
+      router.push("/Passenger/DriverRegister");
     }
   };
 

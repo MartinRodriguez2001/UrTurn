@@ -13,7 +13,7 @@ export default function ChooseModeScreen() {
   const router = useRouter();
 
   const handlePassengerMode = () => {
-    router.push("/Passenger/PassengerHomePage");
+    router.replace("/Passenger/PassengerHomePage");
   };
 
   return (
