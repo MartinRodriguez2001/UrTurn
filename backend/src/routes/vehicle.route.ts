@@ -47,4 +47,18 @@ router.delete(
   vehicleController.deleteVehicle.bind(vehicleController)
 );
 
+// PATCH /api/vehicles/:id/validate - Validar vehículo (solo admin)
+router.patch(
+  "/:id/validate", 
+  authenticateToken, 
+  async (req, res) => {
+    // TODO: Agregar middleware de verificación de admin
+    // TODO: Implementar método validateVehicle en el controlador
+    res.status(501).json({
+      success: false,
+      message: "Funcionalidad de validación pendiente de implementar"
+    });
+  }
+);
+
 export default router;

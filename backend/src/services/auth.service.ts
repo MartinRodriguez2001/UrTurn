@@ -116,12 +116,9 @@ export class UserService {
   }
 
   async updateUser(id: number, data: Partial<RegisterRequest>) {
-    // Extraer password si existe y crear objeto sin ese campo
     const { password, ...updateDataWithoutPassword } = data;
     
     const updateData: any = { ...updateDataWithoutPassword };
-    
-    // Si se incluye una nueva contraseña, hashearla
     if (password) {
       updateData.password_hash = await hashPassword(password);
     }

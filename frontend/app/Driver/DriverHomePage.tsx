@@ -1,22 +1,30 @@
-import { StyleSheet, View, Text, TouchableOpacity, SafeAreaView, ScrollView, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import RequestsCard from '@/components/driverComps/RequestsCard';
 import NextTravelCard from '@/components/driverComps/NextTravelCard';
+import RequestsCard from '@/components/driverComps/RequestsCard';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function DriverHomePage() {
     const router = useRouter();
+    const [showModeModal, setShowModeModal] = useState(false);
+
+    const handleModeChange = () => {
+        setShowModeModal(false);
+        router.replace("/Passenger/PassengerHomePage");
+    };
 
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity 
-                    style={styles.backButton}
-                    onPress={() => router.back()}
+                    style={styles.modeButton}
+                    onPress={() => setShowModeModal(true)}
                 >
-                    <Text style={styles.backIcon}>←</Text>
+                    <Text style={styles.modeIcon}>🔄</Text>
+                    <Text style={styles.modeText}>Pasajero</Text>
                 </TouchableOpacity>
-                
+
                 <View style={styles.titleContainer}>
                     <Text style={styles.headerTitle}>Pagina Principal</Text>
                 </View>
@@ -52,6 +60,46 @@ export default function DriverHomePage() {
                     <Text style={styles.publishText}>Publicar Nuevo Viaje</Text>
                 </TouchableOpacity>
             </View>
+
+            {/* Mode Change Modal */}
+            <Modal
+                animationType="fade"
+                transparent={true}
+                visible={showModeModal}
+                onRequestClose={() => setShowModeModal(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContainer}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Cambiar Modo</Text>
+                        </View>
+                        
+                        <Text style={styles.modalMessage}>
+                            ¿Estás seguro de que quieres cambiar al modo Pasajero?
+                        </Text>
+                        
+                        <Text style={styles.modalSubMessage}>
+                            Podrás buscar viajes y solicitar que te lleven a tu destino.
+                        </Text>
+
+                        <View style={styles.modalButtons}>
+                            <TouchableOpacity 
+                                style={styles.modalCancelButton}
+                                onPress={() => setShowModeModal(false)}
+                            >
+                                <Text style={styles.modalCancelText}>Cancelar</Text>
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={styles.modalConfirmButton}
+                                onPress={handleModeChange}
+                            >
+                                <Text style={styles.modalConfirmText}>Confirmar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -163,6 +211,117 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
         lineHeight: 24,
+        color: '#FFFFFF',
+    },
+    // Mode button styles
+    modeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8F9FA',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E9ECEF',
+    },
+    modeIcon: {
+        fontSize: 14,
+        marginRight: 4,
+    },
+    modeText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '600',
+        fontSize: 12,
+        color: '#495057',
+    },
+    // Modal styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+    },
+    modalContainer: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 24,
+        width: '100%',
+        maxWidth: 320,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 5,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: "center",
+        marginBottom: 16,
+    },
+    modalTitle: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: 'bold',
+        fontSize: 20,
+        lineHeight: 25,
+        color: '#121417',
+    },
+    modalIcon: {
+        fontSize: 24,
+    },
+    modalMessage: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 16,
+        lineHeight: 24,
+        color: '#121417',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    modalSubMessage: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#61758A',
+        marginBottom: 24,
+        textAlign: 'center',
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 12,
+    },
+    modalCancelButton: {
+        flex: 1,
+        backgroundColor: '#F8F9FA',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E9ECEF',
+    },
+    modalCancelText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '600',
+        fontSize: 16,
+        color: '#495057',
+    },
+    modalConfirmButton: {
+        flex: 1,
+        backgroundColor: '#F99F7C',
+        paddingVertical: 14,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    modalConfirmText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: 'bold',
+        fontSize: 16,
         color: '#FFFFFF',
     },
 });

@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import helmet from 'helmet';
 import { PrismaClient } from '../generated/prisma/index.js';
+import authRoutes from "./routes/auth.route.js";
 import userRoutes from "./routes/user.route.js";
 import vehicleRoutes from "./routes/vehicle.route.js";
 
@@ -17,11 +18,17 @@ app.use(cors({
   origin: [
     'http://localhost:3000',
     'http://localhost:5173',  
+    'http://localhost:8081',  // Expo Dev Tools
+    'http://localhost:8082',  // Frontend React Native
+    'http://localhost:19006', // Expo Web
     'http://127.0.0.1:3000',
-    'http://127.0.0.1:5173'
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:8081',
+    'http://127.0.0.1:8082',
+    'http://127.0.0.1:19006'
   ],
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -50,6 +57,7 @@ app.get('/health', async (req, res) => {
 });
 
 // API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/vehicles", vehicleRoutes)
 
