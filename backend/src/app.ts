@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { PrismaClient } from '../generated/prisma/index.js';
 import authRoutes from "./routes/auth.route.js";
+import travelRoutes from "./routes/travel.route.js";
 import userRoutes from "./routes/user.route.js";
 import vehicleRoutes from "./routes/vehicle.route.js";
 
@@ -60,6 +61,7 @@ app.get('/health', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use("/api/vehicles", vehicleRoutes)
+app.use("/api/travels", travelRoutes)
 
 // Manejo de errores 404
 app.use((req, res) => {

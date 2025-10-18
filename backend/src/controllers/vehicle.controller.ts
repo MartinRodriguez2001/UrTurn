@@ -304,7 +304,9 @@ export class VehicleController {
 
       res.status(200).json({
         success: true,
-        hasVehicles,
+        data: {
+          hasVehicles
+        },
         message: hasVehicles ? "El usuario tiene vehículos" : "El usuario no tiene vehículos"
       });
 

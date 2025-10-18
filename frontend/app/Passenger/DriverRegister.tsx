@@ -1,4 +1,5 @@
 import { fetchCarMakes, fetchCarModels } from "@/app/utils/carsGet";
+import { useDriverStatus } from "@/hooks/useDriverStatus";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { VehicleFormData } from "@/types/vehicle";
 import { useRouter } from "expo-router";
@@ -31,6 +32,7 @@ interface CarModel {
 export default function DriverRegister() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { canAccessDriverMode, loading: driverStatusLoading, refreshStatus } = useDriverStatus();
   
   // Estados para marcas y modelos
   const [carMakes, setCarMakes] = useState<CarMake[]>([]);
@@ -51,6 +53,18 @@ export default function DriverRegister() {
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+
+  // Verificar estado del driver al cargar
+  useEffect(() => {
+    refreshStatus();
+  }, []);
+
+  // Redirigir si ya puede acceder al modo driver
+  useEffect(() => {
+    if (!driverStatusLoading && canAccessDriverMode) {
+      router.replace("/Driver/DriverHomePage");
+    }
+  }, [driverStatusLoading, canAccessDriverMode, router]);
 
   // Cargar marcas al iniciar el componente
   useEffect(() => {
@@ -219,6 +233,9 @@ export default function DriverRegister() {
       console.log("📝 Respuesta del servidor:", response);
 
       if (response.success) {
+        // Actualizar el estado del driver inmediatamente
+        await refreshStatus();
+        
         Alert.alert(
           "¡Felicitaciones! 🎉",
           "Te has registrado exitosamente como conductor. ¡Ya puedes crear viajes!",

@@ -1,12 +1,41 @@
 import NextTravelCard from '@/components/driverComps/NextTravelCard';
 import RequestsCard from '@/components/driverComps/RequestsCard';
+import { useDriverStatus } from '@/hooks/useDriverStatus';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function DriverHomePage() {
     const router = useRouter();
     const [showModeModal, setShowModeModal] = useState(false);
+    const { canAccessDriverMode, loading, refreshStatus } = useDriverStatus();
+
+    useEffect(() => {
+        refreshStatus();
+    }, []);
+
+    // Redirigir si no puede acceder al modo driver
+    useEffect(() => {
+        if (!loading && !canAccessDriverMode) {
+            router.replace("/Passenger/DriverRegister");
+        }
+    }, [loading, canAccessDriverMode, router]);
+
+    // Mostrar loading mientras se verifica el estado
+    if (loading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                    <Text style={styles.loadingText}>Verificando acceso al modo driver...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // Si no puede acceder, no mostrar nada (se redirigirá)
+    if (!canAccessDriverMode) {
+        return null;
+    }
 
     const handleModeChange = () => {
         setShowModeModal(false);
@@ -323,5 +352,11 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
         color: '#FFFFFF',
+    },
+    loadingText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 16,
+        color: '#61758A',
+        textAlign: 'center',
     },
 });

@@ -72,6 +72,7 @@ model Travel {
   status TravelStatus @default(pendiente)
 
   carId Int
+  vehicle Vehicle @relation(fields: [carId], references: [id])
 
   reviews Review[]
   requests TravelRequest[]
@@ -92,6 +93,7 @@ model Vehicle {
 
   userId Int
   owner User @relation(fields: [userId], references: [id])
+  travels Travel[]
 }
 
 model Review {

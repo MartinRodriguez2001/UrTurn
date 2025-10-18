@@ -38,7 +38,9 @@ class VehicleApiService extends BaseApiService {
 
   // GET /api/vehicles/check - Verifica si el usuario tiene vehículos
   async checkUserHasVehicles(): Promise<ApiResponse<{ hasVehicles: boolean }>> {
-    return this.makeRequest<{ hasVehicles: boolean }>("/vehicles/check");
+    const response = await this.makeRequest<{ hasVehicles: boolean }>("/vehicles/check");
+    console.log('🚗 VehicleApiService.checkUserHasVehicles response:', response);
+    return response;
   }
 
   // POST /api/auth/become-driver - Convierte usuario en conductor

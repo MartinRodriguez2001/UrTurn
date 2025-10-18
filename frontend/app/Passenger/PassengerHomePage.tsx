@@ -1,14 +1,15 @@
 import { useAuth } from "@/context/authContext";
+import { useDriverStatus } from "@/hooks/useDriverStatus";
 import { useRouter } from "expo-router";
-import React from "react";
+import React, { useEffect } from "react";
 import {
-    FlatList,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  FlatList,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 interface TripCard {
@@ -20,7 +21,12 @@ interface TripCard {
 
 export default function PassengerHomePage() {
   const router = useRouter();
-  const {user} = useAuth();
+  const { user } = useAuth();
+  const { isDriver, canAccessDriverMode, needsVehicleRegistration, loading, refreshStatus } = useDriverStatus();
+
+  useEffect(() => {
+    refreshStatus();
+  }, []);
 
   const tripCards: TripCard[] = [
     {
@@ -44,11 +50,13 @@ export default function PassengerHomePage() {
   ];
 
   const handleDriverAction = () => {
-    if (user?.IsDriver) {
-      // Si es driver, navegar a la página de driver
+    if (loading) return; // No hacer nada si está cargando
+    
+    if (canAccessDriverMode) {
+      // Si puede acceder al modo driver, navegar a la página de driver
       router.push("/Driver/DriverHomePage");
     } else {
-      // Si no es driver, navegar a la página para convertirse en driver
+      // Si no puede acceder, navegar a la página para registrar vehículo
       router.push("/Passenger/DriverRegister");
     }
   };
@@ -90,6 +98,7 @@ export default function PassengerHomePage() {
           <TouchableOpacity
             style={styles.driverCard}
             onPress={handleDriverAction}
+            disabled={loading}
           >
             <View style={styles.driverCardContent}>
               <View style={styles.driverIconContainer}>
@@ -97,12 +106,21 @@ export default function PassengerHomePage() {
               </View>
               <View style={styles.driverInfo}>
                 <Text style={styles.driverTitle}>
-                  {user?.IsDriver ? "Cambiar a Driver" : "¿Quieres ser Driver?"}
+                  {loading 
+                    ? "Verificando estado..." 
+                    : canAccessDriverMode 
+                      ? "Cambiar a Driver" 
+                      : "¿Quieres ser Driver?"
+                  }
                 </Text>
                 <Text style={styles.driverSubtitle}>
-                  {user?.IsDriver 
-                    ? "Cambia al modo conductor para crear viajes" 
-                    : "Comparte viajes y gana dinero mientras estudias"
+                  {loading 
+                    ? "Comprobando si tienes vehículos registrados..."
+                    : canAccessDriverMode 
+                      ? "Cambia al modo conductor para crear viajes" 
+                      : needsVehicleRegistration
+                        ? "Registra tu vehículo para empezar a compartir viajes"
+                        : "Comparte viajes y gana dinero mientras estudias"
                   }
                 </Text>
               </View>
