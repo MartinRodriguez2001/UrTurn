@@ -1,28 +1,29 @@
 import { userApi } from "@/Services/UserApiService";
+import { UserProfile } from "@/types/user";
 import React, { useEffect, useState } from "react";
 import {
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 
-interface UserProfile {
-  name: string;
-  email: string;
-  phone?: string;
-  profileImage?: string;
-}
 
 export default function DriverProfile() {
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
-    email: "",
-    phone: "",
-    profileImage: "",
+    institutional_email: "",
+    phone_number: "",
+    profile_picture: "",
+    description: "",
+    updated_at: "",
+    created_at: "",
+    id: 0,
+    IsDriver: true,
+    active: false,
   });
 
   const getProfileData = async () => {
@@ -30,9 +31,15 @@ export default function DriverProfile() {
     if (response.success && response.data) {
       setUserProfile({
         name: response.data.name,
-        email: response.data.institutional_email,
-        phone: response.data.phone_number,
-        profileImage: response.data.profile_picture,
+        institutional_email: response.data.institutional_email,
+        phone_number: response.data.phone_number,
+        profile_picture: response.data.profile_picture,
+        updated_at: response.data.updated_at,
+        description: response.data.description,
+        created_at: response.data.created_at,
+        id: response.data.id,
+        IsDriver: response.data.IsDriver,
+        active: response.data.active,
       });
     } else {
       console.error("Failed to fetch user profile:", response.message);
@@ -75,10 +82,10 @@ export default function DriverProfile() {
             onPress={handleChangeProfilePhoto}
             activeOpacity={0.8}
           >
-            {userProfile.profileImage ? (
+            {userProfile.profile_picture ? (
               // Si tiene foto de perfil, mostrar la imagen
               <View style={styles.profilePhoto}>
-                <Image source={{uri: userProfile.profileImage}} style={styles.profilePhoto} />
+                <Image source={{uri: userProfile.profile_picture}} style={styles.profilePhoto} />
               </View>
             ) : (
               // Si no tiene foto, mostrar iniciales
@@ -98,10 +105,7 @@ export default function DriverProfile() {
           {/* Información del usuario */}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{userProfile.name}</Text>
-            <Text style={styles.userEmail}>{userProfile.email}</Text>
-            {userProfile.phone && (
-              <Text style={styles.userPhone}>{userProfile.phone}</Text>
-            )}
+            <Text style={styles.userEmail}>{userProfile.institutional_email}</Text>
           </View>
 
           {/* Indicador de conductor */}
@@ -113,6 +117,26 @@ export default function DriverProfile() {
 
         {/* Separador */}
         <View style={styles.separator} />
+
+       <View style={styles.descriptionContainer}>
+        <Text style={styles.descriptionHeader}>Acerca de</Text>
+        <Text style={styles.descriptionText}>{userProfile.description}</Text>
+       </View>
+
+       <View style={styles.descriptionContainer}>
+        <Text style={styles.descriptionHeader}>Vehículos</Text>
+        <View>
+          <Image></Image>
+          <View>
+            <Text></Text>
+            <Text></Text>
+          </View>
+        </View>
+       </View>
+
+       <View style={styles.descriptionContainer}>
+        <Text style={styles.descriptionHeader}>Editar perfil</Text>
+       </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -140,8 +164,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   headerTitle: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
+    fontFamily: "PlusJakartaSans-Bold",
     fontSize: 18,
     lineHeight: 23,
     color: "#121417",
@@ -151,7 +174,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // ✅ Nuevos estilos para la sección de perfil
   profileSection: {
     alignItems: "center",
     paddingVertical: 32,
@@ -182,9 +204,8 @@ const styles = StyleSheet.create({
   },
   profileInitials: {
     fontSize: 36,
-    fontWeight: "bold",
+    fontFamily: "PlusJakartaSans-Bold",
     color: "#FFFFFF",
-    fontFamily: "Plus Jakarta Sans",
   },
   photoPlaceholder: {
     fontSize: 40,
@@ -218,8 +239,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   userName: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
+    fontFamily: "PlusJakartaSans-Bold",
     fontSize: 24,
     lineHeight: 30,
     color: "#121417",
@@ -227,14 +247,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   userEmail: {
-    fontFamily: "Plus Jakarta Sans",
+    fontFamily: "PlusJakartaSans-Regular",
     fontSize: 16,
     lineHeight: 24,
     color: "#61758A",
     marginBottom: 2,
   },
   userPhone: {
-    fontFamily: "Plus Jakarta Sans",
+    fontFamily: "PlusJakartaSans-Regular",
     fontSize: 14,
     lineHeight: 20,
     color: "#61758A",
@@ -254,8 +274,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   driverBadgeText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans-SemiBold",
     fontSize: 12,
     color: "#2E7D32",
   },
@@ -264,7 +283,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F9FA",
   },
 
-  // ✅ Estilos para el menú de opciones
   menuSection: {
     paddingVertical: 16,
   },
@@ -284,8 +302,7 @@ const styles = StyleSheet.create({
   },
   menuText: {
     flex: 1,
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "600",
+    fontFamily: "PlusJakartaSans-SemiBold",
     fontSize: 16,
     color: "#121417",
     marginLeft: 12,
@@ -313,10 +330,26 @@ const styles = StyleSheet.create({
   },
   profileInitial: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontFamily: "PlusJakartaSans-Bold",
     color: "#FFFFFF",
   },
   bottomSpacer: {
     height: 120,
   },
+  descriptionContainer:{
+    margin: 16,
+    gap: 8
+  },
+  descriptionHeader: {
+    fontSize: 22,
+    fontFamily: "PlusJakartaSans-Bold",
+    fontStyle: "normal",
+    lineHeight: 26,
+  },
+  descriptionText: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 16,
+    fontStyle: "normal",
+    lineHeight: 24,
+  }
 });
