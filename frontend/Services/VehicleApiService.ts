@@ -14,40 +14,64 @@ class VehicleApiService extends BaseApiService {
   }
 
   // POST /api/vehicles - Registra vehículo para el usuario autenticado
-  async registerVehicle(vehicleData: VehicleData): Promise<ApiResponse<Vehicle>> {
+  async registerVehicle(
+    vehicleData: VehicleData
+  ): Promise<ApiResponse<Vehicle>> {
     return this.makeRequest<Vehicle>("/vehicles", {
-      method: 'POST',
-      body: JSON.stringify(vehicleData)
+      method: "POST",
+      body: JSON.stringify(vehicleData),
     });
   }
 
   // PUT /api/vehicles/:id - Actualiza vehículo del usuario
-  async updateVehicle(id: number, vehicleData: Partial<VehicleData>): Promise<ApiResponse<Vehicle>> {
+  async updateVehicle(
+    id: number,
+    vehicleData: Partial<VehicleData>
+  ): Promise<ApiResponse<Vehicle>> {
     return this.makeRequest<Vehicle>(`/vehicles/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(vehicleData)
+      method: "PUT",
+      body: JSON.stringify(vehicleData),
     });
   }
 
   // DELETE /api/vehicles/:id - Elimina vehículo del usuario
   async deleteVehicle(id: number): Promise<ApiResponse<null>> {
     return this.makeRequest<null>(`/vehicles/${id}`, {
-      method: 'DELETE'
+      method: "DELETE",
     });
   }
 
   // GET /api/vehicles/check - Verifica si el usuario tiene vehículos
   async checkUserHasVehicles(): Promise<ApiResponse<{ hasVehicles: boolean }>> {
-    const response = await this.makeRequest<{ hasVehicles: boolean }>("/vehicles/check");
-    console.log('🚗 VehicleApiService.checkUserHasVehicles response:', response);
+    const response = await this.makeRequest<{ hasVehicles: boolean }>(
+      "/vehicles/check"
+    );
+    console.log(
+      "🚗 VehicleApiService.checkUserHasVehicles response:",
+      response
+    );
     return response;
   }
 
   // POST /api/auth/become-driver - Convierte usuario en conductor
-  async becomeDriver(driverData: VehicleData & { phoneNumber?: string }): Promise<ApiResponse<Vehicle>> {
+  async becomeDriver(
+    driverData: VehicleData & { phoneNumber?: string }
+  ): Promise<ApiResponse<Vehicle>> {
     return this.makeRequest<Vehicle>("/auth/become-driver", {
-      method: 'POST',
-      body: JSON.stringify(driverData)
+      method: "POST",
+      body: JSON.stringify(driverData),
+    });
+  }
+
+  async forceValidateVehicle(vehicleId: number) {
+    return this.makeRequest(`/vehicles/force-validate/${vehicleId}`, {
+      method: "PUT",
+    });
+  }
+
+  async forceInvalidateVehicle(vehicleId: number) {
+    return this.makeRequest(`/vehicles/force-invalidate/${vehicleId}`, {
+      method: "PUT",
     });
   }
 }

@@ -319,4 +319,51 @@ export class VehicleController {
       });
     }
   }
+
+  async forceValidateVehicle(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id
+      const vehicleId = parseInt(req.params.id || "")
+
+      if (!vehicleId || isNaN(vehicleId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de vehículo inválido",
+        });
+      }
+
+      const result = await vehicleService.forceValidateVehicle(vehicleId, userId)
+      res.status(200).json(result)
+    } catch (error) {
+      console.error('Error en forceValidateVehicle controller:', error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Error interno del servidor al validar vehículo",
+      })
+    }
+  }
+
+  async forceInvalidateVehicle(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      const vehicleId = parseInt(req.params.id || "");
+
+      if (!vehicleId || isNaN(vehicleId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de vehículo inválido",
+        });
+      }
+
+      const result = await vehicleService.forceInvalidateVehicle(vehicleId, userId);
+      res.status(200).json(result);
+
+    } catch (error) {
+      console.error("Error in forceInvalidateVehicle:", error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Error al invalidar vehículo",
+      });
+    }
+  }
 }

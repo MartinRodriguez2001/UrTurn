@@ -1,18 +1,27 @@
 import { userApi } from "@/Services/UserApiService";
+import VehicleApiService from "@/Services/VehicleApiService";
 import { UserProfile } from "@/types/user";
+import { Vehicle } from "@/types/vehicle";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 
-
 export default function DriverProfile() {
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [validatingVehicle, setValidatingVehicle] = useState<number | null>(
+    null
+  );
+  const [loading, setLoading] = useState(false);
+
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
     institutional_email: "",
@@ -26,29 +35,78 @@ export default function DriverProfile() {
     active: false,
   });
 
-  const getProfileData = async () => {
-    const response = await userApi.getProfile();
-    if (response.success && response.data) {
-      setUserProfile({
-        name: response.data.name,
-        institutional_email: response.data.institutional_email,
-        phone_number: response.data.phone_number,
-        profile_picture: response.data.profile_picture,
-        updated_at: response.data.updated_at,
-        description: response.data.description,
-        created_at: response.data.created_at,
-        id: response.data.id,
-        IsDriver: response.data.IsDriver,
-        active: response.data.active,
-      });
-    } else {
-      console.error("Failed to fetch user profile:", response.message);
+  async function handleValidateVehicle(vehicleId: number) {
+    try {
+      const response = await VehicleApiService.forceValidateVehicle(vehicleId);
+      if (response.success) {
+        Alert.alert("Éxito", "Vehículo validado correctamente", [
+          {
+            text: "OK",
+            onPress: () => {
+              getProfileData();
+            },
+          },
+        ]);
+      } else {
+        Alert.alert(
+          "Error",
+          "No se pudo validar el vehículo. Intenta nuevamente más tarde."
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error al validar vehículo:", error);
+    } finally {
+      setValidatingVehicle(null);
+    }
+  }
+
+   const getProfileData = async () => {
+    try {
+      const [response, responseVehicles] = await Promise.all([
+        userApi.getProfile(),
+        VehicleApiService.getUserVehicles()
+      ]);
+      
+      console.log("👤 Perfil del usuario:", response);
+      console.log("🚗 Vehículos respuesta:", responseVehicles);
+      
+      if (response.success && response.data) {
+        setUserProfile({
+          name: response.data.name,
+          institutional_email: response.data.institutional_email,
+          phone_number: response.data.phone_number,
+          profile_picture: response.data.profile_picture,
+          updated_at: response.data.updated_at,
+          description: response.data.description,
+          created_at: response.data.created_at,
+          id: response.data.id,
+          IsDriver: response.data.IsDriver,
+          active: response.data.active,
+        });
+      }
+
+      if (responseVehicles?.success && responseVehicles.data) {
+        if (Array.isArray(responseVehicles.data)) {
+          setVehicles(responseVehicles.data);
+        } else if ((responseVehicles.data as any).vehicles && Array.isArray((responseVehicles.data as any).vehicles)) {
+          setVehicles((responseVehicles.data as any).vehicles);
+        } else {
+          console.log("⚠️ Estructura de vehículos no reconocida:", responseVehicles.data);
+          setVehicles([]);
+        }
+      } else {
+        console.log("⚠️ No se pudieron cargar vehículos");
+        setVehicles([]);
+      }
+    } catch (error) {
+      console.error("❌ Error al cargar datos del perfil:", error);
+      setVehicles([]);
     }
   };
 
   useEffect(() => {
     getProfileData();
-  });
+  }, []);
 
   const getInitials = (name: string) => {
     return name
@@ -85,7 +143,10 @@ export default function DriverProfile() {
             {userProfile.profile_picture ? (
               // Si tiene foto de perfil, mostrar la imagen
               <View style={styles.profilePhoto}>
-                <Image source={{uri: userProfile.profile_picture}} style={styles.profilePhoto} />
+                <Image
+                  source={{ uri: userProfile.profile_picture }}
+                  style={styles.profilePhoto}
+                />
               </View>
             ) : (
               // Si no tiene foto, mostrar iniciales
@@ -105,7 +166,9 @@ export default function DriverProfile() {
           {/* Información del usuario */}
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{userProfile.name}</Text>
-            <Text style={styles.userEmail}>{userProfile.institutional_email}</Text>
+            <Text style={styles.userEmail}>
+              {userProfile.institutional_email}
+            </Text>
           </View>
 
           {/* Indicador de conductor */}
@@ -118,25 +181,63 @@ export default function DriverProfile() {
         {/* Separador */}
         <View style={styles.separator} />
 
-       <View style={styles.descriptionContainer}>
-        <Text style={styles.descriptionHeader}>Acerca de</Text>
-        <Text style={styles.descriptionText}>{userProfile.description}</Text>
-       </View>
-
-       <View style={styles.descriptionContainer}>
-        <Text style={styles.descriptionHeader}>Vehículos</Text>
-        <View>
-          <Image></Image>
-          <View>
-            <Text></Text>
-            <Text></Text>
-          </View>
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.descriptionHeader}>Acerca de</Text>
+          <Text style={styles.descriptionText}>{userProfile.description}</Text>
         </View>
-       </View>
 
-       <View style={styles.descriptionContainer}>
-        <Text style={styles.descriptionHeader}>Editar perfil</Text>
-       </View>
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.descriptionHeader}>Vehículos</Text>
+          {vehicles && vehicles.length > 0 ? (
+            vehicles.map((vehicle, index) => (
+              <View key={vehicle.id || index} style={styles.vehicleCard}>
+                <View style={styles.vehicleInfo}>
+                  <Text style={styles.vehicleName}>
+                    {vehicle.brand} {vehicle.model}
+                  </Text>
+                  <Text style={styles.vehicleDetails}>
+                    Año: {vehicle.year} • Patente: {vehicle.licence_plate}
+                  </Text>
+                  {vehicle.validation ? (
+                    <View style={styles.validatedBadge}>
+                      <Text style={styles.validatedText}>✓ Verificado</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.pendingContainer}>
+                        <View style={styles.pendingBadge}>
+                          <Text style={styles.pendingText}>⏳ Pendiente de verificación</Text>
+                        </View>
+                        
+                        {/* ✅ Botón para validar con loading */}
+                        <TouchableOpacity
+                          style={[
+                            styles.validateButton,
+                            validatingVehicle === vehicle.id && styles.validateButtonDisabled
+                          ]}
+                          onPress={() => handleValidateVehicle(vehicle.id)}
+                          disabled={validatingVehicle === vehicle.id}
+                        >
+                          {validatingVehicle === vehicle.id ? (
+                            <ActivityIndicator size="small" color="#FFFFFF" />
+                          ) : (
+                            <Text style={styles.validateButtonText}>Validar ahora</Text>
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                </View>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noVehiclesText}>
+              No hay vehículos registrados
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.descriptionHeader}>Editar perfil</Text>
+        </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -336,9 +437,9 @@ const styles = StyleSheet.create({
   bottomSpacer: {
     height: 120,
   },
-  descriptionContainer:{
+  descriptionContainer: {
     margin: 16,
-    gap: 8
+    gap: 8,
   },
   descriptionHeader: {
     fontSize: 22,
@@ -351,5 +452,99 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontStyle: "normal",
     lineHeight: 24,
-  }
+  },
+
+  // Estilos para vehículos
+  vehicleCard: {
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+  },
+  vehicleInfo: {
+    flex: 1,
+  },
+  vehicleName: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 18,
+    color: "#121417",
+    marginBottom: 4,
+  },
+  vehicleDetails: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 14,
+    color: "#61758A",
+    marginBottom: 8,
+  },
+  validatedBadge: {
+    backgroundColor: "#E8F5E8",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#4CAF50",
+  },
+  validatedText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 12,
+    color: "#2E7D32",
+  },
+  pendingBadge: {
+    backgroundColor: "#FFF3E0",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 16,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#FF9800",
+  },
+  pendingText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 12,
+    color: "#F57C00",
+  },
+  noVehiclesText: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 16,
+    color: "#61758A",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginVertical: 16,
+  },
+  refreshButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  refreshIcon: {
+    fontSize: 20,
+  },
+  vehicleActions: {
+    marginTop: 8,
+  },
+  pendingContainer: {
+    gap: 8,
+  },
+  validateButton: {
+    backgroundColor: "#F99F7C",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    alignSelf: "flex-start",
+    minWidth: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  validateButtonDisabled: {
+    opacity: 0.6,
+  },
+  validateButtonText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 12,
+    color: "#FFFFFF",
+  },
 });

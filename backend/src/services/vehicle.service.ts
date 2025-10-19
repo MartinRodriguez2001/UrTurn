@@ -11,6 +11,139 @@ export interface VehicleData {
 }
 
 export class VehicleService {
+  async forceValidateVehicle(vehicleId: number, userId?: number) {
+    try {
+      const whereClause: any = { id: vehicleId };
+
+      if (userId) {
+        whereClause.userId = userId;
+      }
+
+      const vehicle = await prisma.vehicle.findFirst({
+        where: whereClause,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              institutional_email: true,
+            },
+          },
+        },
+      });
+
+      if (!vehicle) {
+        throw new Error(
+          "Vehículo no encontrado o no tienes permisos para modificarlo"
+        );
+      }
+
+      if (vehicle.validation) {
+        return {
+          success: true,
+          vehicle,
+          message: "El vehículo ya estaba validado",
+          wasAlreadyValidated: true,
+        };
+      }
+
+      const updatedVehicle = await prisma.vehicle.update({
+        where: { id: vehicleId },
+        data: { validation: true },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              institutional_email: true,
+            },
+          },
+        },
+      });
+
+      await prisma.user.update({
+        where: { id: vehicle.userId },
+        data: { IsDriver: true },
+      });
+
+      return {
+        success: true,
+        vehicle: updatedVehicle,
+        message: "Vehiculo validado exitosamente",
+        wasAlreadyValidated: false,
+      };
+    } catch (error) {
+      console.error("Error en forceValidateVehicle:", error);
+    }
+  }
+  async forceInvalidateVehicle(vehicleId: number, userId?: number) {
+    try {
+      // Construir condición WHERE
+      const whereClause: any = { id: vehicleId };
+
+      if (userId) {
+        whereClause.userId = userId;
+      }
+
+      // Verificar que el vehículo existe
+      const vehicle = await prisma.vehicle.findFirst({
+        where: whereClause,
+        include: {
+          owner: true,
+        },
+      });
+
+      if (!vehicle) {
+        throw new Error(
+          userId
+            ? "Vehículo no encontrado o no tienes permisos para invalidarlo"
+            : "Vehículo no encontrado"
+        );
+      }
+
+      // Invalidar el vehículo
+      const updatedVehicle = await prisma.vehicle.update({
+        where: { id: vehicleId },
+        data: { validation: false },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              institutional_email: true,
+            },
+          },
+        },
+      });
+
+      // Verificar si el usuario tiene otros vehículos validados
+      const validatedVehicles = await prisma.vehicle.count({
+        where: {
+          userId: vehicle.userId,
+          validation: true,
+        },
+      });
+
+      // Si no tiene otros vehículos validados, quitar IsDriver
+      if (validatedVehicles === 0) {
+        await prisma.user.update({
+          where: { id: vehicle.userId },
+          data: { IsDriver: false },
+        });
+      }
+
+      return {
+        success: true,
+        vehicle: updatedVehicle,
+        message: "Vehículo invalidado",
+        userStillDriver: validatedVehicles > 0,
+      };
+    } catch (error) {
+      console.error("Error en forceInvalidateVehicle:", error);
+      throw error;
+    }
+  }
+
   async registerVehicle(vehicleData: VehicleData, userId: number) {
     try {
       const existingVehicle = await prisma.vehicle.findFirst({
@@ -43,7 +176,7 @@ export class VehicleService {
           },
         },
       });
-      
+
       await prisma.user.update({
         where: { id: userId },
         data: { IsDriver: true },
@@ -152,7 +285,11 @@ export class VehicleService {
     }
   }
 
-  async updateVehicle(vehicleId: number, userId: number, updateData: Partial<VehicleData>) {
+  async updateVehicle(
+    vehicleId: number,
+    userId: number,
+    updateData: Partial<VehicleData>
+  ) {
     try {
       // Verificar que el vehículo pertenece al usuario
       const existingVehicle = await prisma.vehicle.findFirst({
@@ -169,12 +306,15 @@ export class VehicleService {
       }
 
       // Si se actualiza la patente, verificar que no exista otra igual
-      if (updateData.licence_plate && updateData.licence_plate !== existingVehicle.licence_plate) {
+      if (
+        updateData.licence_plate &&
+        updateData.licence_plate !== existingVehicle.licence_plate
+      ) {
         const plateExists = await prisma.vehicle.findFirst({
           where: {
             licence_plate: updateData.licence_plate.toUpperCase(),
-            id: { not: vehicleId }
-          }
+            id: { not: vehicleId },
+          },
         });
 
         if (plateExists) {
@@ -184,15 +324,17 @@ export class VehicleService {
 
       // Preparar datos para actualización
       const updateFields: any = {};
-      if (updateData.licence_plate) updateFields.licence_plate = updateData.licence_plate.toUpperCase();
+      if (updateData.licence_plate)
+        updateFields.licence_plate = updateData.licence_plate.toUpperCase();
       if (updateData.model) updateFields.model = updateData.model;
       if (updateData.brand) updateFields.brand = updateData.brand;
       if (updateData.year) updateFields.year = updateData.year;
-      if (updateData.validation !== undefined) updateFields.validation = updateData.validation;
+      if (updateData.validation !== undefined)
+        updateFields.validation = updateData.validation;
 
       const updatedVehicle = await prisma.vehicle.update({
         where: {
-          id: vehicleId
+          id: vehicleId,
         },
         data: updateFields,
         include: {
@@ -253,22 +395,22 @@ export class VehicleService {
 
       await prisma.vehicle.delete({
         where: {
-          id: vehicleId
-        }
+          id: vehicleId,
+        },
       });
 
       // Verificar si el usuario tiene otros vehículos
       const remainingVehicles = await prisma.vehicle.findMany({
         where: {
-          userId: userId
-        }
+          userId: userId,
+        },
       });
 
       // Si no tiene más vehículos, actualizar IsDriver a false
       if (remainingVehicles.length === 0) {
         await prisma.user.update({
           where: { id: userId },
-          data: { IsDriver: false }
+          data: { IsDriver: false },
         });
       }
 
