@@ -10,7 +10,7 @@ const API_BASE_URL = __DEV__
 class ApiService {
   private baseURL = API_BASE_URL;
 
-  async register(userData: RegisterData): Promise<ApiResponse<AuthData>> {
+  async register(userData: RegisterData): Promise<ApiResponse<{ data?: AuthData }>> {
     try {
       console.log('🔄 Enviando registro a:', `${this.baseURL}/users/register`);
       console.log('📤 Datos enviados:', userData);
@@ -40,7 +40,7 @@ class ApiService {
     }
   }
 
-  async login(credentials: { institutional_email: string; password: string }): Promise<ApiResponse<AuthData>> {
+  async login(credentials: { institutional_email: string; password: string }): Promise<ApiResponse<{ data?: AuthData }>> {
     try {
       const response = await fetch(`${this.baseURL}/users/login`, {
         method: 'POST',

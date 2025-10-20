@@ -1,17 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import { ApiResponse } from '@/types/api';
 
 const API_BASE_URL = __DEV__ 
   ? Platform.OS === 'android' 
     ? 'http://10.0.2.2:3000/api'
     : 'http://localhost:3000/api'
   : 'https://tu-servidor-produccion.com/api';
-
-export interface ApiResponse<T> {
-  success: boolean;
-  message: string;
-  data?: T;
-}
 
 class BaseApiService {
   protected baseURL = API_BASE_URL;
@@ -25,7 +20,7 @@ class BaseApiService {
     };
   }
 
-  protected async makeRequest<T>(
+  protected async makeRequest<T extends object = {}>(
     endpoint: string, 
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {

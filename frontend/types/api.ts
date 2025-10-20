@@ -10,11 +10,10 @@ export interface RegisterData {
   description?: string;
 }
 
-export interface ApiResponse<T> {
+export type ApiResponse<T extends object = {}> = {
   success: boolean;
-  message: string;
-  data?: T;
-}
+  message?: string;
+} & T;
 
 export interface AuthData {
   user: {

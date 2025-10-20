@@ -3,36 +3,34 @@ import { User, UserProfile } from "@/types/user";
 import BaseApiService from "./BaseApiService";
 
 class UserApiService extends BaseApiService {
-  async getAllUsers(): Promise<ApiResponse<User[]>> {
-    return this.makeRequest<User[]>('/users');
+  async getAllUsers(): Promise<ApiResponse<{ data?: User[] }>> {
+    return this.makeRequest<{ data?: User[] }>('/users');
   }
 
 
-  async getUserById(id: number): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>(`/users/${id}`);
+  async getUserById(id: number): Promise<ApiResponse<{ data?: User }>> {
+    return this.makeRequest<{ data?: User }>(`/users/${id}`);
   }
 
 
-  async getProfile(): Promise<ApiResponse<UserProfile>> {
-    return this.makeRequest<UserProfile>('/users/profile');
+  async getProfile(): Promise<ApiResponse<{ data?: UserProfile }>> {
+    return this.makeRequest<{ data?: UserProfile }>('/users/profile');
   }
 
 
-  async updateUser(id: number, userData: Partial<RegisterData>): Promise<ApiResponse<User>> {
-    return this.makeRequest<User>(`/users/${id}`, {
+  async updateUser(id: number, userData: Partial<RegisterData>): Promise<ApiResponse<{ data?: User }>> {
+    return this.makeRequest<{ data?: User }>(`/users/${id}`, {
       method: 'PUT',
       body: JSON.stringify(userData),
     });
   }
-
-
-  async deleteUser(id: number): Promise<ApiResponse<null>> {
-    return this.makeRequest<null>(`/users/${id}`, {
+  async deleteUser(id: number): Promise<ApiResponse> {
+    return this.makeRequest(`/users/${id}`, {
       method: 'DELETE',
     });
   }
 
-  async searchUsers(query: string): Promise<ApiResponse<User[]>> {
+  async searchUsers(query: string): Promise<ApiResponse<{ data?: User[] }>> {
     const users = await this.getAllUsers();
     
     if (users.success && users.data) {
@@ -50,7 +48,7 @@ class UserApiService extends BaseApiService {
     
     return users;
   }
-  async getUsersByType(isDriver: boolean): Promise<ApiResponse<User[]>> {
+  async getUsersByType(isDriver: boolean): Promise<ApiResponse<{ data?: User[] }>> {
     const users = await this.getAllUsers();
     
     if (users.success && users.data) {

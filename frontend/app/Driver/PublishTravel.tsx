@@ -59,7 +59,6 @@ export default function PublishTravel() {
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
   const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
-  // Cargar vehículos del usuario al iniciar
   useEffect(() => {
     loadUserVehicles();
   }, []);
@@ -70,9 +69,7 @@ export default function PublishTravel() {
       const response = await VehicleApiService.getUserVehicles();
       
       if (response.success && response.data) {
-        console.log("🚗 Respuesta completa:", response.data);
-        
-        // Manejar tanto si viene un array directo como un objeto con vehicles
+      
         let vehiclesList: Vehicle[];
         if (Array.isArray(response.data)) {
           vehiclesList = response.data;
