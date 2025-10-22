@@ -90,4 +90,18 @@ router.put(
   travelController.respondToTravelRequest.bind(travelController)
 );
 
+// DELETE /api/travels/requests/:id/cancel - Cancelar solicitud de viaje (pasajero)
+router.delete(
+  "/requests/:id/cancel",
+  authenticateToken,
+  travelController.cancelTravelRequest.bind(travelController)
+);
+
+// DELETE /api/travels/:id/leave - Abandonar viaje confirmado (pasajero)
+router.delete(
+  "/:id/leave",
+  authenticateToken,
+  travelController.leaveTravel.bind(travelController)
+);
+
 export default router;

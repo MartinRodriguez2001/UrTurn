@@ -2,14 +2,41 @@ version: '3.8'
 services:
   postgres:
     image: postgres:15
+    container_name: urturn-postgres
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypassword
-      POSTGRES_DB: mydb
+      POSTGRES_USER: urturn
+      POSTGRES_PASSWORD: urturn123
+      POSTGRES_DB: urturn_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urturn -d urturn_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: urturn-backend
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://urturn:urturn123@postgres:5432/urturn_db
+      PORT: 3000
+      NODE_ENV: development
+      JWT_SECRET: urturn_super_secret_key_change_in_production_2024
+      JWT_EXPIRES_IN: 7d
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: sh -c "npx prisma db push && npm run dev"
 
 volumes:
   postgres_data:

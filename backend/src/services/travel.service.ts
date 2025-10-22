@@ -974,4 +974,133 @@ export class TravelService {
       throw new Error("Error en la búsqueda de viajes");
     }
   }
+
+  async cancelTravelRequest(requestId: number, passengerId: number) {
+    try {
+      const request = await prisma.travelRequest.findUnique({
+        where: { id: requestId },
+        include: {
+          travel: true,
+        },
+      });
+
+      if (!request) {
+        throw new Error("La solicitud no existe");
+      }
+
+      if (request.passengerId !== passengerId) {
+        throw new Error("No tienes autorización para cancelar esta solicitud");
+      }
+
+      if (request.status === "rechazada") {
+        throw new Error("Esta solicitud ya fue rechazada");
+      }
+
+      if (request.status === "aceptada") {
+        throw new Error(
+          "No puedes cancelar una solicitud ya aceptada. Contacta al conductor."
+        );
+      }
+
+      // Cambiar estado a rechazada (cancelada por el pasajero)
+      const canceledRequest = await prisma.travelRequest.update({
+        where: { id: requestId },
+        data: {
+          status: "rechazada",
+        },
+        include: {
+          travel: {
+            select: {
+              id: true,
+              start_location: true,
+              end_location: true,
+              start_time: true,
+            },
+          },
+        },
+      });
+
+      return {
+        success: true,
+        request: canceledRequest,
+        message: "Solicitud cancelada exitosamente",
+      };
+    } catch (error) {
+      console.error("Error canceling travel request:", error);
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : "Error al cancelar solicitud"
+      );
+    }
+  }
+
+  async leaveTravel(travelId: number, passengerId: number) {
+    try {
+      const travel = await prisma.travel.findUnique({
+        where: { id: travelId },
+      });
+
+      if (!travel) {
+        throw new Error("El viaje no existe");
+      }
+
+      // Buscar confirmación
+      const confirmation = await prisma.confirmation.findFirst({
+        where: {
+          travelId,
+          usuarioId: passengerId,
+        },
+      });
+
+      if (!confirmation) {
+        throw new Error("No estás confirmado en este viaje");
+      }
+
+      // Verificar que el viaje no haya empezado
+      if (travel.start_time < new Date()) {
+        throw new Error("No puedes abandonar un viaje que ya comenzó");
+      }
+
+      // Eliminar confirmación y aumentar espacios
+      await prisma.confirmation.delete({
+        where: { id: confirmation.id },
+      });
+
+      await prisma.travel.update({
+        where: { id: travelId },
+        data: {
+          spaces_available: {
+            increment: 1,
+          },
+        },
+      });
+
+      // También actualizar la solicitud original si existe
+      const originalRequest = await prisma.travelRequest.findFirst({
+        where: {
+          travelId,
+          passengerId,
+          status: "aceptada",
+        },
+      });
+
+      if (originalRequest) {
+        await prisma.travelRequest.update({
+          where: { id: originalRequest.id },
+          data: { status: "rechazada" },
+        });
+      }
+
+      return {
+        success: true,
+        message: "Has abandonado el viaje exitosamente",
+      };
+    } catch (error) {
+      console.error("Error leaving travel:", error);
+      throw new Error(
+        error instanceof Error ? error.message : "Error al abandonar viaje"
+      );
+    }
+  }
 }

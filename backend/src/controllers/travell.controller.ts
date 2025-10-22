@@ -328,4 +328,68 @@ export class TravelController {
       });
     }
   }
+
+  // ✅ DELETE /travels/requests/:id/cancel - Cancelar solicitud de viaje (pasajero)
+  async cancelTravelRequest(req: AuthRequest, res: Response) {
+    try {
+      const passengerId = req.user?.id;
+      if (!passengerId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const requestId = parseInt(req.params.id || "");
+
+      if (isNaN(requestId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de solicitud inválido"
+        });
+      }
+
+      const result = await travelService.cancelTravelRequest(requestId, passengerId);
+      res.status(200).json(result);
+
+    } catch (error) {
+      console.error("Error in cancelTravelRequest:", error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Error al cancelar solicitud"
+      });
+    }
+  }
+
+  // ✅ DELETE /travels/:id/leave - Abandonar viaje confirmado (pasajero)
+  async leaveTravel(req: AuthRequest, res: Response) {
+    try {
+      const passengerId = req.user?.id;
+      if (!passengerId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const travelId = parseInt(req.params.id || "");
+
+      if (isNaN(travelId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de viaje inválido"
+        });
+      }
+
+      const result = await travelService.leaveTravel(travelId, passengerId);
+      res.status(200).json(result);
+
+    } catch (error) {
+      console.error("Error in leaveTravel:", error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Error al abandonar viaje"
+      });
+    }
+  }
 }
