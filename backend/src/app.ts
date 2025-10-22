@@ -4,6 +4,9 @@ import express from 'express';
 import helmet from 'helmet';
 import { PrismaClient } from '../generated/prisma/index.js';
 import authRoutes from "./routes/auth.route.js";
+import reportRoutes from "./routes/report.route.js";
+import reviewRoutes from "./routes/review.route.js";
+import statsRoutes from "./routes/stats.route.js";
 import travelRoutes from "./routes/travel.route.js";
 import userRoutes from "./routes/user.route.js";
 import vehicleRoutes from "./routes/vehicle.route.js";
@@ -60,8 +63,11 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use("/api/vehicles", vehicleRoutes)
-app.use("/api/travels", travelRoutes)
+app.use("/api/vehicles", vehicleRoutes);
+app.use("/api/travels", travelRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/reports", reportRoutes);
+app.use("/api/stats", statsRoutes);
 
 // Manejo de errores 404
 app.use((req, res) => {
@@ -95,3 +101,5 @@ app.listen(PORT, () => {
 process.on('beforeExit', async () => {
   await prisma.$disconnect();
 });
+
+export default app;
