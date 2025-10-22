@@ -3,16 +3,16 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useAuth } from '../context/authContext';
 
@@ -27,54 +27,98 @@ export default function CredentialRegister() {
   const [studentCertificate, setStudentCertificate] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const selectInstitutionCredential = async () => {
+  // ✅ Función para usar placeholders (útil para desarrollo y testing)
+  const usePlaceholderDocuments = () => {
     Alert.alert(
-      'Credencial Institucional',
-      'Selecciona tu credencial institucional',
+      'Documentos de Prueba',
+      '¿Quieres usar documentos de ejemplo para continuar con el desarrollo?',
       [
         {
-          text: 'Tomar Foto',
-          onPress: () => takePhoto('credential'),
+          text: 'Sí, usar ejemplos',
+          onPress: () => {
+            setInstitutionCredential('placeholder_credential');
+            setStudentCertificate('placeholder_certificate');
+          },
         },
         {
-          text: 'Seleccionar de Galería',
-          onPress: () => pickImage('credential'),
-        },
-        {
-          text: 'Seleccionar Documento',
-          onPress: () => pickDocument('credential'),
-        },
-        {
-          text: 'Cancelar',
+          text: 'No, subir reales',
           style: 'cancel',
         },
       ]
     );
   };
 
+  const selectInstitutionCredential = async () => {
+    // ✅ Agregar opción de placeholder para desarrollo
+    const options = [
+      {
+        text: 'Tomar Foto',
+        onPress: () => takePhoto('credential'),
+      },
+      {
+        text: 'Seleccionar de Galería',
+        onPress: () => pickImage('credential'),
+      },
+      {
+        text: 'Seleccionar Documento',
+        onPress: () => pickDocument('credential'),
+      },
+    ];
+
+    // ✅ Agregar opción de placeholder solo en desarrollo o web
+    if (__DEV__ || Platform.OS === 'web') {
+      options.unshift({
+        text: '🔧 Usar Placeholder (Dev)',
+        onPress: async () => setInstitutionCredential('placeholder_credential'),
+      });
+    }
+
+    options.push({
+      text: 'Cancelar',
+      style: 'cancel',
+    } as any);
+
+    Alert.alert(
+      'Credencial Institucional',
+      'Selecciona tu credencial institucional',
+      options
+    );
+  };
+
   // Función para seleccionar certificado de alumno regular
   const selectStudentCertificate = async () => {
+    const options = [
+      {
+        text: 'Tomar Foto',
+        onPress: () => takePhoto('certificate'),
+      },
+      {
+        text: 'Seleccionar de Galería',
+        onPress: () => pickImage('certificate'),
+      },
+      {
+        text: 'Seleccionar Documento',
+        onPress: () => pickDocument('certificate'),
+      },
+    ];
+
+    // ✅ Agregar opción de placeholder solo en desarrollo o web
+    if (__DEV__ || Platform.OS === 'web') {
+      options.unshift({
+        text: '🔧 Usar Placeholder (Dev)',
+        onPress: async () => setStudentCertificate('placeholder_certificate'),
+      });
+    }
+
+    options.push({
+      text: 'Cancelar',
+      style: 'cancel',
+    } as any);
+
     Alert.alert(
       'Certificado de Alumno Regular',
       'Selecciona tu certificado de alumno regular',
-      [
-        {
-          text: 'Tomar Foto',
-          onPress: () => takePhoto('certificate'),
-        },
-        {
-          text: 'Seleccionar de Galería',
-          onPress: () => pickImage('certificate'),
-        },
-        {
-          text: 'Seleccionar Documento',
-          onPress: () => pickDocument('certificate'),
-        },
-        {
-          text: 'Cancelar',
-          style: 'cancel',
-        },
-      ]
+      options
     );
   };
 
@@ -165,84 +209,108 @@ export default function CredentialRegister() {
   };
 
   const handleContinue = async () => {
-  if (!institutionCredential || !studentCertificate) {
-    Alert.alert(
-      'Documentos requeridos',
-      'Por favor adjunta tanto tu credencial institucional como tu certificado de alumno regular para continuar.'
-    );
-    return;
-  }
+    if (!institutionCredential || !studentCertificate) {
+      Alert.alert(
+        'Documentos requeridos',
+        'Por favor adjunta tanto tu credencial institucional como tu certificado de alumno regular para continuar.'
+      );
+      return;
+    }
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    console.log('🔄 Completando registro con todos los datos...');
-    console.log('📧 Email:', email);
-    console.log('📱 Phone:', phoneNumber);
-    console.log('🖼️ Profile Picture:', profilePicture);
-    console.log('📋 Institution Credential:', institutionCredential);
-    console.log('🎓 Student Certificate:', studentCertificate);
+    try {
+      console.log('🔄 Completando registro con todos los datos...');
+      console.log('📧 Email:', email);
+      console.log('📱 Phone:', phoneNumber);
+      console.log('🖼️ Profile Picture:', profilePicture);
+      console.log('📋 Institution Credential:', institutionCredential);
+      console.log('🎓 Student Certificate:', studentCertificate);
 
-    const userData = {
-      name: name as string,
-      email: email as string,
-      password: password as string,
-      phone_number: phoneNumber as string,
-      description: (description as string) || '',
-      profile_picture: (profilePicture as string) || '',
-      institution_credential: institutionCredential,
-      student_certificate: studentCertificate,
-      IsDriver: false,
-    };
+      const userData = {
+        name: name as string,
+        email: email as string,
+        password: password as string,
+        phone_number: phoneNumber as string,
+        description: (description as string) || '',
+        profile_picture: (profilePicture as string) || '',
+        institution_credential: institutionCredential,
+        student_certificate: studentCertificate,
+        IsDriver: false,
+      };
 
-    console.log('📤 Datos de registro completos:', userData);
+      console.log('📤 Datos de registro completos:', userData);
 
-    const result = await register(userData);
+      const result = await register(userData);
 
-    console.log('📥 Resultado del registro:', result);
+      console.log('📥 Resultado del registro:', result);
 
-    if (result.success) {
-      console.log('✅ Registro completado exitosamente! Navegando...');
+      if (result.success) {
+        console.log('✅ Registro completado exitosamente! Navegando...');
+        
+        Alert.alert(
+          'Registro Exitoso',
+          '¡Bienvenido a UrTurn! Tu cuenta ha sido creada correctamente. Tus documentos serán verificados en las próximas 24-48 horas.',
+          [
+            {
+              text: 'Continuar',
+              onPress: () => {
+                router.replace('/ChooseModeScreen');
+              }
+            }
+          ]
+        );
+      } else {
+        console.log('❌ Error en registro:', result.message);
+        Alert.alert('Error de Registro', result.message || 'No se pudo completar el registro');
+      }
+    } catch (error) {
+      console.error('❌ Error completo en registro:', error);
+      
+      let errorMessage = 'Error de conexión. ';
+      
+      if (Platform.OS === 'android') {
+        errorMessage += 'Si usas Android Emulator, asegúrate de que el backend esté en http://10.0.2.2:3000';
+      } else {
+        errorMessage += 'Asegúrate de que el backend esté corriendo en http://localhost:3000';
+      }
       
       Alert.alert(
-        'Registro Exitoso',
-        '¡Bienvenido a UrTurn! Tu cuenta ha sido creada correctamente. Tus documentos serán verificados en las próximas 24-48 horas.',
-        [
-          {
-            text: 'Continuar',
-            onPress: () => {
-              router.replace('/ChooseModeScreen');
-            }
-          }
-        ]
+        'Error de Conexión',
+        errorMessage + '\n\nVerifica también:\n• Que el backend esté ejecutándose\n• La configuración de red'
       );
-    } else {
-      console.log('❌ Error en registro:', result.message);
-      Alert.alert('Error de Registro', result.message || 'No se pudo completar el registro');
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error('❌ Error completo en registro:', error);
-    
-    let errorMessage = 'Error de conexión. ';
-    
-    if (Platform.OS === 'android') {
-      errorMessage += 'Si usas Android Emulator, asegúrate de que el backend esté en http://10.0.2.2:3000';
-    } else {
-      errorMessage += 'Asegúrate de que el backend esté corriendo en http://localhost:3000';
-    }
-    
-    Alert.alert(
-      'Error de Conexión',
-      errorMessage + '\n\nVerifica también:\n• Que el backend esté ejecutándose\n• La configuración de red'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
+  // ✅ Función para detectar si es placeholder
+  const isPlaceholder = (uri: string) => {
+    return uri === 'placeholder_credential' || uri === 'placeholder_certificate';
+  };
 
   const isImage = (uri: string) => {
+    if (isPlaceholder(uri)) return false;
     return uri.includes('.jpg') || uri.includes('.jpeg') || uri.includes('.png') || uri.includes('.gif');
   };
+
+  // ✅ Componente para mostrar placeholder
+  const PlaceholderDocument = ({ type }: { type: 'credential' | 'certificate' }) => (
+    <View style={styles.placeholderContainer}>
+      <Text style={styles.placeholderIcon}>
+        {type === 'credential' ? '🆔' : '📜'}
+      </Text>
+      <Text style={styles.placeholderTitle}>
+        {type === 'credential' ? 'Credencial Institucional' : 'Certificado de Alumno'}
+      </Text>
+      <Text style={styles.placeholderSubtitle}>
+        (Documento de ejemplo para desarrollo)
+      </Text>
+      <View style={styles.placeholderBadge}>
+        <Text style={styles.placeholderBadgeText}>PLACEHOLDER</Text>
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -270,6 +338,21 @@ export default function CredentialRegister() {
             </Text>
           </View>
 
+          {/* ✅ Botón de placeholders para desarrollo */}
+          {(__DEV__ || Platform.OS === 'web') && (
+            <View style={styles.devSection}>
+              <TouchableOpacity 
+                style={styles.devButton}
+                onPress={usePlaceholderDocuments}
+              >
+                <Text style={styles.devButtonText}>🔧 Usar Documentos de Prueba</Text>
+              </TouchableOpacity>
+              <Text style={styles.devNote}>
+                Solo visible en desarrollo - Útil para testing y Expo Web
+              </Text>
+            </View>
+          )}
+
           {/* Institution Credential Section */}
           <View style={styles.documentSection}>
             <Text style={styles.documentTitle}>📋 Credencial Institucional</Text>
@@ -279,7 +362,9 @@ export default function CredentialRegister() {
             
             {institutionCredential ? (
               <View style={styles.documentPreview}>
-                {isImage(institutionCredential) ? (
+                {isPlaceholder(institutionCredential) ? (
+                  <PlaceholderDocument type="credential" />
+                ) : isImage(institutionCredential) ? (
                   <Image source={{ uri: institutionCredential }} style={styles.documentImage} />
                 ) : (
                   <View style={styles.documentFile}>
@@ -314,7 +399,9 @@ export default function CredentialRegister() {
             
             {studentCertificate ? (
               <View style={styles.documentPreview}>
-                {isImage(studentCertificate) ? (
+                {isPlaceholder(studentCertificate) ? (
+                  <PlaceholderDocument type="certificate" />
+                ) : isImage(studentCertificate) ? (
                   <Image source={{ uri: studentCertificate }} style={styles.documentImage} />
                 ) : (
                   <View style={styles.documentFile}>
@@ -347,6 +434,9 @@ export default function CredentialRegister() {
             <Text style={styles.instructionText}>• Las fotos deben ser claras y legibles</Text>
             <Text style={styles.instructionText}>• Puedes usar PDF para el certificado</Text>
             <Text style={styles.instructionText}>• La verificación puede tomar 24-48 horas</Text>
+            {(__DEV__ || Platform.OS === 'web') && (
+              <Text style={styles.instructionText}>• 🔧 En desarrollo: Puedes usar documentos de prueba</Text>
+            )}
           </View>
         </View>
 
@@ -381,7 +471,6 @@ export default function CredentialRegister() {
   );
 }
 
-// ... resto de los estilos permanecen igual ...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -452,6 +541,85 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingHorizontal: 20,
   },
+  // ✅ Nuevos estilos para desarrollo
+  devSection: {
+    backgroundColor: "#F3E5F5",
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#CE93D8",
+    borderStyle: "dashed",
+  },
+  devButton: {
+    backgroundColor: "#9C27B0",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  devButtonText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  devNote: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#7B1FA2",
+    textAlign: "center",
+    fontStyle: "italic",
+  },
+  // ✅ Estilos para placeholders
+  placeholderContainer: {
+    width: "100%",
+    height: 150,
+    backgroundColor: "#FFF3E0",
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFB74D",
+    borderStyle: "dashed",
+    marginBottom: 12,
+    position: "relative",
+  },
+  placeholderIcon: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
+  placeholderTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#E65100",
+    textAlign: "center",
+  },
+  placeholderSubtitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#FF9800",
+    textAlign: "center",
+    marginTop: 4,
+  },
+  placeholderBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#FF9800",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  placeholderBadgeText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#FFFFFF",
+  },
+  // ... resto de estilos permanecen igual ...
   documentSection: {
     marginBottom: 24,
     backgroundColor: "#F8F9FA",
