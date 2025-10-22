@@ -14,6 +14,7 @@ router.get('/profile', authenticateToken, userController.getProfile.bind(userCon
 router.get('/', authenticateToken, userController.getAllUsers.bind(userController));
 router.get('/:id', authenticateToken, userController.getUserById.bind(userController));
 router.put('/:id', authenticateToken, userController.updateUser.bind(userController));
+router.delete('/me', authenticateToken, userController.deleteAccount.bind(userController));
 router.delete('/:id', authenticateToken, userController.deleteUser.bind(userController));
 
 export default router;

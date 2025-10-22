@@ -2,6 +2,8 @@ import { userApi } from "@/Services/UserApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { UserProfile } from "@/types/user";
 import { Vehicle } from "@/types/vehicle";
+import { useAuth } from "@/context/authContext";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,11 +18,15 @@ import {
 } from "react-native";
 
 export default function DriverProfile() {
+  const router = useRouter();
+  const { logout } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [validatingVehicle, setValidatingVehicle] = useState<number | null>(
     null
   );
   const [loading, setLoading] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
@@ -119,6 +125,78 @@ export default function DriverProfile() {
 
   const handleChangeProfilePhoto = () => {
     console.log("Cambiar foto de perfil");
+  };
+
+  const confirmLogout = async () => {
+    try {
+      setLoggingOut(true);
+      await logout();
+      router.replace("/");
+    } catch (error) {
+      console.error("❌ Error al cerrar sesión:", error);
+      Alert.alert(
+        "Error",
+        "No se pudo cerrar sesión. Intenta nuevamente más tarde."
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Seguro que deseas cerrar sesión?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Cerrar sesión", onPress: confirmLogout }
+      ]
+    );
+  };
+
+  const confirmDeleteAccount = async () => {
+    try {
+      setDeletingAccount(true);
+      const response = await userApi.deleteAccount();
+
+      if (response.success) {
+        await logout();
+        Alert.alert(
+          "Cuenta eliminada",
+          response.message ??
+            "Tu cuenta se ha eliminado correctamente. Esperamos verte pronto.",
+          [
+            {
+              text: "OK",
+              onPress: () => router.replace("/"),
+            },
+          ]
+        );
+      } else {
+        Alert.alert(
+          "Error",
+          response.message ?? "No se pudo eliminar la cuenta en este momento."
+        );
+      }
+    } catch (error) {
+      console.error("❌ Error al eliminar cuenta:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Error inesperado";
+      Alert.alert("Error", errorMessage);
+    } finally {
+      setDeletingAccount(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      "Eliminar cuenta",
+      "Esta acción no se puede deshacer. ¿Deseas continuar?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Eliminar", style: "destructive", onPress: confirmDeleteAccount }
+      ]
+    );
   };
 
   return (
@@ -237,6 +315,40 @@ export default function DriverProfile() {
 
         <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionHeader}>Editar perfil</Text>
+        </View>
+
+        <View style={styles.accountActionsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.logoutButton,
+              (loggingOut || deletingAccount) && styles.disabledButton,
+            ]}
+            onPress={handleLogout}
+            disabled={loggingOut || deletingAccount}
+          >
+            {loggingOut ? (
+              <ActivityIndicator color="#111827" />
+            ) : (
+              <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.deleteButton,
+              (deletingAccount || loggingOut) && styles.disabledButton,
+            ]}
+            onPress={handleDeleteAccount}
+            disabled={deletingAccount || loggingOut}
+          >
+            {deletingAccount ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -433,6 +545,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: "PlusJakartaSans-Bold",
     color: "#FFFFFF",
+  },
+  accountActionsContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+  },
+  actionButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logoutButton: {
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+    marginBottom: 12,
+  },
+  logoutButtonText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 16,
+    color: "#111827",
+  },
+  deleteButton: {
+    backgroundColor: "#EF4444",
+  },
+  deleteButtonText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 16,
+    color: "#FFFFFF",
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   bottomSpacer: {
     height: 120,

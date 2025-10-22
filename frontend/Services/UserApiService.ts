@@ -24,8 +24,15 @@ class UserApiService extends BaseApiService {
       body: JSON.stringify(userData),
     });
   }
+
   async deleteUser(id: number): Promise<ApiResponse> {
     return this.makeRequest(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async deleteAccount(): Promise<ApiResponse> {
+    return this.makeRequest('/users/me', {
       method: 'DELETE',
     });
   }

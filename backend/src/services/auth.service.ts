@@ -140,10 +140,28 @@ export class UserService {
     });
   }
 
-  async deleteUser(id: number) {
-    return prisma.user.delete({
-      where: { id }
+  private async softDeleteUser(userId: number) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: {
+        active: false
+      },
+      select: {
+        id: true,
+        name: true,
+        institutional_email: true,
+        IsDriver: true,
+        active: true,
+      }
     });
+  }
+
+  async deleteUser(id: number) {
+    return this.softDeleteUser(id);
+  }
+
+  async deleteAccount(userId: number) {
+    return this.softDeleteUser(userId);
   }
 
   async getProfile(userId: number) {

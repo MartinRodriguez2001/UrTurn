@@ -107,7 +107,7 @@ export class UserController {
     } catch (error) {
       res.status(400).json({
         success: false,
-        message: 'Error al eliminar usuario'
+        message: error instanceof Error ? error.message : 'Error al eliminar usuario'
       });
     }
   }
@@ -125,6 +125,23 @@ export class UserController {
       res.status(500).json({
         success: false,
         message: 'Error al obtener perfil'
+      });
+    }
+  }
+
+  async deleteAccount(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user!.id;
+      await userService.deleteAccount(userId);
+
+      res.json({
+        success: true,
+        message: 'Cuenta eliminada exitosamente'
+      });
+    } catch (error) {
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Error al eliminar cuenta'
       });
     }
   }

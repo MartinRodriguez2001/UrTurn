@@ -27,7 +27,7 @@ export default function PassengerLayout() {
           <Text style={styles.navLabel}>Mis Viajes</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace("/Passenger/PassengerProfile")}>
           <Text style={styles.navIcon}>👤</Text>
           <Text style={styles.navLabel}>Perfil</Text>
         </TouchableOpacity>
