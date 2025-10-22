@@ -1,5 +1,6 @@
-import { PrismaClient } from '../generated/prisma/index.js';
 import bcrypt from 'bcryptjs';
+import process from 'node:process';
+import { PrismaClient } from '../generated/prisma/index.js';
 
 const prisma = new PrismaClient();
 
@@ -10,11 +11,11 @@ async function main() {
   const hashedPassword = await bcrypt.hash('password123', 10);
 
   const testUser = await prisma.user.upsert({
-    where: { institutional_email: 'test@uc.cl' },
+    where: { institutional_email: 'test@miuandes.cl' },
     update: {},
     create: {
       name: 'Usuario Test',
-      institutional_email: 'test@uc.cl',
+      institutional_email: 'test@miuandes.cl',
       password_hash: hashedPassword,
       institution_credential: 'https://example.com/credential.pdf',
       student_certificate: 'https://example.com/certificate.pdf',
@@ -27,17 +28,17 @@ async function main() {
   });
 
   console.log('✅ Usuario de prueba creado:');
-  console.log('   Email: test@uc.cl');
+  console.log('   Email: test@miuandes.cl');
   console.log('   Password: password123');
   console.log('   ID:', testUser.id);
 
   // Crear conductor de prueba
   const testDriver = await prisma.user.upsert({
-    where: { institutional_email: 'driver@uc.cl' },
+    where: { institutional_email: 'driver@miuandes.cl' },
     update: {},
     create: {
       name: 'Conductor Test',
-      institutional_email: 'driver@uc.cl',
+      institutional_email: 'driver@miuandes.cl',
       password_hash: hashedPassword,
       institution_credential: 'https://example.com/credential.pdf',
       student_certificate: 'https://example.com/certificate.pdf',
@@ -50,7 +51,7 @@ async function main() {
   });
 
   console.log('\n✅ Conductor de prueba creado:');
-  console.log('   Email: driver@uc.cl');
+  console.log('   Email: driver@miuandes.cl');
   console.log('   Password: password123');
   console.log('   ID:', testDriver.id);
 
