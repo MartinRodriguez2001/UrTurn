@@ -1,4 +1,4 @@
-import { fetchCarMakes, fetchCarModels } from "@/app/utils/carsGet";
+import { fetchCarMakes, fetchCarModels } from "@/utils/carsGet";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { VehicleFormData } from "@/types/vehicle";
@@ -9,7 +9,6 @@ import {
   Alert,
   FlatList,
   Modal,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -17,6 +16,7 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 interface CarMake {
   Make_ID: number;

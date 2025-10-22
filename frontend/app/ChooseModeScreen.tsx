@@ -1,13 +1,13 @@
 import { useRouter } from "expo-router";
 import {
     Image,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ChooseModeScreen() {
   const router = useRouter();
