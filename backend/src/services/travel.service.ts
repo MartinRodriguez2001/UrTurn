@@ -488,28 +488,52 @@ export class TravelService {
   async requestToJoinTravel(
     travelId: number,
     passengerId: number,
-    pickupLocation: string
+    pickupLocation: string,
+    pickupDate?: Date,
+    pickupTime?: Date
   ) {
     try {
+      // 🔍 DEBUG: Inicio de la solicitud
+      console.log("=== DEBUG: Iniciando solicitud de viaje ===");
+      console.log("📋 Parámetros recibidos:", {
+        travelId,
+        passengerId,
+        pickupLocation,
+        pickupDate: pickupDate ? pickupDate.toISOString() : null,
+        pickupTime: pickupTime ? pickupTime.toISOString() : null,
+      });
+
       // Verificar que el viaje existe y está disponible
       const travel = await prisma.travel.findUnique({
         where: { id: travelId },
         include: { driver_id: true },
       });
 
+      console.log("🚗 Viaje encontrado:", travel ? {
+        id: travel.id,
+        driverId: travel.userId,
+        status: travel.status,
+        spaces_available: travel.spaces_available,
+        start_location: travel.start_location,
+        end_location: travel.end_location,
+      } : null);
+
       if (!travel) {
         throw new Error("El viaje no existe");
       }
 
       if (travel.userId === passengerId) {
+        console.log("❌ Error: El pasajero es el conductor del viaje");
         throw new Error("No puedes solicitar tu propio viaje");
       }
 
       if (travel.status !== TravelStatus.confirmado) {
+        console.log("❌ Error: Viaje no disponible, status:", travel.status);
         throw new Error("Este viaje no está disponible");
       }
 
       if (travel.spaces_available <= 0) {
+        console.log("❌ Error: No hay espacios disponibles");
         throw new Error("No hay espacios disponibles en este viaje");
       }
 
@@ -522,9 +546,38 @@ export class TravelService {
         },
       });
 
+      console.log("🔍 Solicitud existente:", existingRequest ? {
+        id: existingRequest.id,
+        status: existingRequest.status,
+      } : "No existe");
+
       if (existingRequest) {
         throw new Error("Ya tienes una solicitud para este viaje");
       }
+
+      const normalizedPickupDate = pickupDate ? new Date(pickupDate) : undefined;
+      if (normalizedPickupDate) {
+        normalizedPickupDate.setHours(0, 0, 0, 0);
+      }
+
+      const normalizedPickupTime = pickupTime ? new Date(pickupTime) : undefined;
+      if (normalizedPickupTime) {
+        normalizedPickupTime.setSeconds(0, 0);
+        if (normalizedPickupDate) {
+          normalizedPickupTime.setFullYear(
+            normalizedPickupDate.getFullYear(),
+            normalizedPickupDate.getMonth(),
+            normalizedPickupDate.getDate()
+          );
+        }
+      }
+
+      console.log("📅 Fechas normalizadas:", {
+        pickup_date: normalizedPickupDate ? normalizedPickupDate.toISOString() : null,
+        pickup_time: normalizedPickupTime ? normalizedPickupTime.toISOString() : null,
+      });
+
+      console.log("💾 Creando solicitud en la base de datos...");
 
       // Crear la solicitud
       const request = await prisma.travelRequest.create({
@@ -532,6 +585,8 @@ export class TravelService {
           travelId,
           passengerId,
           location: pickupLocation,
+          pickup_date: normalizedPickupDate ?? null,
+          pickup_time: normalizedPickupTime ?? null,
           status: "pendiente",
         },
         include: {
@@ -554,13 +609,29 @@ export class TravelService {
         },
       });
 
+      console.log("✅ Solicitud creada exitosamente:", {
+        requestId: request.id,
+        travelId: request.travelId,
+        passengerId: request.passengerId,
+        location: request.location,
+        pickup_date: request.pickup_date,
+        pickup_time: request.pickup_time,
+        status: request.status,
+      });
+      console.log("=== DEBUG: Fin de la solicitud ===\n");
+
       return {
         success: true,
         request,
         message: "Solicitud enviada exitosamente",
       };
     } catch (error) {
-      console.error("Error requesting travel:", error);
+      console.error("❌ ERROR en requestToJoinTravel:");
+      console.error("Tipo de error:", error instanceof Error ? error.constructor.name : typeof error);
+      console.error("Mensaje:", error instanceof Error ? error.message : String(error));
+      console.error("Stack trace:", error instanceof Error ? error.stack : "No disponible");
+      console.error("=== DEBUG: Fin con error ===\n");
+      
       throw new Error(
         error instanceof Error ? error.message : "Error al solicitar viaje"
       );

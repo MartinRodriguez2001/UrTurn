@@ -64,14 +64,21 @@ class TravelApiService extends BaseApiService {
   }
 
   //  5. Solicitar unirse a un viaje
-  async requestToJoinTravel(travelId: number, pickupLocation: string): Promise<ApiResponse<{
+  async requestToJoinTravel(
+    travelId: number,
+    pickupLocation: string,
+    pickupDate?: Date,
+    pickupTime?: Date
+  ): Promise<ApiResponse<{
     request: any;
     message: string;
   }>> {
     return this.makeRequest(`/travels/${travelId}/request`, {
       method: 'POST',
       body: JSON.stringify({
-        pickupLocation
+        pickupLocation,
+        pickupDate: pickupDate ? pickupDate.toISOString() : undefined,
+        pickupTime: pickupTime ? pickupTime.toISOString() : undefined
       })
     });
   }

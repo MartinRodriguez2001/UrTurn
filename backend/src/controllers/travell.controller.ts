@@ -111,7 +111,21 @@ export class TravelController {
       }
 
       const travelId = parseInt(req.params.id || "");
-      const { pickupLocation } = req.body;
+      const { pickupLocation, pickupDate, pickupTime } = req.body;
+
+      if (pickupDate && typeof pickupDate !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "El formato de fecha de recogida es inválido",
+        });
+      }
+
+      if (pickupTime && typeof pickupTime !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: "El formato de hora de recogida es inválido",
+        });
+      }
 
       if (!pickupLocation?.trim()) {
         return res.status(400).json({
@@ -120,10 +134,46 @@ export class TravelController {
         });
       }
 
+      let parsedPickupDate: Date | undefined;
+      if (typeof pickupDate === "string") {
+        const candidate = new Date(pickupDate);
+        if (isNaN(candidate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "La fecha de recogida proporcionada no es válida",
+          });
+        }
+        candidate.setHours(0, 0, 0, 0);
+        parsedPickupDate = candidate;
+      }
+
+      let parsedPickupTime: Date | undefined;
+      if (typeof pickupTime === "string") {
+        const candidate = new Date(pickupTime);
+        if (isNaN(candidate.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "La hora de recogida proporcionada no es válida",
+          });
+        }
+        candidate.setSeconds(0, 0);
+        parsedPickupTime = candidate;
+      }
+
+      if (parsedPickupDate && parsedPickupTime) {
+        parsedPickupTime.setFullYear(
+          parsedPickupDate.getFullYear(),
+          parsedPickupDate.getMonth(),
+          parsedPickupDate.getDate()
+        );
+      }
+
       const result = await travelService.requestToJoinTravel(
         travelId, 
         passengerId, 
-        pickupLocation
+        pickupLocation,
+        parsedPickupDate,
+        parsedPickupTime
       );
       
       res.status(201).json(result);

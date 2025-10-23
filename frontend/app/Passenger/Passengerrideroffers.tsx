@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import {
     FlatList,
@@ -20,6 +20,7 @@ interface Driver {
 
 export default function PassengerRiderOffers() {
     const router = useRouter();
+    const { pickupDate, pickupTime, pickupLocation } = useLocalSearchParams();
 
     const drivers: Driver[] = [
         {
@@ -62,14 +63,20 @@ export default function PassengerRiderOffers() {
     const renderDriver = ({ item }: { item: Driver }) => (
         <TouchableOpacity 
             style={styles.driverCard}
-            onPress={() => router.push({
-                pathname: "/Passenger/PassengerDriverProfile",
-                params: {
-                    name: item.name,
-                    vehicle: item.vehicle,
-                    price: item.price
-                }
-            })}
+            onPress={() =>
+                router.push({
+                    pathname: "/Passenger/PassengerDriverProfile",
+                    params: {
+                        name: item.name,
+                        vehicle: item.vehicle,
+                        price: item.price,
+                        travelId: item.id,
+                        pickupDate: typeof pickupDate === 'string' ? pickupDate : '',
+                        pickupTime: typeof pickupTime === 'string' ? pickupTime : '',
+                        pickupLocation: typeof pickupLocation === 'string' ? pickupLocation : '',
+                    },
+                })
+            }
         >
             <View style={styles.driverInfo}>
                 <View style={styles.avatarContainer}>

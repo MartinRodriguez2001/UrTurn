@@ -3,8 +3,9 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
     Keyboard,
-    Modal,
+    Platform,
     SafeAreaView,
     StyleSheet,
     Text,
@@ -12,6 +13,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import PassengerMap from '../../components/passenger/PassengerMap';
 import type {
     MapCoordinate,
@@ -45,7 +47,10 @@ type PlaceDetailsResponse = {
 export default function PassengerSearchRider() {
     const router = useRouter();
     const [searchQuery, setSearchQuery] = useState('');
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
+    const [selectedPickupDate, setSelectedPickupDate] = useState<Date | null>(null);
+    const [selectedPickupTime, setSelectedPickupTime] = useState<{ hours: number; minutes: number } | null>(null);
     const [predictions, setPredictions] = useState<AutocompletePrediction[]>([]);
     const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
     const [selectedLocationLabel, setSelectedLocationLabel] = useState('');
@@ -66,6 +71,74 @@ export default function PassengerSearchRider() {
     const [userLocation, setUserLocation] = useState<MapCoordinate | null>(null);
     const [isLocatingUser, setIsLocatingUser] = useState(false);
     const searchInputRef = React.useRef<TextInput | null>(null);
+
+    const formatDateLabel = (date: Date) =>
+        date.toLocaleDateString('es-CL', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+        });
+
+    const formatTimeLabel = (time: { hours: number; minutes: number }) =>
+        `${time.hours.toString().padStart(2, '0')}:${time.minutes
+            .toString()
+            .padStart(2, '0')}`;
+
+    const handlePickupDateChange = (event: any, date?: Date) => {
+        setShowDatePicker(false);
+
+        if (event?.type === 'dismissed') {
+            return;
+        }
+
+        if (date) {
+            const normalizedDate = new Date(date);
+            normalizedDate.setHours(0, 0, 0, 0);
+            setSelectedPickupDate(normalizedDate);
+        }
+    };
+
+    const handlePickupTimeChange = (event: any, date?: Date) => {
+        setShowTimePicker(false);
+
+        if (event?.type === 'dismissed') {
+            return;
+        }
+
+        if (date) {
+            setSelectedPickupTime({
+                hours: date.getHours(),
+                minutes: date.getMinutes(),
+            });
+        }
+    };
+
+    const pickupDateLabel = selectedPickupDate
+        ? formatDateLabel(selectedPickupDate)
+        : 'Seleccionar fecha de recogida';
+
+    const pickupTimeLabel = selectedPickupTime
+        ? formatTimeLabel(selectedPickupTime)
+        : 'Seleccionar hora de recogida';
+
+    const pickupDateTime = React.useMemo(() => {
+        if (!selectedPickupDate || !selectedPickupTime) {
+            return null;
+        }
+        const combined = new Date(selectedPickupDate.getTime());
+        combined.setHours(selectedPickupTime.hours, selectedPickupTime.minutes, 0, 0);
+        return combined;
+    }, [selectedPickupDate, selectedPickupTime]);
+
+    const timePickerValue = React.useMemo(() => {
+        const base = selectedPickupDate
+            ? new Date(selectedPickupDate.getTime())
+            : new Date();
+        if (selectedPickupTime) {
+            base.setHours(selectedPickupTime.hours, selectedPickupTime.minutes, 0, 0);
+        }
+        return base;
+    }, [selectedPickupDate, selectedPickupTime]);
     React.useEffect(() => {
         if (!focusRegion) {
             return;
@@ -439,81 +512,73 @@ export default function PassengerSearchRider() {
 
             {/* Bottom Panel */}
             <View style={styles.bottomPanel}>
-                {/* Time Picker */}
+                {/* Date and Time Pickers */}
                 <View style={styles.timePickerContainer}>
-                    <TouchableOpacity 
-                        style={styles.timePickerButton}
-                        onPress={() => setShowTimePicker(true)}
-                    >
-                        <Text style={styles.timePickerText}>Seleccionar hora de recogida</Text>
-                        <Text style={styles.dropdownIcon}>▼</Text>
-                    </TouchableOpacity>
+                    <View style={styles.dateTimeRow}>
+                        <TouchableOpacity
+                            style={[styles.timePickerButton, styles.halfWidthButton]}
+                            onPress={() => setShowDatePicker(true)}
+                        >
+                            <Text style={styles.timePickerText}>{pickupDateLabel}</Text>
+                            <Text style={styles.dropdownIcon}>▼</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.timePickerButton, styles.halfWidthButton]}
+                            onPress={() => setShowTimePicker(true)}
+                        >
+                            <Text style={styles.timePickerText}>{pickupTimeLabel}</Text>
+                            <Text style={styles.dropdownIcon}>▼</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Search Button */}
                 <View style={styles.searchButtonContainer}>
-                    <TouchableOpacity style={styles.searchButton}>
-                        <Text style={styles.searchButtonText}
-                        onPress={
-                            () => router.push("/Passenger/Passengerrideroffers")
-                        }
-                        >Buscar viaje</Text>
+                    <TouchableOpacity
+                        style={styles.searchButton}
+                        onPress={() => {
+                            if (!selectedPickupDate || !selectedPickupTime || !pickupDateTime) {
+                                Alert.alert(
+                                    'Selecciona fecha y hora',
+                                    'Debes elegir una fecha y hora de recogida antes de continuar.'
+                                );
+                                return;
+                            }
+
+                            const dateOnly = new Date(selectedPickupDate.getTime());
+                            dateOnly.setHours(0, 0, 0, 0);
+
+                            router.push({
+                                pathname: "/Passenger/Passengerrideroffers",
+                                params: {
+                                    pickupDate: dateOnly.toISOString(),
+                                    pickupTime: pickupDateTime.toISOString(),
+                                    pickupLocation: selectedLocationLabel || searchQuery || '',
+                                },
+                            });
+                        }}
+                    >
+                        <Text style={styles.searchButtonText}>Buscar viaje</Text>
                     </TouchableOpacity>
                 </View>
-
-                {/* Bottom Navigation */}
-                
             </View>
-
-            {/* Time Picker Modal */}
-            <Modal
-                visible={showTimePicker}
-                transparent={true}
-                animationType="slide"
-                onRequestClose={() => setShowTimePicker(false)}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Seleccionar Hora</Text>
-                        
-                        {/* Time options */}
-                        <TouchableOpacity 
-                            style={styles.timeOption}
-                            onPress={() => setShowTimePicker(false)}
-                        >
-                            <Text style={styles.timeOptionText}>Ahora</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={styles.timeOption}
-                            onPress={() => setShowTimePicker(false)}
-                        >
-                            <Text style={styles.timeOptionText}>En 15 minutos</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={styles.timeOption}
-                            onPress={() => setShowTimePicker(false)}
-                        >
-                            <Text style={styles.timeOptionText}>En 30 minutos</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={styles.timeOption}
-                            onPress={() => setShowTimePicker(false)}
-                        >
-                            <Text style={styles.timeOptionText}>En 1 hora</Text>
-                        </TouchableOpacity>
-                        
-                        <TouchableOpacity 
-                            style={styles.cancelButton}
-                            onPress={() => setShowTimePicker(false)}
-                        >
-                            <Text style={styles.cancelButtonText}>Cancelar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+            {showDatePicker && (
+                <DateTimePicker
+                    value={selectedPickupDate ?? new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={handlePickupDateChange}
+                />
+            )}
+            {showTimePicker && (
+                <DateTimePicker
+                    value={timePickerValue}
+                    mode="time"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={handlePickupTimeChange}
+                />
+            )}
         </SafeAreaView>
     );
 }
@@ -736,6 +801,10 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingVertical: 12,
     },
+    dateTimeRow: {
+        flexDirection: 'row',
+        gap: 12,
+    },
     timePickerButton: {
         backgroundColor: '#F5F0F0',
         height: 56,
@@ -744,6 +813,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 16,
+    },
+    halfWidthButton: {
+        flex: 1,
     },
     timePickerText: {
         fontFamily: 'Plus Jakarta Sans',
@@ -813,50 +885,5 @@ const styles = StyleSheet.create({
         lineHeight: 18,
         color: '#121417',
         textAlign: 'center',
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        paddingTop: 20,
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-    },
-    modalTitle: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontWeight: 'bold',
-        fontSize: 18,
-        lineHeight: 23,
-        color: '#121417',
-        textAlign: 'center',
-        marginBottom: 20,
-    },
-    timeOption: {
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F0F2F5',
-    },
-    timeOptionText: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 16,
-        lineHeight: 24,
-        color: '#121417',
-    },
-    cancelButton: {
-        marginTop: 20,
-        paddingVertical: 16,
-        alignItems: 'center',
-    },
-    cancelButtonText: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontWeight: '500',
-        fontSize: 16,
-        lineHeight: 24,
-        color: '#61758A',
     },
 });

@@ -122,6 +122,8 @@ model TravelRequest {
   travelId Int
   travel Travel @relation(fields: [travelId], references: [id])
   location String
+  pickup_date DateTime?
+  pickup_time DateTime?
   status RequestStatus @default(pendiente)
 
 
@@ -155,5 +157,3 @@ model Report {
   description String
   date DateTime @default(now())
 }
-
-
