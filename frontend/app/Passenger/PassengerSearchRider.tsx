@@ -1,5 +1,6 @@
-import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
+﻿import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
 import TravelRouteSection from "@/components/travel/TravelRouteSection";
+import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -32,6 +33,7 @@ export default function PassengerSearchRider() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [errors, setErrors] = useState<{ origin?: string; destination?: string; time?: string }>({});
+  const googleMapsApiKey = resolveGoogleMapsApiKey();
 
   const formattedDate = useMemo(
     () =>
@@ -105,7 +107,7 @@ export default function PassengerSearchRider() {
     const now = new Date();
     const pickup = combineDateTime();
     if (pickup.getTime() < now.getTime() + 30 * 60 * 1000) {
-      newErrors.time = "Debes solicitar con al menos 30 minutos de anticipación";
+      newErrors.time = "Debes solicitar con al menos 30 minutos de anticipacion";
     }
 
     setErrors(newErrors);
@@ -149,7 +151,11 @@ export default function PassengerSearchRider() {
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.formSection}>
           <TravelRouteSection
             originValue={origin}
@@ -168,6 +174,9 @@ export default function PassengerSearchRider() {
             }}
             originError={errors.origin}
             destinationError={errors.destination}
+            originPlaceholder="Ingresa tu punto de partida"
+            destinationPlaceholder="Ingresa tu destino"
+            googleMapsApiKey={googleMapsApiKey}
           />
 
           <TravelScheduleSection

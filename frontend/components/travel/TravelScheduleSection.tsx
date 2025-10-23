@@ -15,7 +15,7 @@ type TravelScheduleSectionProps = {
 };
 
 export default function TravelScheduleSection({
-    title = '🗓️ Fecha y hora',
+    title = 'Fecha y hora',
     dateLabel = 'Fecha del viaje *',
     timeLabel = 'Hora de partida *',
     dateValue,

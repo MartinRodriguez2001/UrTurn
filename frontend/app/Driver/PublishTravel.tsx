@@ -1,9 +1,9 @@
-﻿import travelApiService from "@/Services/TravelApiService";
+﻿import TravelRouteSection from "@/components/travel/TravelRouteSection";
+import travelApiService from "@/Services/TravelApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { TravelCreateData } from "@/types/travel";
 import { Vehicle } from "@/types/vehicle";
-import TravelRouteSection from "@/components/travel/TravelRouteSection";
-import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
+import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -48,6 +48,7 @@ export default function PublishTravel() {
 
   // Estados para validaci├│n
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const googleMapsApiKey = resolveGoogleMapsApiKey();
   const [loading, setLoading] = useState(false);
 
   // Estados para veh├¡culos
@@ -351,7 +352,7 @@ export default function PublishTravel() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Text style={styles.backIcon}>ÔåÉ</Text>
+          <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
 
         <View style={styles.titleContainer}>
@@ -362,42 +363,26 @@ export default function PublishTravel() {
       <ScrollView
         style={styles.scrollContainer}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Form Section */}
         <View style={styles.formSection}>
-          
           {/* Route Section */}
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>­ƒôì Ruta del viaje</Text>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Origen *</Text>
-              <TextInput
-                style={[styles.input, errors.origin && styles.inputError]}
-                placeholder="Ej: Universidad de Chile, Facultad de Ingenier├¡a"
-                placeholderTextColor="#876363"
-                value={formData.origin}
-                onChangeText={(value) => updateField("origin", value)}
-              />
-              {errors.origin && <Text style={styles.errorText}>{errors.origin}</Text>}
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Destino *</Text>
-              <TextInput
-                style={[styles.input, errors.destination && styles.inputError]}
-                placeholder="Ej: Mall Plaza Vespucio, Metro San Joaqu├¡n"
-                placeholderTextColor="#876363"
-                value={formData.destination}
-                onChangeText={(value) => updateField("destination", value)}
-              />
-              {errors.destination && <Text style={styles.errorText}>{errors.destination}</Text>}
-            </View>
-          </View>
+          <TravelRouteSection
+            originValue={formData.origin}
+            destinationValue={formData.destination}
+            onChangeOrigin={(value) => updateField("origin", value)}
+            onChangeDestination={(value) => updateField("destination", value)}
+            originError={errors.origin}
+            destinationError={errors.destination}
+            originPlaceholder="Ingresa tu punto de partida"
+            destinationPlaceholder="Ingresa tu destino"
+            googleMapsApiKey={googleMapsApiKey}
+          />
 
           {/* Date and Time Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>­ƒòÆ Fecha y hora</Text>
+            <Text style={styles.sectionTitle}>🕒 Fecha y hora</Text>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Fecha del viaje *</Text>
@@ -451,10 +436,10 @@ export default function PublishTravel() {
 
           {/* Trip Details Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>­ƒÜù Detalles del viaje</Text>
+            <Text style={styles.sectionTitle}>🚗 Detalles del viaje</Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Veh├¡culo *</Text>
+              <Text style={styles.label}>Vehículo *</Text>
               <TouchableOpacity
                 style={[styles.input, styles.selectInput, errors.vehicle && styles.inputError]}
                 onPress={() => setShowVehicleModal(true)}
@@ -468,7 +453,7 @@ export default function PublishTravel() {
                     : "Selecciona un veh├¡culo"
                   }
                 </Text>
-                <Text style={styles.dropdownIcon}>Ôû╝</Text>
+                <Text style={styles.dropdownIcon}>▼</Text>
               </TouchableOpacity>
               {errors.vehicle && <Text style={styles.errorText}>{errors.vehicle}</Text>}
             </View>
@@ -559,12 +544,12 @@ export default function PublishTravel() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Seleccionar Veh├¡culo</Text>
+              <Text style={styles.modalTitle}>Seleccionar Vehículo</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowVehicleModal(false)}
               >
-                <Text style={styles.closeIcon}>├ù</Text>
+                <Text style={styles.closeIcon}>×</Text>
               </TouchableOpacity>
             </View>
             
