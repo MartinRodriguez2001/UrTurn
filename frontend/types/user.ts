@@ -15,6 +15,37 @@ export interface UserProfile extends User {
   updated_at: string;
 }
 
+export interface UserProfileWithStats extends UserProfile {
+  rating?: {
+    average: number | null;
+    total: number;
+    distribution: {
+      5: number;
+      4: number;
+      3: number;
+      2: number;
+      1: number;
+    };
+  };
+  stats?: {
+    asDriver?: {
+      totalTrips: number;
+      completedTrips: number;
+      totalEarnings: number;
+      totalPassengersTransported: number;
+    };
+    asPassenger?: {
+      totalRequests: number;
+      completedTrips: number;
+      totalSpent: number;
+    };
+  };
+  travelHistory?: {
+    recent: any[];
+    total: number;
+  };
+}
+
 export interface AuthResponse {
   user: User;
   token: string;

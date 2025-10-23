@@ -1,3 +1,6 @@
+import reviewApiService from "@/Services/ReviewApiService";
+import statsApiService from "@/Services/StatsApiService";
+import travelApiService from "@/Services/TravelApiService";
 import { userApi } from "@/Services/UserApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { UserProfile } from "@/types/user";
@@ -35,6 +38,20 @@ export default function DriverProfile() {
     active: false,
   });
 
+  // Estados para rating y estadísticas
+  const [averageRating, setAverageRating] = useState<number | null>(null);
+  const [totalReviews, setTotalReviews] = useState<number>(0);
+  const [ratingDistribution, setRatingDistribution] = useState({
+    5: 0, 4: 0, 3: 0, 2: 0, 1: 0
+  });
+  const [driverStats, setDriverStats] = useState({
+    totalTrips: 0,
+    completedTrips: 0,
+    totalEarnings: 0,
+    totalPassengersTransported: 0
+  });
+  const [recentTravels, setRecentTravels] = useState<any[]>([]);
+
   async function handleValidateVehicle(vehicleId: number) {
     try {
       const response = await VehicleApiService.forceValidateVehicle(vehicleId);
@@ -62,14 +79,24 @@ export default function DriverProfile() {
 
    const getProfileData = async () => {
     try {
-      const [response, responseVehicles] = await Promise.all([
+      setLoading(true);
+
+      // Hacer todas las llamadas en paralelo usando la Opción 3
+      const [response, responseVehicles, reviewsResponse, statsResponse, travelsResponse] = await Promise.all([
         userApi.getProfile(),
-        VehicleApiService.getUserVehicles()
+        VehicleApiService.getUserVehicles(),
+        reviewApiService.getMyReviews(),
+        statsApiService.getMyStats(),
+        travelApiService.getDriverTravels()
       ]);
-      
+
       console.log("👤 Perfil del usuario:", response);
       console.log("🚗 Vehículos respuesta:", responseVehicles);
-      
+      console.log("⭐ Reviews respuesta:", reviewsResponse);
+      console.log("📊 Stats respuesta:", statsResponse);
+      console.log("🚗 Travels respuesta:", travelsResponse);
+
+      // Procesar datos del perfil básico
       if (response.success && response.data) {
         setUserProfile({
           name: response.data.name,
@@ -85,6 +112,7 @@ export default function DriverProfile() {
         });
       }
 
+      // Procesar vehículos
       if (responseVehicles?.success && responseVehicles.data) {
         if (Array.isArray(responseVehicles.data)) {
           setVehicles(responseVehicles.data);
@@ -98,9 +126,39 @@ export default function DriverProfile() {
         console.log("⚠️ No se pudieron cargar vehículos");
         setVehicles([]);
       }
+
+      // Procesar reviews y calificación promedio
+      if (reviewsResponse?.success && reviewsResponse.data) {
+        const reviewData = reviewsResponse.data;
+        setAverageRating(reviewData.stats.averageRating);
+        setTotalReviews(reviewData.stats.totalReceived);
+        setRatingDistribution(reviewData.stats.ratingDistribution);
+      }
+
+      // Procesar estadísticas de conductor
+      if (statsResponse?.success && statsResponse.data) {
+        const statsData = statsResponse.data;
+        setDriverStats({
+          totalTrips: statsData.asDriver.totalTrips,
+          completedTrips: statsData.asDriver.completedTrips,
+          totalEarnings: statsData.asDriver.totalEarnings,
+          totalPassengersTransported: statsData.asDriver.totalPassengersTransported
+        });
+      }
+
+      // Procesar historial de viajes (tomar los 5 más recientes)
+      if (travelsResponse?.success && travelsResponse.travels) {
+        const sortedTravels = travelsResponse.travels
+          .sort((a: any, b: any) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+          .slice(0, 5);
+        setRecentTravels(sortedTravels);
+      }
+
     } catch (error) {
       console.error("❌ Error al cargar datos del perfil:", error);
       setVehicles([]);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -115,6 +173,44 @@ export default function DriverProfile() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const renderStars = (rating: number | null) => {
+    if (rating === null) return "Sin calificaciones";
+
+    const fullStars = Math.floor(rating);
+    const hasHalfStar = rating % 1 >= 0.5;
+    const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+
+    return (
+      <View style={styles.starsContainer}>
+        {[...Array(fullStars)].map((_, i) => (
+          <Text key={`full-${i}`} style={styles.starIcon}>⭐</Text>
+        ))}
+        {hasHalfStar && <Text style={styles.starIcon}>⭐</Text>}
+        {[...Array(emptyStars)].map((_, i) => (
+          <Text key={`empty-${i}`} style={styles.starIconEmpty}>☆</Text>
+        ))}
+        <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
+      </View>
+    );
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('es-CL', {
+      style: 'currency',
+      currency: 'CLP',
+      minimumFractionDigits: 0
+    }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-CL', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
   };
 
   const handleChangeProfilePhoto = () => {
@@ -173,13 +269,97 @@ export default function DriverProfile() {
 
           {/* Indicador de conductor */}
           <View style={styles.driverBadge}>
-            {/* ua */}
             <Text style={styles.driverBadgeText}>Conductor Verificado</Text>
           </View>
+
+          {/* Calificación promedio */}
+          {loading ? (
+            <ActivityIndicator size="small" color="#F99F7C" style={{ marginTop: 16 }} />
+          ) : (
+            <View style={styles.ratingSection}>
+              {renderStars(averageRating)}
+              <Text style={styles.totalReviewsText}>
+                ({totalReviews} {totalReviews === 1 ? 'calificación' : 'calificaciones'})
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Separador */}
         <View style={styles.separator} />
+
+        {/* Estadísticas de Conductor */}
+        {!loading && driverStats.totalTrips > 0 && (
+          <>
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.descriptionHeader}>Estadísticas</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{driverStats.completedTrips}</Text>
+                  <Text style={styles.statLabel}>Viajes Completados</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{driverStats.totalPassengersTransported}</Text>
+                  <Text style={styles.statLabel}>Pasajeros Transportados</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{formatCurrency(driverStats.totalEarnings)}</Text>
+                  <Text style={styles.statLabel}>Ganancias Totales</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>{driverStats.totalTrips}</Text>
+                  <Text style={styles.statLabel}>Total Viajes</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.separator} />
+          </>
+        )}
+
+        {/* Historial de Viajes Recientes */}
+        {!loading && recentTravels.length > 0 && (
+          <>
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.descriptionHeader}>Viajes Recientes</Text>
+              {recentTravels.map((travel, index) => (
+                <View key={travel.id || index} style={styles.travelCard}>
+                  <View style={styles.travelHeader}>
+                    <View style={styles.travelRoute}>
+                      <Text style={styles.travelLocation}>{travel.start_location}</Text>
+                      <Text style={styles.travelArrow}>→</Text>
+                      <Text style={styles.travelLocation}>{travel.end_location}</Text>
+                    </View>
+                    <View style={[
+                      styles.travelStatusBadge,
+                      travel.status === 'finalizado' && styles.statusFinished,
+                      travel.status === 'confirmado' && styles.statusConfirmed,
+                      travel.status === 'cancelado' && styles.statusCanceled
+                    ]}>
+                      <Text style={styles.travelStatusText}>
+                        {travel.status === 'finalizado' ? 'Finalizado' :
+                         travel.status === 'confirmado' ? 'Confirmado' :
+                         travel.status === 'cancelado' ? 'Cancelado' : 'Pendiente'}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.travelDetails}>
+                    <Text style={styles.travelDate}>📅 {formatDate(travel.start_time)}</Text>
+                    <Text style={styles.travelPrice}>💰 {formatCurrency(travel.price)}</Text>
+                    <Text style={styles.travelPassengers}>
+                      👥 {travel.stats?.confirmedPassengers || 0}/{travel.capacity}
+                    </Text>
+                  </View>
+                  {travel.stats?.averageRating && (
+                    <View style={styles.travelRating}>
+                      {renderStars(travel.stats.averageRating)}
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+            <View style={styles.separator} />
+          </>
+        )}
 
         <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionHeader}>Acerca de</Text>
@@ -546,5 +726,151 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans-SemiBold",
     fontSize: 12,
     color: "#FFFFFF",
+  },
+
+  // Estilos para rating y estrellas
+  ratingSection: {
+    marginTop: 16,
+    alignItems: "center",
+    gap: 4,
+  },
+  starsContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+  },
+  starIcon: {
+    fontSize: 20,
+  },
+  starIconEmpty: {
+    fontSize: 20,
+    color: "#E0E0E0",
+  },
+  ratingText: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 18,
+    color: "#121417",
+    marginLeft: 8,
+  },
+  totalReviewsText: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 14,
+    color: "#61758A",
+  },
+
+  // Estilos para estadísticas
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+    marginTop: 12,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: "45%",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+  },
+  statNumber: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 24,
+    color: "#F99F7C",
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 12,
+    color: "#61758A",
+    textAlign: "center",
+  },
+
+  // Estilos para historial de viajes
+  travelCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    marginVertical: 8,
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  travelHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: 12,
+  },
+  travelRoute: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  travelLocation: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 14,
+    color: "#121417",
+  },
+  travelArrow: {
+    fontSize: 14,
+    color: "#61758A",
+  },
+  travelStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: "#F0F0F0",
+  },
+  statusFinished: {
+    backgroundColor: "#E8F5E8",
+  },
+  statusConfirmed: {
+    backgroundColor: "#E3F2FD",
+  },
+  statusCanceled: {
+    backgroundColor: "#FFEBEE",
+  },
+  travelStatusText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 11,
+    color: "#61758A",
+  },
+  travelDetails: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 8,
+  },
+  travelDate: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 12,
+    color: "#61758A",
+  },
+  travelPrice: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 12,
+    color: "#F99F7C",
+  },
+  travelPassengers: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 12,
+    color: "#61758A",
+  },
+  travelRating: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: "#F0F0F0",
   },
 });
