@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Location from 'expo-location';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -13,7 +14,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import PassengerMap from '../../components/passenger/PassengerMap';
 import type {
     MapCoordinate,
@@ -49,8 +49,14 @@ export default function PassengerSearchRider() {
     const [searchQuery, setSearchQuery] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [showTimePicker, setShowTimePicker] = useState(false);
-    const [selectedPickupDate, setSelectedPickupDate] = useState<Date | null>(null);
-    const [selectedPickupTime, setSelectedPickupTime] = useState<{ hours: number; minutes: number } | null>(null);
+    // Adopt PublishTravel approach: keep Date objects for date & time
+    const [selectedPickupDate, setSelectedPickupDate] = useState<Date>(() => new Date());
+    const [selectedPickupTime, setSelectedPickupTime] = useState<Date>(() => {
+        const now = new Date();
+        const nextHour = new Date(now);
+        nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+        return nextHour;
+    });
     const [predictions, setPredictions] = useState<AutocompletePrediction[]>([]);
     const [isLoadingPredictions, setIsLoadingPredictions] = useState(false);
     const [selectedLocationLabel, setSelectedLocationLabel] = useState('');
@@ -79,66 +85,35 @@ export default function PassengerSearchRider() {
             month: 'long',
         });
 
-    const formatTimeLabel = (time: { hours: number; minutes: number }) =>
-        `${time.hours.toString().padStart(2, '0')}:${time.minutes
-            .toString()
-            .padStart(2, '0')}`;
+    const formatTimeLabel = (time: Date) =>
+        time.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-    const handlePickupDateChange = (event: any, date?: Date) => {
+    const handlePickupDateChange = (_event: any, selectedDate?: Date) => {
         setShowDatePicker(false);
 
-        if (event?.type === 'dismissed') {
-            return;
-        }
-
-        if (date) {
-            const normalizedDate = new Date(date);
-            normalizedDate.setHours(0, 0, 0, 0);
-            setSelectedPickupDate(normalizedDate);
+        if (selectedDate) {
+            setSelectedPickupDate(new Date(selectedDate));
         }
     };
 
-    const handlePickupTimeChange = (event: any, date?: Date) => {
+    const handlePickupTimeChange = (_event: any, selectedTime?: Date) => {
         setShowTimePicker(false);
 
-        if (event?.type === 'dismissed') {
-            return;
-        }
-
-        if (date) {
-            setSelectedPickupTime({
-                hours: date.getHours(),
-                minutes: date.getMinutes(),
-            });
+        if (selectedTime) {
+            setSelectedPickupTime(new Date(selectedTime));
         }
     };
 
-    const pickupDateLabel = selectedPickupDate
-        ? formatDateLabel(selectedPickupDate)
-        : 'Seleccionar fecha de recogida';
+    const pickupDateLabel = formatDateLabel(selectedPickupDate);
 
-    const pickupTimeLabel = selectedPickupTime
-        ? formatTimeLabel(selectedPickupTime)
-        : 'Seleccionar hora de recogida';
+    const pickupTimeLabel = formatTimeLabel(selectedPickupTime);
 
     const pickupDateTime = React.useMemo(() => {
-        if (!selectedPickupDate || !selectedPickupTime) {
-            return null;
-        }
         const combined = new Date(selectedPickupDate.getTime());
-        combined.setHours(selectedPickupTime.hours, selectedPickupTime.minutes, 0, 0);
+        combined.setHours(selectedPickupTime.getHours(), selectedPickupTime.getMinutes(), 0, 0);
         return combined;
     }, [selectedPickupDate, selectedPickupTime]);
 
-    const timePickerValue = React.useMemo(() => {
-        const base = selectedPickupDate
-            ? new Date(selectedPickupDate.getTime())
-            : new Date();
-        if (selectedPickupTime) {
-            base.setHours(selectedPickupTime.hours, selectedPickupTime.minutes, 0, 0);
-        }
-        return base;
-    }, [selectedPickupDate, selectedPickupTime]);
     React.useEffect(() => {
         if (!focusRegion) {
             return;
@@ -564,16 +539,17 @@ export default function PassengerSearchRider() {
             </View>
             {showDatePicker && (
                 <DateTimePicker
-                    value={selectedPickupDate ?? new Date()}
+                    value={selectedPickupDate}
                     mode="date"
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    minimumDate={new Date()}
                     onChange={handlePickupDateChange}
+                    minimumDate={new Date()}
+                    maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
                 />
             )}
             {showTimePicker && (
                 <DateTimePicker
-                    value={timePickerValue}
+                    value={selectedPickupTime}
                     mode="time"
                     display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                     onChange={handlePickupTimeChange}
