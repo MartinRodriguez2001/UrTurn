@@ -1,4 +1,4 @@
-export interface TravelAvailables {
+﻿export interface TravelAvailables {
   travels: Travel[];
   count: number;
   message: string;
@@ -10,7 +10,7 @@ export interface Travel {
   capacity: number;
   price: number;
   start_time: Date;
-  end_time: Date;
+  end_time?: Date;
   spaces_available: number;
   carId: number;
   status?: TravelStatus;
@@ -30,7 +30,7 @@ export interface ProcessedTravel {
   capacity: number;
   price: number;
   start_time: Date;
-  end_time: Date;
+  end_time?: Date;
   spaces_available: number;
   status: TravelStatus;
   userId: number;
@@ -71,7 +71,7 @@ export interface TravelCreateData {
   capacity: number;
   price: number;
   start_time: Date;
-  end_time: Date;
+  end_time?: Date;
   carId: number;
   spaces_available: number;
 }
@@ -98,3 +98,4 @@ export interface ByStatus {
   finalizado: number;
   pendiente: number;
 }
+

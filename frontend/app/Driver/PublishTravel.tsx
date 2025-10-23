@@ -1,7 +1,9 @@
-import travelApiService from "@/Services/TravelApiService";
+﻿import travelApiService from "@/Services/TravelApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { TravelCreateData } from "@/types/travel";
 import { Vehicle } from "@/types/vehicle";
+import TravelRouteSection from "@/components/travel/TravelRouteSection";
+import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -31,24 +33,24 @@ export default function PublishTravel() {
     startTime: (() => {
       const now = new Date();
       const nextHour = new Date(now);
-      nextHour.setHours(now.getHours() + 1, 0, 0, 0); // Próxima hora en punto
+      nextHour.setHours(now.getHours() + 1, 0, 0, 0); // Pr├│xima hora en punto
       return nextHour;
     })(),
     endTime: (() => {
       const now = new Date();
       const twoHoursLater = new Date(now);
-      twoHoursLater.setHours(now.getHours() + 2, 0, 0, 0); // 2 horas después
+      twoHoursLater.setHours(now.getHours() + 2, 0, 0, 0); // 2 horas despu├®s
       return twoHoursLater;
     })(),
     seats: "",
     price: "",
   });
 
-  // Estados para validación
+  // Estados para validaci├│n
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [loading, setLoading] = useState(false);
 
-  // Estados para vehículos
+  // Estados para veh├¡culos
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
@@ -57,7 +59,6 @@ export default function PublishTravel() {
   // Estados para date/time pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   useEffect(() => {
     loadUserVehicles();
@@ -84,17 +85,17 @@ export default function PublishTravel() {
         );
         setVehicles(validatedVehicles);
         
-        // Seleccionar el primer vehículo por defecto si existe
+        // Seleccionar el primer veh├¡culo por defecto si existe
         if (validatedVehicles.length > 0) {
           setSelectedVehicle(validatedVehicles[0]);
         }
       } else {
         Alert.alert(
-          "Sin vehículos",
-          "No tienes vehículos registrados. Primero debes registrar un vehículo.",
+          "Sin veh├¡culos",
+          "No tienes veh├¡culos registrados. Primero debes registrar un veh├¡culo.",
           [
             {
-              text: "Registrar vehículo",
+              text: "Registrar veh├¡culo",
               onPress: () => router.push("/Passenger/DriverRegister"),
             },
             {
@@ -106,7 +107,7 @@ export default function PublishTravel() {
       }
     } catch (error) {
       console.error("Error loading vehicles:", error);
-      Alert.alert("Error", "No se pudieron cargar tus vehículos");
+      Alert.alert("Error", "No se pudieron cargar tus veh├¡culos");
     } finally {
       setLoadingVehicles(false);
     }
@@ -157,14 +158,14 @@ export default function PublishTravel() {
     if (!formData.price.trim()) {
       newErrors.price = "El precio es requerido";
     } else if (isNaN(priceNum) || priceNum < 0) {
-      newErrors.price = "El precio debe ser un número positivo";
+      newErrors.price = "El precio debe ser un n├║mero positivo";
     } else if (priceNum > 50000) {
       newErrors.price = "El precio no puede exceder $50,000";
     }
 
-    // Validar vehículo
+    // Validar veh├¡culo
     if (!selectedVehicle) {
-      newErrors.vehicle = "Debes seleccionar un vehículo";
+      newErrors.vehicle = "Debes seleccionar un veh├¡culo";
     }
 
     // Validar fechas
@@ -172,25 +173,13 @@ export default function PublishTravel() {
     const startDateTime = new Date(formData.startDate);
     startDateTime.setHours(formData.startTime.getHours(), formData.startTime.getMinutes(), 0, 0);
 
-    const endDateTime = new Date(formData.startDate);
-    endDateTime.setHours(formData.endTime.getHours(), formData.endTime.getMinutes(), 0, 0);
-
     // El viaje debe empezar en el futuro (al menos 30 minutos)
     const minStartTime = new Date(now.getTime() + 30 * 60 * 1000);
     if (startDateTime < minStartTime) {
       newErrors.startTime = "El viaje debe programarse al menos 30 minutos en el futuro";
     }
 
-    // La hora de fin debe ser después de la hora de inicio
-    if (endDateTime <= startDateTime) {
-      newErrors.endTime = "La hora de llegada debe ser posterior a la hora de partida";
-    }
 
-    // El viaje no puede durar más de 12 horas
-    const maxDuration = 12 * 60 * 60 * 1000;
-    if (endDateTime.getTime() - startDateTime.getTime() > maxDuration) {
-      newErrors.endTime = "El viaje no puede durar más de 12 horas";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -209,28 +198,24 @@ export default function PublishTravel() {
       const startDateTime = new Date(formData.startDate);
       startDateTime.setHours(formData.startTime.getHours(), formData.startTime.getMinutes(), 0, 0);
 
-      const endDateTime = new Date(formData.startDate);
-      endDateTime.setHours(formData.endTime.getHours(), formData.endTime.getMinutes(), 0, 0);
-
       const travelData: TravelCreateData = {
         start_location: formData.origin.trim(),
         end_location: formData.destination.trim(),
         capacity: parseInt(formData.seats),
         price: parseFloat(formData.price),
         start_time: startDateTime,
-        end_time: endDateTime,
         spaces_available: parseInt(formData.seats),
         carId: selectedVehicle!.id,
       };
 
-      console.log("🚗 Creando viaje:", travelData);
+      console.log("­ƒÜù Creando viaje:", travelData);
 
       const response = await travelApiService.createTravel(travelData);
 
       if (response.success) {
         Alert.alert(
-          "¡Viaje publicado! 🎉",
-          "Tu viaje ha sido publicado exitosamente y ya está disponible para que otros usuarios se unan.",
+          "┬íViaje publicado! ­ƒÄë",
+          "Tu viaje ha sido publicado exitosamente y ya est├í disponible para que otros usuarios se unan.",
           [
             {
               text: "Ver mis viajes",
@@ -243,10 +228,10 @@ export default function PublishTravel() {
       }
 
     } catch (error) {
-      console.error("❌ Error al crear viaje:", error);
+      console.error("ÔØî Error al crear viaje:", error);
       Alert.alert(
-        "Error de conexión",
-        "No se pudo conectar con el servidor. Verifica tu conexión a internet."
+        "Error de conexi├│n",
+        "No se pudo conectar con el servidor. Verifica tu conexi├│n a internet."
       );
     } finally {
       setLoading(false);
@@ -267,7 +252,7 @@ export default function PublishTravel() {
       const newStartTime = new Date(selectedTime);
       
       setFormData(prev => {
-        // Crear nueva hora de fin que sea al menos 30 minutos después
+        // Crear nueva hora de fin que sea al menos 30 minutos despu├®s
         const newEndTime = new Date(newStartTime);
         newEndTime.setMinutes(newStartTime.getMinutes() + 30);
         
@@ -293,22 +278,6 @@ export default function PublishTravel() {
     }
   };
 
-  const onEndTimeChange = (event: any, selectedTime?: Date) => {
-    setShowEndTimePicker(false);
-    if (selectedTime) {
-      const newEndTime = new Date(selectedTime);
-      setFormData(prev => ({ 
-        ...prev, 
-        endTime: newEndTime 
-      }));
-      
-      // Limpiar error si existe
-      if (errors.endTime) {
-        setErrors(prev => ({ ...prev, endTime: "" }));
-      }
-    }
-  };
-
   // Formatear fecha y hora para mostrar
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('es-CL', {
@@ -327,7 +296,7 @@ export default function PublishTravel() {
     });
   };
 
-  // Agregar función helper para mostrar duración estimada
+  // Agregar funci├│n helper para mostrar duraci├│n estimada
   const getEstimatedDuration = () => {
     const startTotalMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
     const endTotalMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
@@ -368,7 +337,7 @@ export default function PublishTravel() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#F99F7C" />
-          <Text style={styles.loadingText}>Cargando vehículos...</Text>
+          <Text style={styles.loadingText}>Cargando veh├¡culos...</Text>
         </View>
       </SafeAreaView>
     );
@@ -382,7 +351,7 @@ export default function PublishTravel() {
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Text style={styles.backIcon}>←</Text>
+          <Text style={styles.backIcon}>ÔåÉ</Text>
         </TouchableOpacity>
 
         <View style={styles.titleContainer}>
@@ -399,13 +368,13 @@ export default function PublishTravel() {
           
           {/* Route Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>📍 Ruta del viaje</Text>
+            <Text style={styles.sectionTitle}>­ƒôì Ruta del viaje</Text>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Origen *</Text>
               <TextInput
                 style={[styles.input, errors.origin && styles.inputError]}
-                placeholder="Ej: Universidad de Chile, Facultad de Ingeniería"
+                placeholder="Ej: Universidad de Chile, Facultad de Ingenier├¡a"
                 placeholderTextColor="#876363"
                 value={formData.origin}
                 onChangeText={(value) => updateField("origin", value)}
@@ -417,7 +386,7 @@ export default function PublishTravel() {
               <Text style={styles.label}>Destino *</Text>
               <TextInput
                 style={[styles.input, errors.destination && styles.inputError]}
-                placeholder="Ej: Mall Plaza Vespucio, Metro San Joaquín"
+                placeholder="Ej: Mall Plaza Vespucio, Metro San Joaqu├¡n"
                 placeholderTextColor="#876363"
                 value={formData.destination}
                 onChangeText={(value) => updateField("destination", value)}
@@ -428,7 +397,7 @@ export default function PublishTravel() {
 
           {/* Date and Time Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>🕒 Fecha y hora</Text>
+            <Text style={styles.sectionTitle}>­ƒòÆ Fecha y hora</Text>
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Fecha del viaje *</Text>
@@ -470,11 +439,11 @@ export default function PublishTravel() {
               </View>
             </View>
 
-            {/* Agregar información de duración */}
+            {/* Agregar informaci├│n de duraci├│n */}
             {getEstimatedDuration() && (
               <View style={styles.durationContainer}>
                 <Text style={styles.durationText}>
-                  ⏱️ Duración estimada: {getEstimatedDuration()}
+                  ÔÅ▒´©Å Duraci├│n estimada: {getEstimatedDuration()}
                 </Text>
               </View>
             )}
@@ -482,10 +451,10 @@ export default function PublishTravel() {
 
           {/* Trip Details Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>🚗 Detalles del viaje</Text>
+            <Text style={styles.sectionTitle}>­ƒÜù Detalles del viaje</Text>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Vehículo *</Text>
+              <Text style={styles.label}>Veh├¡culo *</Text>
               <TouchableOpacity
                 style={[styles.input, styles.selectInput, errors.vehicle && styles.inputError]}
                 onPress={() => setShowVehicleModal(true)}
@@ -496,10 +465,10 @@ export default function PublishTravel() {
                 ]}>
                   {selectedVehicle 
                     ? `${selectedVehicle.brand} ${selectedVehicle.model} (${selectedVehicle.licence_plate})`
-                    : "Selecciona un vehículo"
+                    : "Selecciona un veh├¡culo"
                   }
                 </Text>
-                <Text style={styles.dropdownIcon}>▼</Text>
+                <Text style={styles.dropdownIcon}>Ôû╝</Text>
               </TouchableOpacity>
               {errors.vehicle && <Text style={styles.errorText}>{errors.vehicle}</Text>}
             </View>
@@ -567,7 +536,7 @@ export default function PublishTravel() {
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={onDateChange}
           minimumDate={new Date()}
-          maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 días
+          maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 d├¡as
         />
       )}
 
@@ -577,15 +546,6 @@ export default function PublishTravel() {
           mode="time"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={onStartTimeChange}
-        />
-      )}
-
-      {showEndTimePicker && (
-        <DateTimePicker
-          value={formData.endTime}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={onEndTimeChange}
         />
       )}
 
@@ -599,12 +559,12 @@ export default function PublishTravel() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Seleccionar Vehículo</Text>
+              <Text style={styles.modalTitle}>Seleccionar Veh├¡culo</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowVehicleModal(false)}
               >
-                <Text style={styles.closeIcon}>×</Text>
+                <Text style={styles.closeIcon}>├ù</Text>
               </TouchableOpacity>
             </View>
             
@@ -791,7 +751,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   
-  // Estilos para modal de vehículos
+  // Estilos para modal de veh├¡culos
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -853,7 +813,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F9FA",
   },
   
-  // Estilos para la duración
+  // Estilos para la duraci├│n
   durationContainer: {
     backgroundColor: "#F0F8FF",
     padding: 12,

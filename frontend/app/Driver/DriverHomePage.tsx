@@ -178,9 +178,6 @@ export default function DriverHomePage() {
               Time={`${new Date(getNextTravel()!.start_time).toLocaleTimeString(
                 "es-CL",
                 { hour: "2-digit", minute: "2-digit" }
-              )} - ${new Date(getNextTravel()!.end_time).toLocaleTimeString(
-                "es-CL",
-                { hour: "2-digit", minute: "2-digit" }
               )}`}
             />
           ) : (
