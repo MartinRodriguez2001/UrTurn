@@ -96,7 +96,18 @@ export default function DriverOnTravel() {
       </ScrollView>
 
       <View style={styles.footerContainer}>
-        <TouchableOpacity style={styles.finishButton} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={styles.finishButton} 
+          activeOpacity={0.8}
+          onPress={() => router.push({
+            pathname: "/Driver/TravelComplete",
+            params: {
+              travelId: "123", // TODO: Obtener del viaje actual
+              passengerName: "Juan Pérez", // TODO: Obtener del viaje actual
+              passengerId: "456", // TODO: Obtener del viaje actual
+            }
+          })}
+        >
           <Text style={styles.finishButtonText}>Terminar viaje</Text>
         </TouchableOpacity>
       </View>

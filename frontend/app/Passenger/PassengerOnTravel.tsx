@@ -1,3 +1,4 @@
+import { useRouter } from "expo-router";
 import React from "react";
 import {
     Image,
@@ -24,6 +25,8 @@ const imgDepth4Frame1 =
   "http://localhost:3845/assets/629cc3192dacb040da73496cb8c1c028c2e2e4ea.svg";
 
 export default function DriverOnTravel() {
+  const router = useRouter();
+  
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -78,7 +81,18 @@ export default function DriverOnTravel() {
       </ScrollView>
 
       <View style={styles.footerContainer}>
-        <TouchableOpacity style={styles.finishButton} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={styles.finishButton} 
+          activeOpacity={0.8}
+          onPress={() => router.push({
+            pathname: "/Passenger/TravelComplete",
+            params: {
+              travelId: "123", // TODO: Obtener del viaje actual
+              driverName: "María González", // TODO: Obtener del viaje actual
+              driverId: "456", // TODO: Obtener del viaje actual
+            }
+          })}
+        >
           <Text style={styles.finishButtonText}>Terminar viaje</Text>
         </TouchableOpacity>
       </View>
