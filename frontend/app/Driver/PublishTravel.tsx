@@ -25,6 +25,9 @@ import {
 export default function PublishTravel() {
   const router = useRouter();
 
+  const [originCoordinate, setOriginCoordinate] = useState<MapCoordinate | null>(null);
+  const [destinationCoordinate, setDestinationCoordinate] = useState<MapCoordinate | null>(null);
+
   // Estados del formulario
   const [formData, setFormData] = useState({
     origin: "",
@@ -371,6 +374,10 @@ export default function PublishTravel() {
           <TravelRouteSection
             originValue={formData.origin}
             destinationValue={formData.destination}
+            originCoordinateValue={originCoordinate}
+            destinationCoordinateValue={destinationCoordinate}
+            onOriginCoordinateChange={setOriginCoordinate}
+            onDestinationCoordinateChange={setDestinationCoordinate}
             onChangeOrigin={(value) => updateField("origin", value)}
             onChangeDestination={(value) => updateField("destination", value)}
             originError={errors.origin}

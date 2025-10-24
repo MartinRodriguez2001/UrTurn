@@ -1,17 +1,18 @@
-﻿import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
+﻿import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
 import TravelRouteSection from "@/components/travel/TravelRouteSection";
+import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const createNextHour = () => {
@@ -29,6 +30,9 @@ export default function PassengerSearchRider() {
   const [destination, setDestination] = useState("");
   const [travelDate, setTravelDate] = useState(new Date());
   const [travelTime, setTravelTime] = useState(() => createNextHour());
+
+  const [originCoordinate, setOriginCoordinate] = useState<MapCoordinate | null>(null);
+  const [destinationCoordinate, setDestinationCoordinate] = useState<MapCoordinate | null>(null);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -125,14 +129,26 @@ export default function PassengerSearchRider() {
 
     const pickupDateTime = combineDateTime();
 
+    const params: Record<string, string> = {
+      origin: origin.trim(),
+      destination: destination.trim(),
+      pickupDate: pickupDate.toISOString(),
+      pickupTime: pickupDateTime.toISOString(),
+    };
+
+    if (originCoordinate) {
+      params.originLat = originCoordinate.latitude.toString();
+      params.originLng = originCoordinate.longitude.toString();
+    }
+
+    if (destinationCoordinate) {
+      params.destinationLat = destinationCoordinate.latitude.toString();
+      params.destinationLng = destinationCoordinate.longitude.toString();
+    }
+
     router.push({
       pathname: "/Passenger/Passengerrideroffers",
-      params: {
-        origin: origin.trim(),
-        destination: destination.trim(),
-        pickupDate: pickupDate.toISOString(),
-        pickupTime: pickupDateTime.toISOString(),
-      },
+      params,
     });
   };
 
@@ -160,6 +176,10 @@ export default function PassengerSearchRider() {
           <TravelRouteSection
             originValue={origin}
             destinationValue={destination}
+            originCoordinateValue={originCoordinate}
+            destinationCoordinateValue={destinationCoordinate}
+            onOriginCoordinateChange={setOriginCoordinate}
+            onDestinationCoordinateChange={setDestinationCoordinate}
             onChangeOrigin={(value) => {
               setOrigin(value);
               if (errors.origin) {
