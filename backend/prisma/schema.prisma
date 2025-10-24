@@ -73,6 +73,8 @@ model Travel {
   end_latitude Float
   end_longitude Float
 
+  route_waypoints Json?
+
   capacity Int
   price Float
   travel_date DateTime

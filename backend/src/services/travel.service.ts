@@ -20,6 +20,7 @@ export interface TravelData {
   end_location_name: string;
   end_latitude: number;
   end_longitude: number;
+  routeWaypoints?: Coordinate[];
   travel_date: Date;
   start_time: Date;
   end_time?: Date | null;
@@ -102,6 +103,9 @@ export class TravelService {
 
       await this.validateNoOverlappingTravels(driverId, travelStart, travelEnd);
 
+      const normalizedRouteWaypoints = this.sanitizeRouteWaypoints(
+        travelData.routeWaypoints
+      );
       const driverVehicles = await prisma.vehicle.findMany({
         where: {
           userId: driverId,
@@ -133,6 +137,14 @@ export class TravelService {
           end_location_name: travelData.end_location_name.trim(),
           end_latitude: travelData.end_latitude,
           end_longitude: travelData.end_longitude,
+          ...(normalizedRouteWaypoints
+            ? {
+                route_waypoints: normalizedRouteWaypoints.map((point) => ({
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                })),
+              }
+            : {}),
           travel_date: travelData.travel_date,
           start_time: travelStart,
           ...(travelData.end_time ? { end_time: travelEnd } : {}),
@@ -331,6 +343,85 @@ export class TravelService {
       start_location: travel.start_location_name,
       end_location: travel.end_location_name,
     };
+  }
+
+  private sanitizeRouteWaypoints(
+    waypoints?: Coordinate[]
+  ): Coordinate[] | null {
+    if (!waypoints || waypoints.length === 0) {
+      return null;
+    }
+
+    const normalized: Coordinate[] = [];
+
+    for (const waypoint of waypoints) {
+      if (
+        !waypoint ||
+        waypoint.latitude === undefined ||
+        waypoint.longitude === undefined
+      ) {
+        throw new Error("Los puntos de ruta incluyen valores incompletos");
+      }
+
+      const latitude = Number(waypoint.latitude);
+      const longitude = Number(waypoint.longitude);
+
+      if (!Number.isFinite(latitude) || Math.abs(latitude) > 90) {
+        throw new Error("La latitud de un punto de ruta es inválida");
+      }
+      if (!Number.isFinite(longitude) || Math.abs(longitude) > 180) {
+        throw new Error("La longitud de un punto de ruta es inválida");
+      }
+
+      const alreadyAdded = normalized[normalized.length - 1];
+      if (
+        alreadyAdded &&
+        Math.abs(alreadyAdded.latitude - latitude) <= 1e-6 &&
+        Math.abs(alreadyAdded.longitude - longitude) <= 1e-6
+      ) {
+        continue;
+      }
+
+      normalized.push({ latitude, longitude });
+    }
+
+    return normalized.length >= 2 ? normalized : null;
+  }
+
+  private parseStoredRouteWaypoints(stored: unknown): Coordinate[] | null {
+    if (!stored) {
+      return null;
+    }
+
+    if (!Array.isArray(stored)) {
+      return null;
+    }
+
+    const candidateWaypoints: Coordinate[] = [];
+
+    for (const raw of stored) {
+      if (!raw || typeof raw !== "object") {
+        continue;
+      }
+
+      const maybeLatitude =
+        (raw as { latitude?: unknown; lat?: unknown }).latitude ??
+        (raw as { lat?: unknown }).lat;
+      const maybeLongitude =
+        (raw as { longitude?: unknown; lng?: unknown }).longitude ??
+        (raw as { lng?: unknown }).lng;
+
+      const latitude = Number(maybeLatitude);
+      const longitude = Number(maybeLongitude);
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        continue;
+      }
+
+      candidateWaypoints.push({ latitude, longitude });
+    }
+
+    return this.sanitizeRouteWaypoints(candidateWaypoints);
   }
 
   async getDriverTravels(driverId: number) {
@@ -1723,15 +1814,20 @@ export class TravelService {
       ...(maxResults ? { take: Math.max(maxResults * 3, maxResults) } : {}),
     });
 
-    const evaluationConfig: PassengerAssignmentConfig = {
-      averageSpeedKmh,
-      maxAdditionalMinutes,
-      maxDeviationMeters,
-    };
-
     const evaluations = await Promise.all(
       initialCandidates.map(async (travel) => {
         try {
+          const routeWaypoints = this.parseStoredRouteWaypoints(
+            travel.route_waypoints
+          );
+
+          const evaluationConfig: PassengerAssignmentConfig = {
+            averageSpeedKmh,
+            maxAdditionalMinutes,
+            maxDeviationMeters,
+            ...(routeWaypoints ? { routeWaypoints } : {}),
+          };
+
           const evaluation = await this.evaluatePassengerAssignment(
             travel.id,
             passenger,

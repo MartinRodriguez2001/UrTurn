@@ -13,6 +13,8 @@ export interface Travel {
   end_location_name: string | null;
   end_latitude: number;
   end_longitude: number;
+  route_waypoints?: TravelCoordinate[] | null;
+  routeWaypoints?: TravelCoordinate[] | null;
   capacity: number;
   price: number;
   travel_date: Date;
@@ -46,6 +48,8 @@ export interface ProcessedTravel {
   end_location_name: string | null;
   end_latitude: number;
   end_longitude: number;
+  route_waypoints?: TravelCoordinate[] | null;
+  routeWaypoints?: TravelCoordinate[] | null;
   travel_date: Date;
   capacity: number;
   price: number;
@@ -92,6 +96,7 @@ export interface TravelCreateData {
   end_location_name: string;
   end_latitude: number;
   end_longitude: number;
+  routeWaypoints?: TravelCoordinate[];
   travel_date: Date;
   capacity: number;
   price: number;

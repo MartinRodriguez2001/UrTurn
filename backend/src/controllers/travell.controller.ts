@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth.js";
 import { TravelData, TravelService } from "../services/travel.service.js";
+import type { Coordinate } from "../utils/route-assignment.js";
 
 const travelService = new TravelService();
 
@@ -166,6 +167,60 @@ export class TravelController {
       }
       travelDate.setHours(0, 0, 0, 0);
 
+      const resolveRouteWaypoints = (
+        input: unknown
+      ): Coordinate[] | undefined => {
+        if (input === undefined || input === null) {
+          return undefined;
+        }
+
+        let parsed: unknown = input;
+        if (typeof input === "string") {
+          try {
+            parsed = JSON.parse(input);
+          } catch {
+            throw new Error(
+              "Los puntos de ruta enviados no tienen un formato JSON válido"
+            );
+          }
+        }
+
+        if (!Array.isArray(parsed)) {
+          throw new Error(
+            "Los puntos de ruta deben ser un arreglo de coordenadas"
+          );
+        }
+
+        const waypoints: Coordinate[] = parsed.map((item) => {
+          if (!item || typeof item !== "object") {
+            throw new Error("Cada punto de ruta debe ser un objeto válido");
+          }
+          const latitude = Number(
+            (item as { latitude?: unknown; lat?: unknown }).latitude ??
+              (item as { lat?: unknown }).lat
+          );
+          const longitude = Number(
+            (item as { longitude?: unknown; lng?: unknown }).longitude ??
+              (item as { lng?: unknown }).lng
+          );
+
+          if (!Number.isFinite(latitude) || Math.abs(latitude) > 90) {
+            throw new Error("La latitud de un punto de ruta es inválida");
+          }
+          if (!Number.isFinite(longitude) || Math.abs(longitude) > 180) {
+            throw new Error("La longitud de un punto de ruta es inválida");
+          }
+
+          return { latitude, longitude };
+        });
+
+        return waypoints.length > 0 ? waypoints : undefined;
+      };
+
+      const rawRouteWaypoints =
+        body.routeWaypoints ?? body.route_waypoints ?? body.route ?? null;
+      const routeWaypoints = resolveRouteWaypoints(rawRouteWaypoints);
+
       const travelData: TravelData = {
         start_location_name: startLocationName,
         start_latitude: startLatitude,
@@ -173,6 +228,7 @@ export class TravelController {
         end_location_name: endLocationName,
         end_latitude: endLatitude,
         end_longitude: endLongitude,
+        ...(routeWaypoints ? { routeWaypoints } : {}),
         travel_date: travelDate,
         start_time: startTime,
         ...(endTime ? { end_time: endTime } : {}),

@@ -6,6 +6,7 @@ import VehicleApiService from "@/Services/VehicleApiService";
 import { TravelCreateData } from "@/types/travel";
 import { Vehicle } from "@/types/vehicle";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
+import { decodePolyline } from "@/utils/polyline";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -29,6 +30,9 @@ export default function PublishTravel() {
 
   const [originCoordinate, setOriginCoordinate] = useState<MapCoordinate | null>(null);
   const [destinationCoordinate, setDestinationCoordinate] = useState<MapCoordinate | null>(null);
+  const [routeWaypoints, setRouteWaypoints] = useState<MapCoordinate[] | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
+  const [isFetchingRoute, setIsFetchingRoute] = useState(false);
 
   // Estados del formulario
   const [formData, setFormData] = useState({
@@ -63,6 +67,101 @@ export default function PublishTravel() {
   useEffect(() => {
     loadUserVehicles();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const computeRoute = async () => {
+      if (!originCoordinate || !destinationCoordinate) {
+        if (!cancelled) {
+          setRouteWaypoints(null);
+          setRouteError(null);
+        }
+        return;
+      }
+
+      const fallbackRoute: MapCoordinate[] = [
+        { latitude: originCoordinate.latitude, longitude: originCoordinate.longitude },
+        { latitude: destinationCoordinate.latitude, longitude: destinationCoordinate.longitude },
+      ];
+
+      const trimmedKey = googleMapsApiKey?.trim();
+      if (!trimmedKey) {
+        if (!cancelled) {
+          setRouteWaypoints(fallbackRoute);
+          setRouteError(null);
+        }
+        return;
+      }
+
+      try {
+        if (!cancelled) {
+          setIsFetchingRoute(true);
+          setRouteError(null);
+        }
+
+        const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
+        url.searchParams.set(
+          "origin",
+          `${originCoordinate.latitude},${originCoordinate.longitude}`
+        );
+        url.searchParams.set(
+          "destination",
+          `${destinationCoordinate.latitude},${destinationCoordinate.longitude}`
+        );
+        url.searchParams.set("mode", "driving");
+        url.searchParams.set("language", "es");
+        url.searchParams.set("key", trimmedKey);
+
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+          throw new Error(`Directions API error: ${response.status}`);
+        }
+
+        const data: {
+          status: string;
+          routes?: Array<{ overview_polyline?: { points?: string } }>;
+        } = await response.json();
+
+        if (data.status !== "OK" || !Array.isArray(data.routes) || data.routes.length === 0) {
+          throw new Error(`Directions API status: ${data.status ?? "UNKNOWN"}`);
+        }
+
+        const overviewPolyline = data.routes[0]?.overview_polyline?.points;
+        const decoded = decodePolyline(overviewPolyline).map<MapCoordinate>((point) => ({
+          latitude: point.latitude,
+          longitude: point.longitude,
+        }));
+
+        const candidateRoute =
+          decoded.length >= 2
+            ? decoded
+            : fallbackRoute;
+
+        if (!cancelled) {
+          setRouteWaypoints(candidateRoute);
+        }
+      } catch (error) {
+        console.error("Error fetching driving route:", error);
+        if (!cancelled) {
+          setRouteWaypoints(fallbackRoute);
+          setRouteError(
+            "No se pudo calcular la ruta automática. Se usará la trayectoria directa entre origen y destino."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsFetchingRoute(false);
+        }
+      }
+    };
+
+    void computeRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [originCoordinate, destinationCoordinate, googleMapsApiKey]);
 
   const loadUserVehicles = async () => {
     try {
@@ -215,6 +314,14 @@ export default function PublishTravel() {
       const travelDate = new Date(startDateTime);
       travelDate.setHours(0, 0, 0, 0);
 
+      const fallbackRoute: MapCoordinate[] = [
+        { latitude: originCoordinate!.latitude, longitude: originCoordinate!.longitude },
+        { latitude: destinationCoordinate!.latitude, longitude: destinationCoordinate!.longitude },
+      ];
+
+      const effectiveRoute =
+        routeWaypoints && routeWaypoints.length >= 2 ? routeWaypoints : fallbackRoute;
+
       const travelData: TravelCreateData = {
         start_location_name: formData.origin.trim(),
         start_latitude: originCoordinate!.latitude,
@@ -222,6 +329,10 @@ export default function PublishTravel() {
         end_location_name: formData.destination.trim(),
         end_latitude: destinationCoordinate!.latitude,
         end_longitude: destinationCoordinate!.longitude,
+        routeWaypoints: effectiveRoute.map((point) => ({
+          latitude: point.latitude,
+          longitude: point.longitude,
+        })),
         travel_date: travelDate,
         capacity: parseInt(formData.seats),
         price: parseFloat(formData.price),
@@ -377,6 +488,12 @@ export default function PublishTravel() {
               destinationPlaceholder="Ingresa tu destino"
               googleMapsApiKey={googleMapsApiKey}
             />
+            {isFetchingRoute ? (
+              <Text style={styles.routeInfoText}>
+                Calculando ruta sugerida...
+              </Text>
+            ) : null}
+            {routeError ? <Text style={styles.routeWarningText}>{routeError}</Text> : null}
           </View>
 
           {/* Date and Time Section */}
@@ -643,6 +760,20 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#FF6B6B",
     marginTop: 4,
+  },
+  routeInfoText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#61758A",
+    marginTop: 8,
+    paddingHorizontal: 4,
+  },
+  routeWarningText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#B45309",
+    marginTop: 4,
+    paddingHorizontal: 4,
   },
   selectInput: {
     flexDirection: "row",
