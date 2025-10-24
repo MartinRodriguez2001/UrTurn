@@ -37,6 +37,12 @@ router.post(
   travelController.createOpenTravelRequest.bind(travelController)
 );
 
+router.post(
+  "/matching",
+  authenticateToken,
+  travelController.findMatchingTravels.bind(travelController)
+);
+
 // GET /api/travels/driver - Obtener viajes del conductor autenticado
 router.get(
   "/driver",

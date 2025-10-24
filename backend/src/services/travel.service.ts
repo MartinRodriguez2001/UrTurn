@@ -1,4 +1,15 @@
 import { PrismaClient, TravelStatus } from "../../generated/prisma/index.js";
+import {
+  evaluatePassengerInsertion,
+  estimateRouteMetrics,
+  summarizeAssignmentCandidate,
+} from "../utils/route-assignment.js";
+import type {
+  AssignmentCandidate,
+  Coordinate,
+  PassengerStops,
+  RouteMetrics,
+} from "../utils/route-assignment.js";
 
 const prisma = new PrismaClient();
 
@@ -28,6 +39,55 @@ interface OpenTravelRequestData {
   endLongitude: number;
   pickupDate?: string;
   pickupTime?: string;
+}
+
+interface PassengerAssignmentInput {
+  pickupLatitude: number;
+  pickupLongitude: number;
+  dropoffLatitude: number;
+  dropoffLongitude: number;
+}
+
+interface PassengerAssignmentConfig {
+  averageSpeedKmh?: number;
+  maxAdditionalMinutes?: number;
+  maxDeviationMeters?: number;
+  routeWaypoints?: Coordinate[];
+}
+
+type AssignmentSummary = ReturnType<typeof summarizeAssignmentCandidate>;
+
+export interface TravelMatchResult {
+  travelId: number;
+  price: number;
+  startTime: Date;
+  spacesAvailable: number;
+  driver: {
+    id: number;
+    name: string;
+    profile_picture: string | null;
+    institutional_email: string;
+    phone_number: string | null;
+    rating: number | null;
+  };
+  vehicle: {
+    id: number;
+    brand: string;
+    model: string;
+    year: number;
+    licence_plate: string;
+  } | null;
+  summary: AssignmentSummary;
+  candidate: AssignmentCandidate;
+  baseMetrics: RouteMetrics;
+  originalRoute: Coordinate[];
+  updatedRoute?: Coordinate[];
+}
+
+export interface PassengerMatchingOptions extends PassengerAssignmentConfig {
+  pickupDateTime?: Date;
+  timeWindowMinutes?: number;
+  maxResults?: number;
 }
 
 export class TravelService {
@@ -1404,5 +1464,359 @@ export class TravelService {
         error instanceof Error ? error.message : "Error al abandonar viaje"
       );
     }
+  }
+
+  async evaluatePassengerAssignment(
+    travelId: number,
+    passenger: PassengerAssignmentInput,
+    config?: PassengerAssignmentConfig
+  ): Promise<{
+    success: boolean;
+    summary?: AssignmentSummary;
+    candidate?: AssignmentCandidate;
+    baseMetrics: RouteMetrics;
+    originalRoute: Coordinate[];
+    updatedRoute?: Coordinate[];
+    message?: string;
+  }> {
+    try {
+      const travel = await prisma.travel.findUnique({
+        where: { id: travelId },
+      });
+
+      if (!travel) {
+        throw new Error("El viaje solicitado no existe");
+      }
+
+      const ensureCoordinate = (
+        value: number,
+        min: number,
+        max: number,
+        errorMessage: string
+      ) => {
+        if (!Number.isFinite(value) || value < min || value > max) {
+          throw new Error(errorMessage);
+        }
+      };
+
+      ensureCoordinate(
+        passenger.pickupLatitude,
+        -90,
+        90,
+        "La latitud de recogida es inválida"
+      );
+      ensureCoordinate(
+        passenger.pickupLongitude,
+        -180,
+        180,
+        "La longitud de recogida es inválida"
+      );
+      ensureCoordinate(
+        passenger.dropoffLatitude,
+        -90,
+        90,
+        "La latitud de destino del pasajero es inválida"
+      );
+      ensureCoordinate(
+        passenger.dropoffLongitude,
+        -180,
+        180,
+        "La longitud de destino del pasajero es inválida"
+      );
+
+      const averageSpeedKmh = config?.averageSpeedKmh ?? 30;
+      const maxAdditionalMinutes = config?.maxAdditionalMinutes ?? 5;
+      const maxDeviationMeters = config?.maxDeviationMeters ?? 400;
+
+      const startCoordinate: Coordinate = {
+        latitude: travel.start_latitude,
+        longitude: travel.start_longitude,
+      };
+      const endCoordinate: Coordinate = {
+        latitude: travel.end_latitude,
+        longitude: travel.end_longitude,
+      };
+
+      const providedRoute =
+        config?.routeWaypoints && config.routeWaypoints.length >= 2
+          ? config.routeWaypoints
+          : undefined;
+
+      const initialRoute: Coordinate[] = providedRoute
+        ? [...providedRoute]
+        : [startCoordinate, endCoordinate];
+
+      const coordinatesAreClose = (
+        a: Coordinate | undefined,
+        b: Coordinate
+      ) =>
+        !!a &&
+        Math.abs(a.latitude - b.latitude) <= 1e-5 &&
+        Math.abs(a.longitude - b.longitude) <= 1e-5;
+
+      if (!coordinatesAreClose(initialRoute[0], startCoordinate)) {
+        initialRoute.unshift(startCoordinate);
+      }
+
+      if (
+        !coordinatesAreClose(
+          initialRoute[initialRoute.length - 1],
+          endCoordinate
+        )
+      ) {
+        initialRoute.push(endCoordinate);
+      }
+
+      const originalRoute: Coordinate[] = [];
+      for (const waypoint of initialRoute) {
+        const last = originalRoute[originalRoute.length - 1];
+        if (
+          last &&
+          Math.abs(last.latitude - waypoint.latitude) <= 1e-6 &&
+          Math.abs(last.longitude - waypoint.longitude) <= 1e-6
+        ) {
+          continue;
+        }
+        originalRoute.push(waypoint);
+      }
+
+      if (originalRoute.length < 2) {
+        throw new Error(
+          "La ruta del conductor debe incluir al menos origen y destino"
+        );
+      }
+
+      const baseMetrics = estimateRouteMetrics(
+        originalRoute,
+        averageSpeedKmh
+      );
+
+      const passengerStops: PassengerStops = {
+        pickup: {
+          latitude: passenger.pickupLatitude,
+          longitude: passenger.pickupLongitude,
+        },
+        dropoff: {
+          latitude: passenger.dropoffLatitude,
+          longitude: passenger.dropoffLongitude,
+        },
+      };
+
+      const candidate = evaluatePassengerInsertion(
+        originalRoute,
+        passengerStops,
+        {
+          averageSpeedKmh,
+          maxAdditionalMinutes,
+          maxDeviationMeters,
+        }
+      );
+
+      if (!candidate) {
+        return {
+          success: false,
+          baseMetrics,
+          originalRoute,
+          message:
+            "El pasajero no se puede insertar sin superar el límite de minutos extra o el desvío máximo configurado",
+        };
+      }
+
+      const summary = summarizeAssignmentCandidate(candidate);
+
+      return {
+        success: true,
+        summary,
+        candidate,
+        baseMetrics: candidate.baseMetrics,
+        originalRoute,
+        updatedRoute: candidate.updatedRoute,
+      };
+    } catch (error) {
+      console.error("Error evaluating passenger assignment:", error);
+      throw new Error(
+        error instanceof Error
+          ? error.message
+          : "Error al evaluar la asignación del pasajero"
+      );
+    }
+  }
+
+  async findMatchingTravelsForPassenger(
+    passengerId: number | null,
+    passenger: PassengerAssignmentInput,
+    options?: PassengerMatchingOptions
+  ): Promise<{
+    success: boolean;
+    matches: TravelMatchResult[];
+    count: number;
+    totalCandidates: number;
+    appliedConfig: {
+      averageSpeedKmh: number;
+      maxAdditionalMinutes: number;
+      maxDeviationMeters: number;
+      timeWindowMinutes: number;
+      maxResults: number;
+      pickupDateTime: string | null;
+    };
+  }> {
+    const averageSpeedKmh = options?.averageSpeedKmh ?? 30;
+    const maxAdditionalMinutes = options?.maxAdditionalMinutes ?? 5;
+    const maxDeviationMeters = options?.maxDeviationMeters ?? 400;
+    const timeWindowMinutes = options?.timeWindowMinutes ?? 90;
+    const maxResults = Math.max(options?.maxResults ?? 10, 1);
+    const pickupDateTime = options?.pickupDateTime ?? null;
+
+    const whereClause: Record<string, unknown> = {
+      status: TravelStatus.confirmado,
+      spaces_available: { gt: 0 },
+    };
+
+    if (passengerId) {
+      whereClause.userId = { not: passengerId };
+    }
+
+    if (pickupDateTime) {
+      const windowMs = timeWindowMinutes * 60 * 1000;
+      const windowStart = new Date(pickupDateTime.getTime() - windowMs);
+      const windowEnd = new Date(pickupDateTime.getTime() + windowMs);
+      whereClause.start_time = {
+        gte: windowStart,
+        lte: windowEnd,
+      };
+    } else {
+      whereClause.start_time = {
+        gte: new Date(),
+      };
+    }
+
+    const initialCandidates = await prisma.travel.findMany({
+      where: whereClause,
+      include: {
+        driver_id: {
+          select: {
+            id: true,
+            name: true,
+            profile_picture: true,
+            institutional_email: true,
+            phone_number: true,
+          },
+        },
+        vehicle: {
+          select: {
+            id: true,
+            brand: true,
+            model: true,
+            year: true,
+            licence_plate: true,
+          },
+        },
+        reviews: {
+          select: {
+            starts: true,
+          },
+        },
+      },
+      orderBy: {
+        start_time: "asc",
+      },
+      ...(maxResults ? { take: Math.max(maxResults * 3, maxResults) } : {}),
+    });
+
+    const evaluationConfig: PassengerAssignmentConfig = {
+      averageSpeedKmh,
+      maxAdditionalMinutes,
+      maxDeviationMeters,
+    };
+
+    const evaluations = await Promise.all(
+      initialCandidates.map(async (travel) => {
+        try {
+          const evaluation = await this.evaluatePassengerAssignment(
+            travel.id,
+            passenger,
+            evaluationConfig
+          );
+
+          if (!evaluation.success || !evaluation.summary || !evaluation.candidate) {
+            return null;
+          }
+
+          const rating =
+            travel.reviews.length > 0
+              ? travel.reviews.reduce((sum, review) => sum + review.starts, 0) /
+                travel.reviews.length
+              : null;
+
+          const match: TravelMatchResult = {
+            travelId: travel.id,
+            price: travel.price,
+            startTime: travel.start_time,
+            spacesAvailable: travel.spaces_available,
+            driver: {
+              id: travel.driver_id.id,
+              name: travel.driver_id.name,
+              profile_picture: travel.driver_id.profile_picture,
+              institutional_email: travel.driver_id.institutional_email,
+              phone_number: travel.driver_id.phone_number,
+              rating,
+            },
+            vehicle: travel.vehicle
+              ? {
+                  id: travel.vehicle.id,
+                  brand: travel.vehicle.brand,
+                  model: travel.vehicle.model,
+                  year: travel.vehicle.year,
+                  licence_plate: travel.vehicle.licence_plate,
+                }
+              : null,
+            summary: evaluation.summary,
+            candidate: evaluation.candidate,
+            baseMetrics: evaluation.baseMetrics,
+            originalRoute: evaluation.originalRoute,
+            updatedRoute: evaluation.updatedRoute,
+          };
+
+          return match;
+        } catch (error) {
+          console.error(
+            `Error evaluating passenger assignment for travel ${travel.id}:`,
+            error
+          );
+          return null;
+        }
+      })
+    );
+
+    const validMatches = evaluations.filter(
+      (item): item is TravelMatchResult => item !== null
+    );
+
+    validMatches.sort((a, b) => {
+      if (a.summary.additionalMinutes !== b.summary.additionalMinutes) {
+        return a.summary.additionalMinutes - b.summary.additionalMinutes;
+      }
+      if (a.summary.additionalDistanceKm !== b.summary.additionalDistanceKm) {
+        return a.summary.additionalDistanceKm - b.summary.additionalDistanceKm;
+      }
+      return a.price - b.price;
+    });
+
+    const limitedMatches = validMatches.slice(0, maxResults);
+
+    return {
+      success: true,
+      matches: limitedMatches,
+      count: limitedMatches.length,
+      totalCandidates: validMatches.length,
+      appliedConfig: {
+        averageSpeedKmh,
+        maxAdditionalMinutes,
+        maxDeviationMeters,
+        timeWindowMinutes,
+        maxResults,
+        pickupDateTime: pickupDateTime ? pickupDateTime.toISOString() : null,
+      },
+    };
   }
 }

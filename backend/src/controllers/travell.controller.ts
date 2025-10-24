@@ -653,6 +653,144 @@ export class TravelController {
   }
 
   // ✅ DELETE /travels/:id/leave - Abandonar viaje confirmado (pasajero)
+  async findMatchingTravels(req: AuthRequest, res: Response) {
+    try {
+      const passengerId = req.user?.id ?? null;
+      const body = req.body ?? {};
+
+      const extractNumber = (...keys: string[]): number | undefined => {
+        for (const key of keys) {
+          if (!(key in body)) {
+            continue;
+          }
+          const value = body[key];
+          const parsed =
+            typeof value === "number"
+              ? value
+              : typeof value === "string" && value.trim().length > 0
+              ? Number(value)
+              : NaN;
+          if (Number.isFinite(parsed)) {
+            return parsed;
+          }
+        }
+        return undefined;
+      };
+
+      const pickupLatitude = extractNumber(
+        "pickupLatitude",
+        "originLatitude",
+        "startLatitude"
+      );
+      if (pickupLatitude === undefined || Math.abs(pickupLatitude) > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "La latitud de recogida es requerida y debe ser válida",
+        });
+      }
+
+      const pickupLongitude = extractNumber(
+        "pickupLongitude",
+        "originLongitude",
+        "startLongitude"
+      );
+      if (pickupLongitude === undefined || Math.abs(pickupLongitude) > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "La longitud de recogida es requerida y debe ser válida",
+        });
+      }
+
+      const dropoffLatitude = extractNumber(
+        "dropoffLatitude",
+        "destinationLatitude",
+        "endLatitude"
+      );
+      if (dropoffLatitude === undefined || Math.abs(dropoffLatitude) > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "La latitud de destino es requerida y debe ser válida",
+        });
+      }
+
+      const dropoffLongitude = extractNumber(
+        "dropoffLongitude",
+        "destinationLongitude",
+        "endLongitude"
+      );
+      if (dropoffLongitude === undefined || Math.abs(dropoffLongitude) > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "La longitud de destino es requerida y debe ser válida",
+        });
+      }
+
+      const averageSpeedKmh = extractNumber("averageSpeedKmh");
+      const maxAdditionalMinutes = extractNumber("maxAdditionalMinutes");
+      const maxDeviationMeters = extractNumber("maxDeviationMeters");
+      const timeWindowMinutes = extractNumber("timeWindowMinutes");
+      const maxResultsRaw = extractNumber("maxResults");
+
+      const pickupTimeInput =
+        typeof body.pickupTime === "string" ? body.pickupTime : undefined;
+      const pickupDateInput =
+        typeof body.pickupDate === "string" ? body.pickupDate : undefined;
+
+      let pickupDateTime: Date | undefined;
+      if (pickupTimeInput) {
+        const parsedTime = new Date(pickupTimeInput);
+        if (!Number.isNaN(parsedTime.valueOf())) {
+          pickupDateTime = parsedTime;
+        }
+      } else if (pickupDateInput) {
+        const parsedDate = new Date(pickupDateInput);
+        if (!Number.isNaN(parsedDate.valueOf())) {
+          parsedDate.setHours(0, 0, 0, 0);
+          pickupDateTime = parsedDate;
+        }
+      }
+
+      const result = await travelService.findMatchingTravelsForPassenger(
+        passengerId,
+        {
+          pickupLatitude,
+          pickupLongitude,
+          dropoffLatitude,
+          dropoffLongitude,
+        },
+        {
+          ...(averageSpeedKmh !== undefined
+            ? { averageSpeedKmh }
+            : undefined),
+          ...(maxAdditionalMinutes !== undefined
+            ? { maxAdditionalMinutes }
+            : undefined),
+          ...(maxDeviationMeters !== undefined
+            ? { maxDeviationMeters }
+            : undefined),
+          ...(timeWindowMinutes !== undefined
+            ? { timeWindowMinutes }
+            : undefined),
+          ...(maxResultsRaw !== undefined
+            ? { maxResults: Math.trunc(maxResultsRaw) }
+            : undefined),
+          ...(pickupDateTime ? { pickupDateTime } : undefined),
+        }
+      );
+
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error finding matching travels:", error);
+      res.status(500).json({
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Error al buscar coincidencias de viajes",
+      });
+    }
+  }
+
   async leaveTravel(req: AuthRequest, res: Response) {
     try {
       const passengerId = req.user?.id;

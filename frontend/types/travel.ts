@@ -151,3 +151,79 @@ export interface TravelRequestRecord {
   created_at: string;
 }
 
+export interface TravelCoordinate {
+  latitude: number;
+  longitude: number;
+}
+
+export interface RouteMetricsSummary {
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+}
+
+export interface TravelMatchSummary {
+  pickupInsertIndex: number;
+  dropoffInsertIndex: number;
+  additionalMinutes: number;
+  additionalDistanceKm: number;
+  newTotalMinutes: number;
+  newTotalDistanceKm: number;
+  timeIncreasePercent: number;
+  distanceIncreasePercent: number;
+}
+
+export interface TravelMatchResult {
+  travelId: number;
+  price: number;
+  startTime: string;
+  spacesAvailable: number;
+  driver: {
+    id: number;
+    name: string;
+    profile_picture: string | null;
+    institutional_email: string;
+    phone_number: string | null;
+    rating: number | null;
+  };
+  vehicle: {
+    id: number;
+    brand: string;
+    model: string;
+    year: number;
+    licence_plate: string;
+  } | null;
+  summary: TravelMatchSummary;
+  baseMetrics: RouteMetricsSummary;
+  originalRoute: TravelCoordinate[];
+  updatedRoute?: TravelCoordinate[];
+}
+
+export interface TravelMatchAppliedConfig {
+  averageSpeedKmh: number;
+  maxAdditionalMinutes: number;
+  maxDeviationMeters: number;
+  timeWindowMinutes: number;
+  maxResults: number;
+  pickupDateTime: string | null;
+}
+
+export interface TravelMatchResponse {
+  matches: TravelMatchResult[];
+  count: number;
+  totalCandidates: number;
+  appliedConfig: TravelMatchAppliedConfig;
+}
+
+export interface TravelMatchRequestPayload {
+  pickupLatitude: number;
+  pickupLongitude: number;
+  dropoffLatitude: number;
+  dropoffLongitude: number;
+  pickupDate?: string;
+  pickupTime?: string;
+  averageSpeedKmh?: number;
+  maxAdditionalMinutes?: number;
+  maxDeviationMeters?: number;
+  timeWindowMinutes?: number;
+  maxResults?: number;
+}

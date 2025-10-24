@@ -5,7 +5,9 @@ import {
   TravelRequestCreatePayload,
   TravelRequestRecord,
   TravelResponse,
-  TravelsResponse
+  TravelsResponse,
+  TravelMatchRequestPayload,
+  TravelMatchResponse
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
 
@@ -151,6 +153,15 @@ class TravelApiService extends BaseApiService {
   async searchTravelsByLocation(query: string): Promise<ApiResponse<TravelsResponse>> {
     return this.makeRequest<TravelsResponse>(`/travels/search?query=${encodeURIComponent(query)}`, {
       method: 'GET'
+    });
+  }
+
+  async matchTravelsForPassenger(
+    payload: TravelMatchRequestPayload
+  ): Promise<ApiResponse<TravelMatchResponse>> {
+    return this.makeRequest<TravelMatchResponse>('/travels/matching', {
+      method: 'POST',
+      body: JSON.stringify(payload)
     });
   }
 }
