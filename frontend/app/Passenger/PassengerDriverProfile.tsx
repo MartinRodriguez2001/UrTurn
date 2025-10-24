@@ -1,3 +1,4 @@
+import travelApiService from '@/Services/TravelApiService';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import {
@@ -9,7 +10,6 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import travelApiService from '@/Services/TravelApiService';
 
 interface Review {
     id: string;

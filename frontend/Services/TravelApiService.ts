@@ -1,11 +1,11 @@
 import { ApiResponse } from "@/api";
 import {
-    TravelCreateData,
-    TravelFilters,
-    TravelRequestCreatePayload,
-    TravelRequestRecord,
-    TravelResponse,
-    TravelsResponse
+  TravelCreateData,
+  TravelFilters,
+  TravelRequestCreatePayload,
+  TravelRequestRecord,
+  TravelResponse,
+  TravelsResponse
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
 
