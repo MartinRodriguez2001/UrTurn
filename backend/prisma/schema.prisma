@@ -129,8 +129,8 @@ model Review {
 model TravelRequest {
   id Int @id @default(autoincrement())
 
-  travelId Int
-  travel Travel @relation(fields: [travelId], references: [id])
+  travelId Int?
+  travel   Travel? @relation(fields: [travelId], references: [id])
   
   // Ubicación de inicio
   start_location_name String?           // Nombre legible: "Campus Universidad"

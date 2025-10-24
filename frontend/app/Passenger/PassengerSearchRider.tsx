@@ -1,6 +1,7 @@
 ﻿import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
 import TravelRouteSection from "@/components/travel/TravelRouteSection";
 import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
+import travelApiService from "@/Services/TravelApiService";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
@@ -37,6 +38,7 @@ export default function PassengerSearchRider() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [errors, setErrors] = useState<{ origin?: string; destination?: string; time?: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const googleMapsApiKey = resolveGoogleMapsApiKey();
 
   const formattedDate = useMemo(
@@ -108,6 +110,14 @@ export default function PassengerSearchRider() {
       newErrors.destination = "El origen y destino no pueden ser iguales";
     }
 
+    if (!originCoordinate) {
+      newErrors.origin = "Selecciona tu punto de partida en el mapa";
+    }
+
+    if (!destinationCoordinate) {
+      newErrors.destination = "Selecciona tu destino en el mapa";
+    }
+
     const now = new Date();
     const pickup = combineDateTime();
     if (pickup.getTime() < now.getTime() + 30 * 60 * 1000) {
@@ -118,7 +128,11 @@ export default function PassengerSearchRider() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (!validateForm()) {
       Alert.alert("Corrige los campos", "Revisa los datos antes de continuar.");
       return;
@@ -129,27 +143,58 @@ export default function PassengerSearchRider() {
 
     const pickupDateTime = combineDateTime();
 
-    const params: Record<string, string> = {
-      origin: origin.trim(),
-      destination: destination.trim(),
-      pickupDate: pickupDate.toISOString(),
-      pickupTime: pickupDateTime.toISOString(),
-    };
+    try {
+      setIsSubmitting(true);
+      const response = await travelApiService.createTravelRequest({
+        startLocationName: origin.trim(),
+        startLatitude: originCoordinate!.latitude,
+        startLongitude: originCoordinate!.longitude,
+        endLocationName: destination.trim(),
+        endLatitude: destinationCoordinate!.latitude,
+        endLongitude: destinationCoordinate!.longitude,
+        pickupDate: pickupDate.toISOString(),
+        pickupTime: pickupDateTime.toISOString(),
+      });
 
-    if (originCoordinate) {
-      params.originLat = originCoordinate.latitude.toString();
-      params.originLng = originCoordinate.longitude.toString();
+      if (!response.success) {
+        throw new Error(response.message || "No se pudo registrar la solicitud");
+      }
+
+      const params: Record<string, string> = {
+        origin: origin.trim(),
+        destination: destination.trim(),
+        pickupLocation: origin.trim(),
+        pickupDate: pickupDate.toISOString(),
+        pickupTime: pickupDateTime.toISOString(),
+      };
+
+      if (originCoordinate) {
+        params.originLat = originCoordinate.latitude.toString();
+        params.originLng = originCoordinate.longitude.toString();
+      }
+
+      if (destinationCoordinate) {
+        params.destinationLat = destinationCoordinate.latitude.toString();
+        params.destinationLng = destinationCoordinate.longitude.toString();
+      }
+
+      if (response.request?.id) {
+        params.requestId = response.request.id.toString();
+      }
+
+      router.push({
+        pathname: "/Passenger/Passengerrideroffers",
+        params,
+      });
+    } catch (error) {
+      console.error("Error registering travel request:", error);
+      Alert.alert(
+        "Error",
+        error instanceof Error ? error.message : "No se pudo registrar la solicitud"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (destinationCoordinate) {
-      params.destinationLat = destinationCoordinate.latitude.toString();
-      params.destinationLng = destinationCoordinate.longitude.toString();
-    }
-
-    router.push({
-      pathname: "/Passenger/Passengerrideroffers",
-      params,
-    });
   };
 
   return (
@@ -208,8 +253,14 @@ export default function PassengerSearchRider() {
           />
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-              <Text style={styles.searchButtonText}>Buscar viajes</Text>
+            <TouchableOpacity
+              style={[styles.searchButton, isSubmitting ? styles.searchButtonDisabled : null]}
+              onPress={handleSearch}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.searchButtonText}>
+                {isSubmitting ? "Buscando..." : "Buscar viajes"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -301,6 +352,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+  },
+  searchButtonDisabled: {
+    opacity: 0.7,
   },
   searchButtonText: {
     fontFamily: "Plus Jakarta Sans",

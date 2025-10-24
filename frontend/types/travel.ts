@@ -23,6 +23,12 @@ export enum TravelStatus {
   FINALIZADO = "finalizado",
 }
 
+export enum RequestStatus {
+  PENDIENTE = "pendiente",
+  ACEPTADA = "aceptada",
+  RECHAZADA = "rechazada",
+}
+
 export interface ProcessedTravel {
   id: number;
   start_location: string;
@@ -97,5 +103,32 @@ export interface ByStatus {
   confirmado: number;
   finalizado: number;
   pendiente: number;
+}
+
+export interface TravelRequestCreatePayload {
+  startLocationName?: string;
+  startLatitude: number;
+  startLongitude: number;
+  endLocationName?: string;
+  endLatitude: number;
+  endLongitude: number;
+  pickupDate?: string;
+  pickupTime?: string;
+}
+
+export interface TravelRequestRecord {
+  id: number;
+  travelId: number | null;
+  start_location_name: string | null;
+  start_latitude: number;
+  start_longitude: number;
+  end_location_name: string | null;
+  end_latitude: number;
+  end_longitude: number;
+  pickup_date: string | null;
+  pickup_time: string | null;
+  status: RequestStatus;
+  passengerId: number;
+  created_at: string;
 }
 

@@ -42,6 +42,63 @@ export class TravelController {
     }
   }
 
+  // ✅ POST /travels/requests - Registrar solicitud sin viaje asignado
+  async createOpenTravelRequest(req: AuthRequest, res: Response) {
+    try {
+      const passengerId = req.user?.id;
+      if (!passengerId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const {
+        startLocationName,
+        startLatitude,
+        startLongitude,
+        endLocationName,
+        endLatitude,
+        endLongitude,
+        pickupDate,
+        pickupTime,
+      } = req.body ?? {};
+
+      if (typeof startLatitude !== "number" || typeof startLongitude !== "number") {
+        return res.status(400).json({
+          success: false,
+          message: "Las coordenadas de origen son requeridas"
+        });
+      }
+
+      if (typeof endLatitude !== "number" || typeof endLongitude !== "number") {
+        return res.status(400).json({
+          success: false,
+          message: "Las coordenadas de destino son requeridas"
+        });
+      }
+
+      const result = await travelService.createOpenTravelRequest(passengerId, {
+        startLocationName,
+        startLatitude,
+        startLongitude,
+        endLocationName,
+        endLatitude,
+        endLongitude,
+        pickupDate,
+        pickupTime,
+      });
+
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("Error in createOpenTravelRequest:", error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Error al registrar solicitud"
+      });
+    }
+  }
+
   // ✅ GET /travels/driver - Obtener viajes del conductor
   async getDriverTravels(req: AuthRequest, res: Response) {
     try {

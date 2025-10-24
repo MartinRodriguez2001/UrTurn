@@ -194,7 +194,7 @@ export default function TravelRouteSection({
                 {originValue || originPlaceholder}
               </Text>
             )}
-            <Text style={styles.selectionIcon}>🗺️</Text>
+            <Text style={styles.selectionIcon}></Text>
           </View>
         </TouchableOpacity>
         {originError ? <Text style={styles.errorText}>{originError}</Text> : null}
@@ -227,7 +227,7 @@ export default function TravelRouteSection({
                 {destinationValue || destinationPlaceholder}
               </Text>
             )}
-            <Text style={styles.selectionIcon}>🗺️</Text>
+            <Text style={styles.selectionIcon}></Text>
           </View>
         </TouchableOpacity>
         {destinationError ? <Text style={styles.errorText}>{destinationError}</Text> : null}

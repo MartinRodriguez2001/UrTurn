@@ -14,6 +14,17 @@ export interface TravelData {
   status?: string;
 }
 
+interface OpenTravelRequestData {
+  startLocationName?: string;
+  startLatitude: number;
+  startLongitude: number;
+  endLocationName?: string;
+  endLatitude: number;
+  endLongitude: number;
+  pickupDate?: string;
+  pickupTime?: string;
+}
+
 export class TravelService {
   async registerTravel(travelData: TravelData, driverId: number) {
     try {
@@ -638,6 +649,78 @@ export class TravelService {
     }
   }
 
+  async createOpenTravelRequest(passengerId: number, data: OpenTravelRequestData) {
+    try {
+      if (!Number.isFinite(data.startLatitude) || !Number.isFinite(data.startLongitude)) {
+        throw new Error("La ubicación de origen es inválida");
+      }
+
+      if (!Number.isFinite(data.endLatitude) || !Number.isFinite(data.endLongitude)) {
+        throw new Error("La ubicación de destino es inválida");
+      }
+
+      const normalizedStartName = data.startLocationName?.trim() ?? null;
+      const normalizedEndName = data.endLocationName?.trim() ?? null;
+
+      if (normalizedStartName && normalizedEndName && normalizedStartName === normalizedEndName) {
+        throw new Error("El origen y destino no pueden ser iguales");
+      }
+
+      let parsedPickupDate: Date | null = null;
+      if (data.pickupDate) {
+        const candidate = new Date(data.pickupDate);
+        if (isNaN(candidate.getTime())) {
+          throw new Error("La fecha de recogida es inválida");
+        }
+        candidate.setHours(0, 0, 0, 0);
+        parsedPickupDate = candidate;
+      }
+
+      let parsedPickupTime: Date | null = null;
+      if (data.pickupTime) {
+        const candidate = new Date(data.pickupTime);
+        if (isNaN(candidate.getTime())) {
+          throw new Error("La hora de recogida es inválida");
+        }
+        candidate.setSeconds(0, 0);
+        if (parsedPickupDate) {
+          candidate.setFullYear(
+            parsedPickupDate.getFullYear(),
+            parsedPickupDate.getMonth(),
+            parsedPickupDate.getDate()
+          );
+        }
+        parsedPickupTime = candidate;
+      }
+
+      const request = await prisma.travelRequest.create({
+        data: {
+          passengerId,
+          start_location_name: normalizedStartName,
+          start_latitude: data.startLatitude,
+          start_longitude: data.startLongitude,
+          end_location_name: normalizedEndName,
+          end_latitude: data.endLatitude,
+          end_longitude: data.endLongitude,
+          pickup_date: parsedPickupDate,
+          pickup_time: parsedPickupTime,
+          status: "pendiente",
+        },
+      });
+
+      return {
+        success: true,
+        request,
+        message: "Solicitud registrada exitosamente",
+      };
+    } catch (error) {
+      console.error("Error creating open travel request:", error);
+      throw new Error(
+        error instanceof Error ? error.message : "Error al registrar solicitud"
+      );
+    }
+  }
+
   async respondToTravelRequest(
     requestId: number,
     driverId: number,
@@ -656,8 +739,17 @@ export class TravelService {
         throw new Error("La solicitud no existe");
       }
 
+      if (!request.travel) {
+        throw new Error("La solicitud aún no está asociada a un viaje");
+      }
+
       if (request.travel.userId !== driverId) {
         throw new Error("No tienes autorización para responder esta solicitud");
+      }
+
+      const travelId = request.travelId;
+      if (!travelId) {
+        throw new Error("La solicitud no está asignada a un viaje válido");
       }
 
       if (request.status !== "pendiente") {
@@ -684,13 +776,13 @@ export class TravelService {
       if (accept) {
         await prisma.confirmation.create({
           data: {
-            travelId: request.travelId,
+            travelId,
             usuarioId: request.passengerId,
           },
         });
 
         await prisma.travel.update({
-          where: { id: request.travelId },
+          where: { id: travelId },
           data: {
             spaces_available: {
               decrement: 1,

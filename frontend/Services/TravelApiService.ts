@@ -2,6 +2,8 @@ import { ApiResponse } from "@/api";
 import {
     TravelCreateData,
     TravelFilters,
+    TravelRequestCreatePayload,
+    TravelRequestRecord,
     TravelResponse,
     TravelsResponse
 } from "@/types/travel";
@@ -60,6 +62,16 @@ class TravelApiService extends BaseApiService {
   }>> {
     return this.makeRequest('/travels/passenger', {
       method: 'GET'
+    });
+  }
+
+  //  4.5 Registrar solicitud sin viaje asignado
+  async createTravelRequest(
+    payload: TravelRequestCreatePayload
+  ): Promise<ApiResponse<{ request: TravelRequestRecord }>> {
+    return this.makeRequest<{ request: TravelRequestRecord }>('/travels/requests', {
+      method: 'POST',
+      body: JSON.stringify(payload)
     });
   }
 
