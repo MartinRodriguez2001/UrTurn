@@ -38,7 +38,7 @@ const DEFAULT_REGION: MapRegion = {
 };
 
 export default function TravelRouteSection({
-  title = "Ruta del viaje",
+  title = "📍 Ruta del viaje",
   originLabel = "Origen *",
   destinationLabel = "Destino *",
   originPlaceholder = "Ingresa tu punto de partida",

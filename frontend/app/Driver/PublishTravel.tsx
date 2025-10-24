@@ -1,4 +1,6 @@
-﻿import TravelRouteSection from "@/components/travel/TravelRouteSection";
+﻿import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
+import TravelRouteSection from "@/components/travel/TravelRouteSection";
+import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
 import travelApiService from "@/Services/TravelApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { TravelCreateData } from "@/types/travel";
@@ -36,25 +38,19 @@ export default function PublishTravel() {
     startTime: (() => {
       const now = new Date();
       const nextHour = new Date(now);
-      nextHour.setHours(now.getHours() + 1, 0, 0, 0); // Pr├│xima hora en punto
+      nextHour.setHours(now.getHours() + 1, 0, 0, 0); // Próxima hora en punto
       return nextHour;
-    })(),
-    endTime: (() => {
-      const now = new Date();
-      const twoHoursLater = new Date(now);
-      twoHoursLater.setHours(now.getHours() + 2, 0, 0, 0); // 2 horas despu├®s
-      return twoHoursLater;
     })(),
     seats: "",
     price: "",
   });
 
-  // Estados para validaci├│n
+  // Estados para validación
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const googleMapsApiKey = resolveGoogleMapsApiKey();
   const [loading, setLoading] = useState(false);
 
-  // Estados para veh├¡culos
+  // Estados para vehículos
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
@@ -89,17 +85,17 @@ export default function PublishTravel() {
         );
         setVehicles(validatedVehicles);
         
-        // Seleccionar el primer veh├¡culo por defecto si existe
+        // Seleccionar el primer vehículo por defecto si existe
         if (validatedVehicles.length > 0) {
           setSelectedVehicle(validatedVehicles[0]);
         }
       } else {
         Alert.alert(
-          "Sin veh├¡culos",
-          "No tienes veh├¡culos registrados. Primero debes registrar un veh├¡culo.",
+          "Sin vehículos",
+          "No tienes vehículos registrados. Primero debes registrar un vehículo.",
           [
             {
-              text: "Registrar veh├¡culo",
+              text: "Registrar vehículo",
               onPress: () => router.push("/Passenger/DriverRegister"),
             },
             {
@@ -111,7 +107,7 @@ export default function PublishTravel() {
       }
     } catch (error) {
       console.error("Error loading vehicles:", error);
-      Alert.alert("Error", "No se pudieron cargar tus veh├¡culos");
+      Alert.alert("Error", "No se pudieron cargar tus vehículos");
     } finally {
       setLoadingVehicles(false);
     }
@@ -127,7 +123,7 @@ export default function PublishTravel() {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
+  const newErrors: {[key: string]: string} = {};
 
     // Validar origen
     if (!formData.origin.trim()) {
@@ -135,12 +131,18 @@ export default function PublishTravel() {
     } else if (formData.origin.trim().length < 3) {
       newErrors.origin = "El origen debe tener al menos 3 caracteres";
     }
+    if (!originCoordinate) {
+      newErrors.origin = "Debes seleccionar un punto de partida en el mapa";
+    }
 
     // Validar destino
     if (!formData.destination.trim()) {
       newErrors.destination = "El destino es requerido";
     } else if (formData.destination.trim().length < 3) {
       newErrors.destination = "El destino debe tener al menos 3 caracteres";
+    }
+    if (!destinationCoordinate) {
+      newErrors.destination = "Debes seleccionar un destino en el mapa";
     }
 
     // Validar que origen y destino sean diferentes
@@ -162,20 +164,28 @@ export default function PublishTravel() {
     if (!formData.price.trim()) {
       newErrors.price = "El precio es requerido";
     } else if (isNaN(priceNum) || priceNum < 0) {
-      newErrors.price = "El precio debe ser un n├║mero positivo";
+      newErrors.price = "El precio debe ser un número positivo";
     } else if (priceNum > 50000) {
       newErrors.price = "El precio no puede exceder $50,000";
     }
 
-    // Validar veh├¡culo
+    // Validar vehículo
     if (!selectedVehicle) {
-      newErrors.vehicle = "Debes seleccionar un veh├¡culo";
+      newErrors.vehicle = "Debes seleccionar un vehículo";
     }
 
     // Validar fechas
     const now = new Date();
     const startDateTime = new Date(formData.startDate);
     startDateTime.setHours(formData.startTime.getHours(), formData.startTime.getMinutes(), 0, 0);
+
+    if (!formData.startDate) {
+      newErrors.startDate = "La fecha del viaje es requerida";
+    }
+
+    if (!formData.startTime) {
+      newErrors.startTime = "Debes seleccionar una hora de partida";
+    }
 
     // El viaje debe empezar en el futuro (al menos 30 minutos)
     const minStartTime = new Date(now.getTime() + 30 * 60 * 1000);
@@ -202,9 +212,17 @@ export default function PublishTravel() {
       const startDateTime = new Date(formData.startDate);
       startDateTime.setHours(formData.startTime.getHours(), formData.startTime.getMinutes(), 0, 0);
 
+      const travelDate = new Date(startDateTime);
+      travelDate.setHours(0, 0, 0, 0);
+
       const travelData: TravelCreateData = {
-        start_location: formData.origin.trim(),
-        end_location: formData.destination.trim(),
+        start_location_name: formData.origin.trim(),
+        start_latitude: originCoordinate!.latitude,
+        start_longitude: originCoordinate!.longitude,
+        end_location_name: formData.destination.trim(),
+        end_latitude: destinationCoordinate!.latitude,
+        end_longitude: destinationCoordinate!.longitude,
+        travel_date: travelDate,
         capacity: parseInt(formData.seats),
         price: parseFloat(formData.price),
         start_time: startDateTime,
@@ -212,14 +230,14 @@ export default function PublishTravel() {
         carId: selectedVehicle!.id,
       };
 
-      console.log("­ƒÜù Creando viaje:", travelData);
+      console.log("Creando viaje:", travelData);
 
       const response = await travelApiService.createTravel(travelData);
 
       if (response.success) {
         Alert.alert(
-          "┬íViaje publicado! ­ƒÄë",
-          "Tu viaje ha sido publicado exitosamente y ya est├í disponible para que otros usuarios se unan.",
+          "Viaje publicado!",
+          "Tu viaje ha sido publicado exitosamente y ya está disponible para que otros usuarios se unan.",
           [
             {
               text: "Ver mis viajes",
@@ -232,10 +250,10 @@ export default function PublishTravel() {
       }
 
     } catch (error) {
-      console.error("ÔØî Error al crear viaje:", error);
+      console.error("Error al crear viaje:", error);
       Alert.alert(
-        "Error de conexi├│n",
-        "No se pudo conectar con el servidor. Verifica tu conexi├│n a internet."
+        "Error de conexión",
+        "No se pudo conectar con el servidor. Verifica tu conexión a internet."
       );
     } finally {
       setLoading(false);
@@ -247,6 +265,14 @@ export default function PublishTravel() {
     setShowDatePicker(false);
     if (selectedDate) {
       setFormData(prev => ({ ...prev, startDate: selectedDate }));
+
+      if (errors.startDate) {
+        setErrors(prev => ({ ...prev, startDate: "" }));
+      }
+
+      if (errors.startTime) {
+        setErrors(prev => ({ ...prev, startTime: "" }));
+      }
     }
   };
 
@@ -254,28 +280,11 @@ export default function PublishTravel() {
     setShowStartTimePicker(false);
     if (selectedTime) {
       const newStartTime = new Date(selectedTime);
-      
-      setFormData(prev => {
-        // Crear nueva hora de fin que sea al menos 30 minutos despu├®s
-        const newEndTime = new Date(newStartTime);
-        newEndTime.setMinutes(newStartTime.getMinutes() + 30);
-        
-        // Si la hora de fin actual es antes que la nueva hora de inicio + 30 min, actualizarla
-        const currentEndHours = prev.endTime.getHours();
-        const currentEndMinutes = prev.endTime.getMinutes();
-        const currentEndTotalMinutes = currentEndHours * 60 + currentEndMinutes;
-        
-        const newStartTotalMinutes = newStartTime.getHours() * 60 + newStartTime.getMinutes();
-        const newEndTotalMinutes = newEndTime.getHours() * 60 + newEndTime.getMinutes();
-        
-        return {
-          ...prev,
-          startTime: newStartTime,
-          endTime: currentEndTotalMinutes <= newStartTotalMinutes ? newEndTime : prev.endTime
-        };
-      });
-      
-      // Limpiar errores relacionados
+      setFormData(prev => ({
+        ...prev,
+        startTime: newStartTime,
+      }));
+
       if (errors.startTime) {
         setErrors(prev => ({ ...prev, startTime: "" }));
       }
@@ -298,25 +307,6 @@ export default function PublishTravel() {
       minute: '2-digit',
       hour12: false
     });
-  };
-
-  // Agregar funci├│n helper para mostrar duraci├│n estimada
-  const getEstimatedDuration = () => {
-    const startTotalMinutes = formData.startTime.getHours() * 60 + formData.startTime.getMinutes();
-    const endTotalMinutes = formData.endTime.getHours() * 60 + formData.endTime.getMinutes();
-    
-    if (endTotalMinutes > startTotalMinutes) {
-      const durationMinutes = endTotalMinutes - startTotalMinutes;
-      const hours = Math.floor(durationMinutes / 60);
-      const minutes = durationMinutes % 60;
-      
-      if (hours > 0) {
-        return `${hours}h ${minutes}min`;
-      } else {
-        return `${minutes} minutos`;
-      }
-    }
-    return "";
   };
 
   const renderVehicleItem = ({ item }: { item: Vehicle }) => (
@@ -371,126 +361,92 @@ export default function PublishTravel() {
         {/* Form Section */}
         <View style={styles.formSection}>
           {/* Route Section */}
-          <TravelRouteSection
-            originValue={formData.origin}
-            destinationValue={formData.destination}
-            originCoordinateValue={originCoordinate}
-            destinationCoordinateValue={destinationCoordinate}
-            onOriginCoordinateChange={setOriginCoordinate}
-            onDestinationCoordinateChange={setDestinationCoordinate}
-            onChangeOrigin={(value) => updateField("origin", value)}
-            onChangeDestination={(value) => updateField("destination", value)}
-            originError={errors.origin}
-            destinationError={errors.destination}
-            originPlaceholder="Ingresa tu punto de partida"
-            destinationPlaceholder="Ingresa tu destino"
-            googleMapsApiKey={googleMapsApiKey}
-          />
+          <View style={styles.sectionContainer}>
+            <TravelRouteSection
+              originValue={formData.origin}
+              destinationValue={formData.destination}
+              originCoordinateValue={originCoordinate}
+              destinationCoordinateValue={destinationCoordinate}
+              onOriginCoordinateChange={setOriginCoordinate}
+              onDestinationCoordinateChange={setDestinationCoordinate}
+              onChangeOrigin={(value) => updateField("origin", value)}
+              onChangeDestination={(value) => updateField("destination", value)}
+              originError={errors.origin}
+              destinationError={errors.destination}
+              originPlaceholder="Ingresa tu punto de partida"
+              destinationPlaceholder="Ingresa tu destino"
+              googleMapsApiKey={googleMapsApiKey}
+            />
+          </View>
 
           {/* Date and Time Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>🕒 Fecha y hora</Text>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Fecha del viaje *</Text>
-              <TouchableOpacity
-                style={[styles.input, styles.dateInput]}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.dateText}>
-                  {formatDate(formData.startDate)}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.rowContainer}>
-              <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>Hora de partida *</Text>
-                <TouchableOpacity
-                  style={[styles.input, styles.dateInput, errors.startTime && styles.inputError]}
-                  onPress={() => setShowStartTimePicker(true)}
-                >
-                  <Text style={styles.dateText}>
-                    {formatTime(formData.startTime)}
-                  </Text>
-                </TouchableOpacity>
-                {errors.startTime && <Text style={styles.errorText}>{errors.startTime}</Text>}
-              </View>
-
-              <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>Hora de llegada *</Text>
-                <TouchableOpacity
-                  style={[styles.input, styles.dateInput, errors.endTime && styles.inputError]}
-                  onPress={() => setShowEndTimePicker(true)}
-                >
-                  <Text style={styles.dateText}>
-                    {formatTime(formData.endTime)}
-                  </Text>
-                </TouchableOpacity>
-                {errors.endTime && <Text style={styles.errorText}>{errors.endTime}</Text>}
-              </View>
-            </View>
-
-            {/* Agregar informaci├│n de duraci├│n */}
-            {getEstimatedDuration() && (
-              <View style={styles.durationContainer}>
-                <Text style={styles.durationText}>
-                  ÔÅ▒´©Å Duraci├│n estimada: {getEstimatedDuration()}
-                </Text>
-              </View>
-            )}
+            <TravelScheduleSection
+              title="🕒 Fecha y hora"
+              dateLabel="Fecha del viaje *"
+              timeLabel="Hora de partida *"
+              dateValue={formatDate(formData.startDate)}
+              timeValue={formatTime(formData.startTime)}
+              onPressDate={() => setShowDatePicker(true)}
+              onPressTime={() => setShowStartTimePicker(true)}
+              dateError={errors.startDate}
+              timeError={errors.startTime}
+            />
           </View>
 
           {/* Trip Details Section */}
           <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>🚗 Detalles del viaje</Text>
+            <View style={styles.sectionCard}>
+              <Text style={styles.sectionTitle}>🚗 Detalles del viaje</Text>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Vehículo *</Text>
-              <TouchableOpacity
-                style={[styles.input, styles.selectInput, errors.vehicle && styles.inputError]}
-                onPress={() => setShowVehicleModal(true)}
-              >
-                <Text style={[
-                  styles.selectText,
-                  !selectedVehicle && styles.placeholderText
-                ]}>
-                  {selectedVehicle 
-                    ? `${selectedVehicle.brand} ${selectedVehicle.model} (${selectedVehicle.licence_plate})`
-                    : "Selecciona un veh├¡culo"
-                  }
-                </Text>
-                <Text style={styles.dropdownIcon}>▼</Text>
-              </TouchableOpacity>
-              {errors.vehicle && <Text style={styles.errorText}>{errors.vehicle}</Text>}
-            </View>
-
-            <View style={styles.rowContainer}>
-              <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>Asientos disponibles *</Text>
-                <TextInput
-                  style={[styles.input, errors.seats && styles.inputError]}
-                  placeholder="4"
-                  placeholderTextColor="#876363"
-                  value={formData.seats}
-                  onChangeText={(value) => updateField("seats", value)}
-                  keyboardType="numeric"
-                  maxLength={1}
-                />
-                {errors.seats && <Text style={styles.errorText}>{errors.seats}</Text>}
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Vehículo *</Text>
+                <TouchableOpacity
+                  style={[styles.input, styles.selectInput, errors.vehicle && styles.inputError]}
+                  onPress={() => setShowVehicleModal(true)}
+                >
+                  <Text
+                    style={[
+                      styles.selectText,
+                      !selectedVehicle && styles.placeholderText,
+                    ]}
+                  >
+                    {selectedVehicle
+                      ? `${selectedVehicle.brand} ${selectedVehicle.model} (${selectedVehicle.licence_plate})`
+                      : "Selecciona un vehículo"}
+                  </Text>
+                  <Text style={styles.dropdownIcon}>▼</Text>
+                </TouchableOpacity>
+                {errors.vehicle && <Text style={styles.errorText}>{errors.vehicle}</Text>}
               </View>
 
-              <View style={[styles.inputContainer, styles.halfWidth]}>
-                <Text style={styles.label}>Precio por persona *</Text>
-                <TextInput
-                  style={[styles.input, errors.price && styles.inputError]}
-                  placeholder="2500"
-                  placeholderTextColor="#876363"
-                  value={formData.price}
-                  onChangeText={(value) => updateField("price", value)}
-                  keyboardType="numeric"
-                />
-                {errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
+              <View style={styles.rowContainer}>
+                <View style={[styles.inputContainer, styles.halfWidth]}>
+                  <Text style={styles.label}>Asientos disponibles *</Text>
+                  <TextInput
+                    style={[styles.input, errors.seats && styles.inputError]}
+                    placeholder="4"
+                    placeholderTextColor="#876363"
+                    value={formData.seats}
+                    onChangeText={(value) => updateField("seats", value)}
+                    keyboardType="numeric"
+                    maxLength={1}
+                  />
+                  {errors.seats && <Text style={styles.errorText}>{errors.seats}</Text>}
+                </View>
+
+                <View style={[styles.inputContainer, styles.halfWidth]}>
+                  <Text style={styles.label}>Precio por persona *</Text>
+                  <TextInput
+                    style={[styles.input, errors.price && styles.inputError]}
+                    placeholder="2500"
+                    placeholderTextColor="#876363"
+                    value={formData.price}
+                    onChangeText={(value) => updateField("price", value)}
+                    keyboardType="numeric"
+                  />
+                  {errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
+                </View>
               </View>
             </View>
           </View>
@@ -635,6 +591,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 24,
   },
+  sectionCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    gap: 16,
+    shadowColor: "#1F2937",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#F0F2F5",
+  },
   sectionTitle: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
@@ -655,7 +624,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#F5F0F0",
+    backgroundColor: "#FDF8F5",
     height: 56,
     borderRadius: 8,
     paddingHorizontal: 16,
@@ -663,7 +632,7 @@ const styles = StyleSheet.create({
     fontFamily: "Plus Jakarta Sans",
     color: "#121417",
     borderWidth: 1,
-    borderColor: "transparent",
+    borderColor: "#E5E7EB",
   },
   inputError: {
     borderColor: "#FF6B6B",
@@ -693,14 +662,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#61758A",
     marginLeft: 8,
-  },
-  dateInput: {
-    justifyContent: "center",
-  },
-  dateText: {
-    fontSize: 16,
-    fontFamily: "Plus Jakarta Sans",
-    color: "#121417",
   },
   rowContainer: {
     flexDirection: "row",
@@ -803,20 +764,5 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: "#F8F9FA",
-  },
-  
-  // Estilos para la duraci├│n
-  durationContainer: {
-    backgroundColor: "#F0F8FF",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  durationText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 14,
-    color: "#2E86AB",
-    textAlign: "center",
-    fontWeight: "500",
   },
 });

@@ -20,7 +20,7 @@ interface Driver {
 
 export default function PassengerRiderOffers() {
     const router = useRouter();
-    const { pickupDate, pickupTime, pickupLocation, requestId } = useLocalSearchParams();
+    const { pickupDate, pickupTime, pickupLocation, requestId, originLat, originLng } = useLocalSearchParams();
 
     const drivers: Driver[] = [
         {
@@ -75,6 +75,8 @@ export default function PassengerRiderOffers() {
                         pickupTime: typeof pickupTime === 'string' ? pickupTime : '',
                         pickupLocation: typeof pickupLocation === 'string' ? pickupLocation : '',
                         requestId: typeof requestId === 'string' ? requestId : '',
+                        pickupLatitude: typeof originLat === 'string' ? originLat : '',
+                        pickupLongitude: typeof originLng === 'string' ? originLng : '',
                     },
                 })
             }

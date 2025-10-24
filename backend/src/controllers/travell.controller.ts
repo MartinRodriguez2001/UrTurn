@@ -17,16 +17,169 @@ export class TravelController {
         });
       }
 
+      const body = req.body ?? {};
+
+      const pickString = (...keys: string[]): string | undefined => {
+        for (const key of keys) {
+          const value = body[key];
+          if (typeof value === "string" && value.trim().length > 0) {
+            return value.trim();
+          }
+        }
+        return undefined;
+      };
+
+      const pickNumber = (...keys: string[]): number | undefined => {
+        for (const key of keys) {
+          const value = body[key];
+          if (value === undefined || value === null) {
+            continue;
+          }
+          const parsed = typeof value === "number" ? value : Number(value);
+          if (Number.isFinite(parsed)) {
+            return parsed;
+          }
+        }
+        return undefined;
+      };
+
+      const startLocationName = pickString(
+        "start_location_name",
+        "startLocationName",
+        "start_location",
+        "startLocation"
+      );
+      if (!startLocationName) {
+        return res.status(400).json({
+          success: false,
+          message: "La ubicación de origen es requerida"
+        });
+      }
+
+      const endLocationName = pickString(
+        "end_location_name",
+        "endLocationName",
+        "end_location",
+        "endLocation"
+      );
+      if (!endLocationName) {
+        return res.status(400).json({
+          success: false,
+          message: "La ubicación de destino es requerida"
+        });
+      }
+
+      const startLatitude = pickNumber("start_latitude", "startLatitude");
+      const startLongitude = pickNumber("start_longitude", "startLongitude");
+      const endLatitude = pickNumber("end_latitude", "endLatitude");
+      const endLongitude = pickNumber("end_longitude", "endLongitude");
+
+      if (startLatitude === undefined || Math.abs(startLatitude) > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "La latitud de origen es inválida"
+        });
+      }
+      if (startLongitude === undefined || Math.abs(startLongitude) > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "La longitud de origen es inválida"
+        });
+      }
+      if (endLatitude === undefined || Math.abs(endLatitude) > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "La latitud de destino es inválida"
+        });
+      }
+      if (endLongitude === undefined || Math.abs(endLongitude) > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "La longitud de destino es inválida"
+        });
+      }
+
+      const capacity = pickNumber("capacity");
+      if (capacity === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: "La capacidad es requerida"
+        });
+      }
+      const capacityInt = Math.trunc(capacity);
+
+      const price = pickNumber("price");
+      if (price === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: "El precio es requerido"
+        });
+      }
+
+      const spacesAvailable = pickNumber("spaces_available", "spacesAvailable");
+      const spacesInt = spacesAvailable !== undefined ? Math.trunc(spacesAvailable) : capacityInt;
+
+      const carId = pickNumber("carId", "vehicleId");
+      if (carId === undefined) {
+        return res.status(400).json({
+          success: false,
+          message: "El vehículo es requerido"
+        });
+      }
+
+      const rawStartTime = pickString("start_time", "startTime");
+      if (!rawStartTime) {
+        return res.status(400).json({
+          success: false,
+          message: "La hora de inicio es requerida"
+        });
+      }
+
+      const startTime = new Date(rawStartTime);
+      if (Number.isNaN(startTime.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "La hora de inicio es inválida"
+        });
+      }
+
+      const rawEndTime = pickString("end_time", "endTime");
+      let endTime: Date | undefined;
+      if (rawEndTime) {
+        const parsedEnd = new Date(rawEndTime);
+        if (Number.isNaN(parsedEnd.getTime())) {
+          return res.status(400).json({
+            success: false,
+            message: "La hora de término es inválida"
+          });
+        }
+        endTime = parsedEnd;
+      }
+
+      const rawTravelDate = pickString("travel_date", "travelDate");
+      const travelDate = rawTravelDate ? new Date(rawTravelDate) : new Date(startTime);
+      if (Number.isNaN(travelDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          message: "La fecha del viaje es inválida"
+        });
+      }
+      travelDate.setHours(0, 0, 0, 0);
+
       const travelData: TravelData = {
-        start_location: req.body.start_location,
-        end_location: req.body.end_location,
-        capacity: parseInt(req.body.capacity),
-        price: parseFloat(req.body.price),
-        start_time: new Date(req.body.start_time),
-        end_time: new Date(req.body.end_time),
-        spaces_available: parseInt(req.body.spaces_available),
-        carId: parseInt(req.body.carId),
-        status: req.body.status
+        start_location_name: startLocationName,
+        start_latitude: startLatitude,
+        start_longitude: startLongitude,
+        end_location_name: endLocationName,
+        end_latitude: endLatitude,
+        end_longitude: endLongitude,
+        travel_date: travelDate,
+        start_time: startTime,
+        ...(endTime ? { end_time: endTime } : {}),
+        capacity: capacityInt,
+        price,
+        spaces_available: spacesInt,
+        carId: Math.trunc(carId),
       };
 
       const result = await travelService.registerTravel(travelData, driverId);
@@ -168,7 +321,22 @@ export class TravelController {
       }
 
       const travelId = parseInt(req.params.id || "");
-      const { pickupLocation, pickupDate, pickupTime } = req.body;
+      const { pickupLocation, pickupDate, pickupTime } = req.body ?? {};
+
+      const parseCoordinate = (value: unknown): number | undefined => {
+        if (value === undefined || value === null) {
+          return undefined;
+        }
+        const parsed = typeof value === "number" ? value : Number(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
+      };
+
+      const pickupLatitude =
+        parseCoordinate(req.body?.pickup_latitude) ??
+        parseCoordinate(req.body?.pickupLatitude);
+      const pickupLongitude =
+        parseCoordinate(req.body?.pickup_longitude) ??
+        parseCoordinate(req.body?.pickupLongitude);
 
       if (pickupDate && typeof pickupDate !== "string") {
         return res.status(400).json({
@@ -188,6 +356,20 @@ export class TravelController {
         return res.status(400).json({
           success: false,
           message: "La ubicación de recogida es requerida"
+        });
+      }
+
+      if (pickupLatitude === undefined || Math.abs(pickupLatitude) > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "La latitud de recogida es inválida"
+        });
+      }
+
+      if (pickupLongitude === undefined || Math.abs(pickupLongitude) > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "La longitud de recogida es inválida"
         });
       }
 
@@ -229,6 +411,8 @@ export class TravelController {
         travelId, 
         passengerId, 
         pickupLocation,
+        pickupLatitude,
+        pickupLongitude,
         parsedPickupDate,
         parsedPickupTime
       );

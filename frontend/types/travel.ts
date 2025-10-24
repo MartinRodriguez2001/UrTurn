@@ -5,10 +5,17 @@
 }
 
 export interface Travel {
-  start_location: string;
-  end_location: string;
+  start_location: string | null;
+  start_location_name: string | null;
+  start_latitude: number;
+  start_longitude: number;
+  end_location: string | null;
+  end_location_name: string | null;
+  end_latitude: number;
+  end_longitude: number;
   capacity: number;
   price: number;
+  travel_date: Date;
   start_time: Date;
   end_time?: Date;
   spaces_available: number;
@@ -31,8 +38,15 @@ export enum RequestStatus {
 
 export interface ProcessedTravel {
   id: number;
-  start_location: string;
-  end_location: string;
+  start_location: string | null;
+  start_location_name: string | null;
+  start_latitude: number;
+  start_longitude: number;
+  end_location: string | null;
+  end_location_name: string | null;
+  end_latitude: number;
+  end_longitude: number;
+  travel_date: Date;
   capacity: number;
   price: number;
   start_time: Date;
@@ -72,8 +86,13 @@ export interface TravelFilters {
 }
 
 export interface TravelCreateData {
-  start_location: string;
-  end_location: string;
+  start_location_name: string;
+  start_latitude: number;
+  start_longitude: number;
+  end_location_name: string;
+  end_latitude: number;
+  end_longitude: number;
+  travel_date: Date;
   capacity: number;
   price: number;
   start_time: Date;

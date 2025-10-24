@@ -79,6 +79,8 @@ class TravelApiService extends BaseApiService {
   async requestToJoinTravel(
     travelId: number,
     pickupLocation: string,
+    pickupLatitude: number,
+    pickupLongitude: number,
     pickupDate?: Date,
     pickupTime?: Date
   ): Promise<ApiResponse<{
@@ -89,6 +91,8 @@ class TravelApiService extends BaseApiService {
       method: 'POST',
       body: JSON.stringify({
         pickupLocation,
+        pickupLatitude,
+        pickupLongitude,
         pickupDate: pickupDate ? pickupDate.toISOString() : undefined,
         pickupTime: pickupTime ? pickupTime.toISOString() : undefined
       })

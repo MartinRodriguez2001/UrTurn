@@ -77,7 +77,7 @@ model Travel {
   price Float
   travel_date DateTime
   start_time DateTime
-  end_time DateTime 
+  end_time DateTime? 
   spaces_available Int
   status TravelStatus @default(pendiente)
 

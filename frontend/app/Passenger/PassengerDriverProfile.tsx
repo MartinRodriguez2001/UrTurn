@@ -32,8 +32,15 @@ export default function PassengerDriverProfile() {
     const pickupDateValue = getParamValue(params.pickupDate);
     const pickupTimeValue = getParamValue(params.pickupTime);
     const pickupLocation = getParamValue(params.pickupLocation) ?? '';
+    const pickupLatitudeParam =
+        getParamValue(params.pickupLatitude) ?? getParamValue(params.originLat);
+    const pickupLongitudeParam =
+        getParamValue(params.pickupLongitude) ?? getParamValue(params.originLng);
     const travelIdParam = getParamValue(params.travelId);
     const travelId = travelIdParam ? Number(travelIdParam) : NaN;
+
+    const pickupLatitude = pickupLatitudeParam ? Number(pickupLatitudeParam) : NaN;
+    const pickupLongitude = pickupLongitudeParam ? Number(pickupLongitudeParam) : NaN;
 
     const pickupDateDate = useMemo(() => {
         if (!pickupDateValue) {
@@ -85,11 +92,23 @@ export default function PassengerDriverProfile() {
             return;
         }
 
+        if (!Number.isFinite(pickupLatitude) || Math.abs(pickupLatitude) > 90) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de recogida. Selecciona una ubicación válida.');
+            return;
+        }
+
+        if (!Number.isFinite(pickupLongitude) || Math.abs(pickupLongitude) > 180) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de recogida. Selecciona una ubicación válida.');
+            return;
+        }
+
         try {
             setIsRequesting(true);
             const response = await travelApiService.requestToJoinTravel(
                 travelId,
                 pickupLocation,
+                pickupLatitude,
+                pickupLongitude,
                 pickupDateDate,
                 pickupTimeDate
             );

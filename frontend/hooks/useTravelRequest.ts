@@ -4,6 +4,8 @@ import { useState } from 'react';
 interface TravelRequestParams {
   travelId: number;
   pickupLocation: string;
+  pickupLatitude: number;
+  pickupLongitude: number;
   pickupDate?: Date;
   pickupTime?: Date;
 }
@@ -16,6 +18,8 @@ export const useTravelRequest = () => {
   const requestTravel = async ({
     travelId,
     pickupLocation,
+    pickupLatitude,
+    pickupLongitude,
     pickupDate,
     pickupTime
   }: TravelRequestParams) => {
@@ -49,6 +53,8 @@ export const useTravelRequest = () => {
       const response = await TravelApiService.requestToJoinTravel(
         travelId,
         pickupLocation,
+        pickupLatitude,
+        pickupLongitude,
         pickupDate,
         pickupTime
       );

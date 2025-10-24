@@ -3,15 +3,20 @@ import { PrismaClient, TravelStatus } from "../../generated/prisma/index.js";
 const prisma = new PrismaClient();
 
 export interface TravelData {
-  start_location: string;
-  end_location: string;
+  start_location_name: string;
+  start_latitude: number;
+  start_longitude: number;
+  end_location_name: string;
+  end_latitude: number;
+  end_longitude: number;
+  travel_date: Date;
+  start_time: Date;
+  end_time?: Date | null;
   capacity: number;
   price: number;
-  start_time: Date;
-  end_time: Date;
   spaces_available: number;
   carId: number;
-  status?: string;
+  status?: TravelStatus;
 }
 
 interface OpenTravelRequestData {
@@ -28,6 +33,15 @@ interface OpenTravelRequestData {
 export class TravelService {
   async registerTravel(travelData: TravelData, driverId: number) {
     try {
+      this.validateTravelData(travelData);
+
+      const travelStart = new Date(travelData.start_time);
+      const travelEnd = travelData.end_time
+        ? new Date(travelData.end_time)
+        : new Date(travelStart.getTime() + 60 * 60 * 1000);
+
+      await this.validateNoOverlappingTravels(driverId, travelStart, travelEnd);
+
       const driverVehicles = await prisma.vehicle.findMany({
         where: {
           userId: driverId,
@@ -53,16 +67,21 @@ export class TravelService {
 
       const newTravel = await prisma.travel.create({
         data: {
-          start_location: travelData.start_location.trim(),
-          end_location: travelData.end_location.trim(),
+          start_location_name: travelData.start_location_name.trim(),
+          start_latitude: travelData.start_latitude,
+          start_longitude: travelData.start_longitude,
+          end_location_name: travelData.end_location_name.trim(),
+          end_latitude: travelData.end_latitude,
+          end_longitude: travelData.end_longitude,
+          travel_date: travelData.travel_date,
+          start_time: travelStart,
+          ...(travelData.end_time ? { end_time: travelEnd } : {}),
           capacity: travelData.capacity,
           price: travelData.price,
-          start_time: travelData.start_time,
-          end_time: travelData.end_time,
           spaces_available: travelData.spaces_available,
+          status: travelData.status ?? TravelStatus.confirmado,
           userId: driverId,
           carId: travelData.carId,
-          status: TravelStatus.confirmado, // Estado inicial
         },
         include: {
           driver_id: {
@@ -87,7 +106,11 @@ export class TravelService {
 
       return {
         success: true,
-        travel: newTravel,
+        travel: {
+          ...newTravel,
+          start_location: newTravel.start_location_name,
+          end_location: newTravel.end_location_name,
+        },
         message: "Viaje creado exitosamente",
       };
     } catch (error) {
@@ -97,16 +120,33 @@ export class TravelService {
       );
     }
   }
-
   private validateTravelData(travelData: TravelData): void {
-    if (!travelData.start_location?.trim()) {
+    if (!travelData.start_location_name?.trim()) {
       throw new Error("La ubicación de origen es requerida");
     }
-    if (!travelData.end_location?.trim()) {
+    if (!travelData.end_location_name?.trim()) {
       throw new Error("La ubicación de destino es requerida");
     }
-    if (travelData.start_location.trim() === travelData.end_location.trim()) {
+    if (
+      travelData.start_location_name.trim().toLowerCase() ===
+      travelData.end_location_name.trim().toLowerCase()
+    ) {
       throw new Error("El origen y destino no pueden ser iguales");
+    }
+    const { start_latitude, start_longitude, end_latitude, end_longitude } =
+      travelData;
+
+    if (!Number.isFinite(start_latitude) || Math.abs(start_latitude) > 90) {
+      throw new Error("La latitud de origen es inválida");
+    }
+    if (!Number.isFinite(start_longitude) || Math.abs(start_longitude) > 180) {
+      throw new Error("La longitud de origen es inválida");
+    }
+    if (!Number.isFinite(end_latitude) || Math.abs(end_latitude) > 90) {
+      throw new Error("La latitud de destino es inválida");
+    }
+    if (!Number.isFinite(end_longitude) || Math.abs(end_longitude) > 180) {
+      throw new Error("La longitud de destino es inválida");
     }
     // Validar capacidad
     if (
@@ -123,6 +163,9 @@ export class TravelService {
     ) {
       throw new Error("Los espacios disponibles deben ser al menos 1");
     }
+    if (travelData.spaces_available > travelData.capacity) {
+      throw new Error("Los espacios disponibles no pueden exceder la capacidad");
+    }
     // Validar precio
     if (typeof travelData.price !== "number" || travelData.price < 0) {
       throw new Error("El precio debe ser un número positivo");
@@ -133,13 +176,17 @@ export class TravelService {
 
     const now = new Date();
     const startTime = new Date(travelData.start_time);
-    const endTime = new Date(travelData.end_time);
+    const endTime = travelData.end_time ? new Date(travelData.end_time) : null;
+    const travelDate = new Date(travelData.travel_date);
 
     if (isNaN(startTime.getTime())) {
       throw new Error("Fecha de inicio inválida");
     }
-    if (isNaN(endTime.getTime())) {
+    if (travelData.end_time && (!endTime || isNaN(endTime.getTime()))) {
       throw new Error("Fecha de fin inválida");
+    }
+    if (isNaN(travelDate.getTime())) {
+      throw new Error("La fecha del viaje es inválida");
     }
 
     const minStartTime = new Date(now.getTime() + 30 * 60 * 1000);
@@ -149,20 +196,33 @@ export class TravelService {
       );
     }
 
-    const maxDuration = 24 * 60 * 60 * 1000; // 24 horas en ms
-    if (endTime.getTime() - startTime.getTime() > maxDuration) {
-      throw new Error("El viaje no puede durar más de 24 horas");
-    }
+    if (endTime) {
+      const maxDuration = 24 * 60 * 60 * 1000; // 24 horas en ms
+      if (endTime.getTime() - startTime.getTime() > maxDuration) {
+        throw new Error("El viaje no puede durar más de 24 horas");
+      }
 
-    const minDuration = 15 * 60 * 1000; // 15 minutos en ms
-    if (endTime.getTime() - startTime.getTime() < minDuration) {
-      throw new Error("El viaje debe durar al menos 15 minutos");
+      const minDuration = 15 * 60 * 1000; // 15 minutos en ms
+      if (endTime.getTime() - startTime.getTime() < minDuration) {
+        throw new Error("El viaje debe durar al menos 15 minutos");
+      }
     }
 
     const maxAdvanceTime = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     if (startTime > maxAdvanceTime) {
       throw new Error(
         "No se pueden programar viajes con más de 30 días de anticipación"
+      );
+    }
+
+    const normalizedTravelDate = new Date(travelDate);
+    normalizedTravelDate.setHours(0, 0, 0, 0);
+    const normalizedStartDate = new Date(startTime);
+    normalizedStartDate.setHours(0, 0, 0, 0);
+
+    if (normalizedTravelDate.getTime() !== normalizedStartDate.getTime()) {
+      throw new Error(
+        "La fecha del viaje debe coincidir con la fecha de inicio del viaje"
       );
     }
   }
@@ -196,6 +256,21 @@ export class TravelService {
         "El conductor tiene viajes que se solapan con el horario especificado"
       );
     }
+  }
+
+  private mapTravelForResponse<
+    T extends {
+      start_location_name: string | null;
+      end_location_name: string | null;
+    }
+  >(
+    travel: T
+  ): T & { start_location: string | null; end_location: string | null } {
+    return {
+      ...travel,
+      start_location: travel.start_location_name,
+      end_location: travel.end_location_name,
+    };
   }
 
   async getDriverTravels(driverId: number) {
@@ -312,8 +387,15 @@ export class TravelService {
       const processedTravels = travels.map((travel) => ({
         // Información básica del viaje
         id: travel.id,
-        start_location: travel.start_location,
-        end_location: travel.end_location,
+        start_location: travel.start_location_name,
+        start_location_name: travel.start_location_name,
+        start_latitude: travel.start_latitude,
+        start_longitude: travel.start_longitude,
+        end_location: travel.end_location_name,
+        end_location_name: travel.end_location_name,
+        end_latitude: travel.end_latitude,
+        end_longitude: travel.end_longitude,
+        travel_date: travel.travel_date,
         capacity: travel.capacity,
         price: travel.price,
         start_time: travel.start_time,
@@ -343,7 +425,10 @@ export class TravelService {
               ...req.passenger,
               requestId: req.id,
               requestedAt: req.created_at,
-              location: req.location,
+              location: req.start_location_name,
+              start_location_name: req.start_location_name,
+              start_latitude: req.start_latitude,
+              start_longitude: req.start_longitude,
               status: "pending",
             })),
 
@@ -354,7 +439,10 @@ export class TravelService {
               ...req.passenger,
               requestId: req.id,
               acceptedAt: req.created_at,
-              location: req.location,
+              location: req.start_location_name,
+              start_location_name: req.start_location_name,
+              start_latitude: req.start_latitude,
+              start_longitude: req.start_longitude,
               status: "accepted",
             })),
         },
@@ -420,13 +508,13 @@ export class TravelService {
 
       if (filters) {
         if (filters.start_location) {
-          where.start_location = {
+          where.start_location_name = {
             contains: filters.start_location,
             mode: "insensitive",
           };
         }
         if (filters.end_location) {
-          where.end_location = {
+          where.end_location_name = {
             contains: filters.end_location,
             mode: "insensitive",
           };
@@ -475,14 +563,17 @@ export class TravelService {
         orderBy: [{ start_time: "asc" }, { price: "asc" }],
       });
 
-      const processedTravels = travels.map((travel) => ({
-        ...travel,
-        driver_rating:
-          travel.reviews.length > 0
-            ? travel.reviews.reduce((sum, r) => sum + r.starts, 0) /
-              travel.reviews.length
-            : null,
-      }));
+      const processedTravels = travels.map((travel) => {
+        const withLegacyFields = this.mapTravelForResponse(travel);
+        return {
+          ...withLegacyFields,
+          driver_rating:
+            travel.reviews.length > 0
+              ? travel.reviews.reduce((sum, r) => sum + r.starts, 0) /
+                travel.reviews.length
+              : null,
+        };
+      });
 
       return {
         success: true,
@@ -500,6 +591,8 @@ export class TravelService {
     travelId: number,
     passengerId: number,
     pickupLocation: string,
+    pickupLatitude: number,
+    pickupLongitude: number,
     pickupDate?: Date,
     pickupTime?: Date
   ) {
@@ -510,9 +603,21 @@ export class TravelService {
         travelId,
         passengerId,
         pickupLocation,
+        pickupLatitude,
+        pickupLongitude,
         pickupDate: pickupDate ? pickupDate.toISOString() : null,
         pickupTime: pickupTime ? pickupTime.toISOString() : null,
       });
+
+      if (!pickupLocation?.trim()) {
+        throw new Error("La ubicación de recogida es requerida");
+      }
+      if (!Number.isFinite(pickupLatitude) || Math.abs(pickupLatitude) > 90) {
+        throw new Error("La latitud de recogida es inválida");
+      }
+      if (!Number.isFinite(pickupLongitude) || Math.abs(pickupLongitude) > 180) {
+        throw new Error("La longitud de recogida es inválida");
+      }
 
       // Verificar que el viaje existe y está disponible
       const travel = await prisma.travel.findUnique({
@@ -525,8 +630,8 @@ export class TravelService {
         driverId: travel.userId,
         status: travel.status,
         spaces_available: travel.spaces_available,
-        start_location: travel.start_location,
-        end_location: travel.end_location,
+        start_location_name: travel.start_location_name,
+        end_location_name: travel.end_location_name,
       } : null);
 
       if (!travel) {
@@ -595,7 +700,12 @@ export class TravelService {
         data: {
           travelId,
           passengerId,
-          location: pickupLocation,
+          start_location_name: pickupLocation.trim(),
+          start_latitude: pickupLatitude,
+          start_longitude: pickupLongitude,
+          end_location_name: travel.end_location_name,
+          end_latitude: travel.end_latitude,
+          end_longitude: travel.end_longitude,
           pickup_date: normalizedPickupDate ?? null,
           pickup_time: normalizedPickupTime ?? null,
           status: "pendiente",
@@ -612,8 +722,12 @@ export class TravelService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              end_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
             },
           },
@@ -624,7 +738,9 @@ export class TravelService {
         requestId: request.id,
         travelId: request.travelId,
         passengerId: request.passengerId,
-        location: request.location,
+        start_location_name: request.start_location_name,
+        start_latitude: request.start_latitude,
+        start_longitude: request.start_longitude,
         pickup_date: request.pickup_date,
         pickup_time: request.pickup_time,
         status: request.status,
@@ -633,7 +749,10 @@ export class TravelService {
 
       return {
         success: true,
-        request,
+        request: {
+          ...request,
+          location: request.start_location_name,
+        },
         message: "Solicitud enviada exitosamente",
       };
     } catch (error) {
@@ -885,6 +1004,7 @@ export class TravelService {
         where: { id: travelId },
         data: {
           status: TravelStatus.finalizado,
+          end_time: new Date(),
         },
       });
 
@@ -1003,11 +1123,21 @@ export class TravelService {
         },
       });
 
+      const normalizedRequested = requestedTravels.map((item) => ({
+        ...item,
+        travel: item.travel ? this.mapTravelForResponse(item.travel) : null,
+      }));
+
+      const normalizedConfirmed = confirmedTravels.map((item) => ({
+        ...item,
+        travel: item.travel ? this.mapTravelForResponse(item.travel) : null,
+      }));
+
       return {
         success: true,
         data: {
-          requested: requestedTravels,
-          confirmed: confirmedTravels,
+          requested: normalizedRequested,
+          confirmed: normalizedConfirmed,
         },
         message: "Viajes del pasajero obtenidos exitosamente",
       };
@@ -1079,13 +1209,13 @@ export class TravelService {
             {
               OR: [
                 {
-                  start_location: {
+                  start_location_name: {
                     contains: query,
                     mode: 'insensitive'
                   }
                 },
                 {
-                  end_location: {
+                  end_location_name: {
                     contains: query,
                     mode: 'insensitive'
                   }
@@ -1175,8 +1305,12 @@ export class TravelService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              end_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
             },
           },
@@ -1185,7 +1319,12 @@ export class TravelService {
 
       return {
         success: true,
-        request: canceledRequest,
+        request: {
+          ...canceledRequest,
+          travel: canceledRequest.travel
+            ? this.mapTravelForResponse(canceledRequest.travel)
+            : null,
+        },
         message: "Solicitud cancelada exitosamente",
       };
     } catch (error) {

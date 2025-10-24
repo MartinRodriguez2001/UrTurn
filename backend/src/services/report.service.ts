@@ -61,8 +61,12 @@ export class ReportService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_location_name: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
               status: true,
               driver_id: {
@@ -78,7 +82,18 @@ export class ReportService {
 
       return {
         success: true,
-        report,
+        report: report
+          ? {
+              ...report,
+              travel: report.travel
+                ? {
+                    ...report.travel,
+                    start_location: report.travel.start_location_name,
+                    end_location: report.travel.end_location_name,
+                  }
+                : null,
+            }
+          : report,
         message: "Reporte creado exitosamente. Será revisado por el equipo de soporte.",
       };
     } catch (error) {
@@ -99,8 +114,12 @@ export class ReportService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_location_name: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
               status: true,
               driver_id: {
@@ -119,7 +138,16 @@ export class ReportService {
 
       return {
         success: true,
-        reports,
+        reports: reports.map((item) => ({
+          ...item,
+          travel: item.travel
+            ? {
+                ...item.travel,
+                start_location: item.travel.start_location_name,
+                end_location: item.travel.end_location_name,
+              }
+            : null,
+        })),
         count: reports.length,
         message: "Reportes obtenidos exitosamente",
       };
@@ -198,8 +226,12 @@ export class ReportService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_location_name: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
               status: true,
               driver_id: {
@@ -219,7 +251,16 @@ export class ReportService {
 
       return {
         success: true,
-        reports,
+        reports: reports.map((item) => ({
+          ...item,
+          travel: item.travel
+            ? {
+                ...item.travel,
+                start_location: item.travel.start_location_name,
+                end_location: item.travel.end_location_name,
+              }
+            : null,
+        })),
         count: reports.length,
         message: "Todos los reportes obtenidos exitosamente",
       };

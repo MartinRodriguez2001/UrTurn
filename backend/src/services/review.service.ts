@@ -99,8 +99,12 @@ export class ReviewService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_location_name: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
             },
           },
@@ -109,7 +113,18 @@ export class ReviewService {
 
       return {
         success: true,
-        review,
+        review: review
+          ? {
+              ...review,
+              travel: review.travel
+                ? {
+                    ...review.travel,
+                    start_location: review.travel.start_location_name,
+                    end_location: review.travel.end_location_name,
+                  }
+                : null,
+            }
+          : review,
         message: "Review creado exitosamente",
       };
     } catch (error) {
@@ -137,8 +152,12 @@ export class ReviewService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_location_name: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
             },
           },
@@ -163,8 +182,12 @@ export class ReviewService {
           travel: {
             select: {
               id: true,
-              start_location: true,
-              end_location: true,
+              start_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_location_name: true,
+              end_latitude: true,
+              end_longitude: true,
               start_time: true,
             },
           },
@@ -174,27 +197,46 @@ export class ReviewService {
         },
       });
 
+      const withLegacyLocations = <
+        T extends { travel: { start_location_name: string | null; end_location_name: string | null } | null }
+      >(
+        reviews: T[]
+      ): T[] =>
+        reviews.map((item) => ({
+          ...item,
+          travel: item.travel
+            ? {
+                ...item.travel,
+                start_location: item.travel.start_location_name,
+                end_location: item.travel.end_location_name,
+              }
+            : null,
+        })) as T[];
+
+      const normalizedReceived = withLegacyLocations(reviewsReceived);
+      const normalizedGiven = withLegacyLocations(reviewsGiven);
+
       const averageRating =
-        reviewsReceived.length > 0
-          ? reviewsReceived.reduce((sum, r) => sum + r.starts, 0) /
-            reviewsReceived.length
+        normalizedReceived.length > 0
+          ? normalizedReceived.reduce((sum, r) => sum + r.starts, 0) /
+            normalizedReceived.length
           : null;
 
       return {
         success: true,
         data: {
-          received: reviewsReceived,
-          given: reviewsGiven,
+          received: normalizedReceived,
+          given: normalizedGiven,
           stats: {
             averageRating: averageRating ? Math.round(averageRating * 10) / 10 : null,
-            totalReceived: reviewsReceived.length,
-            totalGiven: reviewsGiven.length,
+            totalReceived: normalizedReceived.length,
+            totalGiven: normalizedGiven.length,
             ratingDistribution: {
-              5: reviewsReceived.filter((r) => r.starts === 5).length,
-              4: reviewsReceived.filter((r) => r.starts === 4).length,
-              3: reviewsReceived.filter((r) => r.starts === 3).length,
-              2: reviewsReceived.filter((r) => r.starts === 2).length,
-              1: reviewsReceived.filter((r) => r.starts === 1).length,
+              5: normalizedReceived.filter((r) => r.starts === 5).length,
+              4: normalizedReceived.filter((r) => r.starts === 4).length,
+              3: normalizedReceived.filter((r) => r.starts === 3).length,
+              2: normalizedReceived.filter((r) => r.starts === 2).length,
+              1: normalizedReceived.filter((r) => r.starts === 1).length,
             },
           },
         },
@@ -209,9 +251,7 @@ export class ReviewService {
   async getTravelReviews(travelId: number) {
     try {
       const reviews = await prisma.review.findMany({
-        where: {
-          travel_id: travelId,
-        },
+        where: { travel_id: travelId },
         include: {
           reviewer: {
             select: {
@@ -227,16 +267,39 @@ export class ReviewService {
               profile_picture: true,
             },
           },
+          travel: {
+            select: {
+              id: true,
+              start_location_name: true,
+              start_latitude: true,
+              start_longitude: true,
+              end_location_name: true,
+              end_latitude: true,
+              end_longitude: true,
+              start_time: true,
+            },
+          },
         },
         orderBy: {
           date: "desc",
         },
       });
 
+      const enrichedReviews = reviews.map((review) => ({
+        ...review,
+        travel: review.travel
+          ? {
+              ...review.travel,
+              start_location: review.travel.start_location_name,
+              end_location: review.travel.end_location_name,
+            }
+          : null,
+      }));
+
       return {
         success: true,
-        reviews,
-        count: reviews.length,
+        reviews: enrichedReviews,
+        count: enrichedReviews.length,
         message: "Reviews del viaje obtenidos exitosamente",
       };
     } catch (error) {
@@ -274,4 +337,5 @@ export class ReviewService {
       );
     }
   }
+
 }
