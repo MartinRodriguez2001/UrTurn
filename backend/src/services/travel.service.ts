@@ -1617,7 +1617,11 @@ export class TravelService {
 
       const averageSpeedKmh = config?.averageSpeedKmh ?? 30;
       const maxAdditionalMinutes = config?.maxAdditionalMinutes ?? 5;
-      const maxDeviationMeters = config?.maxDeviationMeters ?? 400;
+      const maxDeviationMeters =
+        config?.maxDeviationMeters !== undefined &&
+        Number.isFinite(config.maxDeviationMeters)
+          ? config.maxDeviationMeters
+          : undefined;
 
       const startCoordinate: Coordinate = {
         latitude: travel.start_latitude,
@@ -1699,7 +1703,9 @@ export class TravelService {
         {
           averageSpeedKmh,
           maxAdditionalMinutes,
-          maxDeviationMeters,
+          ...(maxDeviationMeters !== undefined
+            ? { maxDeviationMeters }
+            : {}),
         }
       );
 
@@ -1745,7 +1751,7 @@ export class TravelService {
     appliedConfig: {
       averageSpeedKmh: number;
       maxAdditionalMinutes: number;
-      maxDeviationMeters: number;
+      maxDeviationMeters: number | null;
       timeWindowMinutes: number;
       maxResults: number;
       pickupDateTime: string | null;
@@ -1753,7 +1759,11 @@ export class TravelService {
   }> {
     const averageSpeedKmh = options?.averageSpeedKmh ?? 30;
     const maxAdditionalMinutes = options?.maxAdditionalMinutes ?? 5;
-    const maxDeviationMeters = options?.maxDeviationMeters ?? 400;
+    const maxDeviationMeters =
+      options?.maxDeviationMeters !== undefined &&
+      Number.isFinite(options.maxDeviationMeters)
+        ? options.maxDeviationMeters
+        : undefined;
     const timeWindowMinutes = options?.timeWindowMinutes ?? 90;
     const maxResults = Math.max(options?.maxResults ?? 10, 1);
     const pickupDateTime = options?.pickupDateTime ?? null;
@@ -1824,7 +1834,9 @@ export class TravelService {
           const evaluationConfig: PassengerAssignmentConfig = {
             averageSpeedKmh,
             maxAdditionalMinutes,
-            maxDeviationMeters,
+            ...(maxDeviationMeters !== undefined
+              ? { maxDeviationMeters }
+              : {}),
             ...(routeWaypoints ? { routeWaypoints } : {}),
           };
 
@@ -1908,7 +1920,7 @@ export class TravelService {
       appliedConfig: {
         averageSpeedKmh,
         maxAdditionalMinutes,
-        maxDeviationMeters,
+        maxDeviationMeters: maxDeviationMeters ?? null,
         timeWindowMinutes,
         maxResults,
         pickupDateTime: pickupDateTime ? pickupDateTime.toISOString() : null,

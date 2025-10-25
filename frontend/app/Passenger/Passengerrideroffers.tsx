@@ -262,8 +262,10 @@ export default function PassengerRiderOffers() {
           <Text style={styles.summaryTitle}>{summaryLabel}</Text>
           {appliedConfig && (
             <Text style={styles.summaryCaption}>
-              Tiempo extra maximo {appliedConfig.maxAdditionalMinutes} min ·
-              Desvio maximo {appliedConfig.maxDeviationMeters} m
+              Tiempo extra maximo {appliedConfig.maxAdditionalMinutes} min
+              {appliedConfig.maxDeviationMeters !== null
+                ? ` · Desvio maximo ${appliedConfig.maxDeviationMeters} m`
+                : " · Se considera solo el tiempo adicional"}
             </Text>
           )}
         </View>

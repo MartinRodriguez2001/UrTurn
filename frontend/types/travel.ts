@@ -206,7 +206,7 @@ export interface TravelMatchResult {
 export interface TravelMatchAppliedConfig {
   averageSpeedKmh: number;
   maxAdditionalMinutes: number;
-  maxDeviationMeters: number;
+  maxDeviationMeters: number | null;
   timeWindowMinutes: number;
   maxResults: number;
   pickupDateTime: string | null;

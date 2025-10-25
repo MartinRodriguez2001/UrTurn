@@ -21,7 +21,7 @@ export interface RouteEvaluationOptions {
   /**
    * Maximum lateral deviation from the original route permitted, in meters.
    */
-  maxDeviationMeters: number;
+  maxDeviationMeters?: number;
 }
 
 export interface RouteMetrics {
@@ -223,20 +223,28 @@ export function evaluatePassengerInsertion(
     averageSpeedKmh
   );
 
-  const pickupDeviation = minimalDistanceToRouteMeters(
-    routeWaypoints,
-    passengerStops.pickup
-  );
-  if (pickupDeviation > options.maxDeviationMeters) {
-    return null;
-  }
+  const maxDeviationMeters =
+    typeof options.maxDeviationMeters === "number" &&
+    Number.isFinite(options.maxDeviationMeters)
+      ? options.maxDeviationMeters
+      : undefined;
 
-  const dropoffDeviation = minimalDistanceToRouteMeters(
-    routeWaypoints,
-    passengerStops.dropoff
-  );
-  if (dropoffDeviation > options.maxDeviationMeters) {
-    return null;
+  if (maxDeviationMeters !== undefined) {
+    const pickupDeviation = minimalDistanceToRouteMeters(
+      routeWaypoints,
+      passengerStops.pickup
+    );
+    if (pickupDeviation > maxDeviationMeters) {
+      return null;
+    }
+
+    const dropoffDeviation = minimalDistanceToRouteMeters(
+      routeWaypoints,
+      passengerStops.dropoff
+    );
+    if (dropoffDeviation > maxDeviationMeters) {
+      return null;
+    }
   }
 
   let bestCandidate: AssignmentCandidate | null = null;
