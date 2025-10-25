@@ -7,6 +7,7 @@ import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Modal,
   RefreshControl,
   SafeAreaView,
@@ -48,24 +49,30 @@ export default function DriverHomePage() {
       setLoadingTravels(false);
     }
   }
-  const getNextTravel = (): ProcessedTravel | null => {
-    if (travels.length === 0) return null;
+  const getScheduledTravels = (): ProcessedTravel[] => {
+    if (travels.length === 0) return [];
 
     const now = new Date();
     const futureTravels = travels.filter((travel) => {
       const travelDate = new Date(travel.start_time);
+      const normalizedStatus = String(travel.status || "")
+        .toLowerCase()
+        .trim();
+      const hasEnded = Boolean(travel.end_time);
+      const isFuture = travelDate > now;
+      const isActive = travelDate <= now && !hasEnded;
+
       return (
-        travelDate > now &&
-        (travel.status === TravelStatus.CONFIRMADO ||
-          travel.status === TravelStatus.PENDIENTE)
+        (isFuture || isActive) &&
+        (normalizedStatus === TravelStatus.CONFIRMADO ||
+          normalizedStatus === TravelStatus.PENDIENTE)
       );
     });
-    futureTravels.sort(
+
+    return futureTravels.sort(
       (a, b) =>
         new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
     );
-
-    return futureTravels.length > 0 ? futureTravels[0] : null;
   };
 
   const getPendingRequestsCount = (): number => {
@@ -117,8 +124,61 @@ export default function DriverHomePage() {
   };
 
   // Definir variables para usar en el JSX
-  const nextTravel = getNextTravel();
+  const scheduledTravels = getScheduledTravels();
+  const nextTravel = scheduledTravels.length > 0 ? scheduledTravels[0] : null;
   const pendingRequestsCount = getPendingRequestsCount();
+
+  const formatRouteLabel = (travel: ProcessedTravel) => {
+    const origin =
+      travel.start_location_name ?? travel.start_location ?? "Origen por definir";
+    const destination =
+      travel.end_location_name ?? travel.end_location ?? "Destino por definir";
+    return `${origin} -> ${destination}`;
+  };
+
+  const formatTravelDate = (dateValue: string | Date) => {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return "Fecha pendiente";
+    }
+    return date.toLocaleDateString("es-CL");
+  };
+
+  const formatTravelTime = (dateValue: string | Date) => {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) {
+      return "--:--";
+    }
+    return date.toLocaleTimeString("es-CL", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const handleTravelCardPress = (travel: ProcessedTravel) => {
+    const waypoints = travel.route_waypoints ?? travel.routeWaypoints ?? null;
+    const payload = {
+      id: travel.id,
+      start_location_name: travel.start_location_name ?? travel.start_location,
+      start_latitude: travel.start_latitude,
+      start_longitude: travel.start_longitude,
+      end_location_name: travel.end_location_name ?? travel.end_location,
+      end_latitude: travel.end_latitude,
+      end_longitude: travel.end_longitude,
+      start_time: travel.start_time,
+      price: travel.price,
+      route_waypoints: waypoints ?? undefined,
+      routeWaypoints: waypoints ?? undefined,
+    };
+
+    router.push({
+      pathname: "/Driver/DriverTravel",
+      params: {
+        travel: JSON.stringify(payload),
+        passengers: JSON.stringify([]),
+      },
+    });
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -160,25 +220,31 @@ export default function DriverHomePage() {
         {/* Published Trips Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Próximo Viaje</Text>
+            <Text style={styles.sectionTitle}>Viajes Programados</Text>
           </View>
           {loadingTravels ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="small" color="#F99F7C" />
               <Text style={styles.loadingText}>Cargando viajes...</Text>
             </View>
-          ) : getNextTravel() ? (
-            <NextTravelCard
-              Route={`${getNextTravel()!.start_location} → ${
-                getNextTravel()!.end_location
-              }`}
-              Date={new Date(getNextTravel()!.start_time).toLocaleDateString(
-                "es-CL"
+          ) : scheduledTravels.length > 0 ? (
+            <FlatList
+              horizontal
+              data={scheduledTravels}
+              keyExtractor={(travel) => String(travel.id)}
+              renderItem={({ item }) => (
+                <NextTravelCard
+                  Route={formatRouteLabel(item)}
+                  Date={formatTravelDate(item.start_time)}
+                  Time={formatTravelTime(item.start_time)}
+                  onPress={() => handleTravelCardPress(item)}
+                  style={styles.scheduledCard}
+                />
               )}
-              Time={`${new Date(getNextTravel()!.start_time).toLocaleTimeString(
-                "es-CL",
-                { hour: "2-digit", minute: "2-digit" }
-              )}`}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalTravelList}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              nestedScrollEnabled
             />
           ) : (
             <View style={styles.emptyStateContainer}>
@@ -218,8 +284,8 @@ export default function DriverHomePage() {
                 RequestCount={pendingRequestsCount}
                 Route={
                   nextTravel
-                    ? `${nextTravel.start_location} → ${nextTravel.end_location}`
-                    : "Múltiples rutas"
+                    ? formatRouteLabel(nextTravel)
+                    : "Multiples rutas"
                 }
               />
             </TouchableOpacity>
@@ -567,6 +633,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 20,
     gap: 8,
+  },
+  horizontalTravelList: {
+    paddingRight: 16,
+    paddingVertical: 4,
+  },
+  scheduledCard: {
+    width: 280,
   },
   emptyStateContainer: {
     alignItems: "center",
