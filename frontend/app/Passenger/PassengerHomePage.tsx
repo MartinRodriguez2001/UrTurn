@@ -1,4 +1,4 @@
-import NextTravelCard from "@/components/driverComps/NextTravelCard";
+﻿import NextTravelCard from "@/components/driverComps/NextTravelCard";
 import PendingRequestCard from "@/components/driverComps/PendingRequestCard";
 import { useAuth } from "@/context/authContext";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
@@ -248,7 +248,7 @@ export default function PassengerHomePage() {
               <Text style={styles.emptyStateIcon}>🗓️</Text>
               <Text style={styles.emptyStateTitle}>Sin viajes confirmados</Text>
               <Text style={styles.emptyStateMessage}>
-                Aún no tienes viajes confirmados con conductores. Solicita un viaje y aparecera aquí.
+                Aún no tienes viajes confirmados con conductores. Solicita un viaje y aparecerá acá.
               </Text>
             </View>
           )}

@@ -1,6 +1,8 @@
 ﻿import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
 import TravelRouteSection from "@/components/travel/TravelRouteSection";
 import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
+import IOSCalendarPickerModal from "@/components/common/IOSCalendarPickerModal";
+import IOSTimePickerModal from "@/components/common/IOSTimePickerModal";
 import travelApiService from "@/Services/TravelApiService";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import DateTimePicker from "@react-native-community/datetimepicker";
@@ -63,22 +65,40 @@ export default function PassengerSearchRider() {
     [travelTime]
   );
 
-  const handleDateChange = (_event: any, selectedDate?: Date) => {
+  const applySelectedDate = (date: Date) => {
+    const sanitized = new Date(date);
+    sanitized.setHours(0, 0, 0, 0);
+    setTravelDate(sanitized);
+  };
+
+  const applySelectedTime = (time: Date) => {
+    const sanitized = new Date(time);
+    sanitized.setSeconds(0, 0);
+    setTravelTime(sanitized);
+    setErrors((prev) => (prev.time ? { ...prev, time: undefined } : prev));
+  };
+
+  const handleDateChange = (event: any, selectedDate?: Date) => {
+    if (event?.type === "dismissed") {
+      setShowDatePicker(false);
+      return;
+    }
+
     setShowDatePicker(false);
     if (selectedDate) {
-      setTravelDate(new Date(selectedDate));
+      applySelectedDate(selectedDate);
     }
   };
 
-  const handleTimeChange = (_event: any, selectedTime?: Date) => {
+  const handleTimeChange = (event: any, selectedTime?: Date) => {
+    if (event?.type === "dismissed") {
+      setShowTimePicker(false);
+      return;
+    }
+
     setShowTimePicker(false);
     if (selectedTime) {
-      const nextStart = new Date(selectedTime);
-      nextStart.setSeconds(0, 0);
-      setTravelTime(nextStart);
-      if (errors.time) {
-        setErrors((prev) => ({ ...prev, time: undefined }));
-      }
+      applySelectedTime(selectedTime);
     }
   };
 
@@ -267,26 +287,52 @@ export default function PassengerSearchRider() {
         </View>
       </ScrollView>
 
-      {showDatePicker && (
-        <DateTimePicker
-          value={travelDate}
-          mode="date"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          textColor={Platform.OS === "ios" ? "#121417" : undefined}
-          onChange={handleDateChange}
-          minimumDate={new Date()}
-          maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
-        />
-      )}
-
-      {showTimePicker && (
-        <DateTimePicker
-          value={travelTime}
-          mode="time"
-          display={Platform.OS === "ios" ? "spinner" : "default"}
-          textColor={Platform.OS === "ios" ? "#121417" : undefined}
-          onChange={handleTimeChange}
-        />
+      {Platform.OS === "ios" ? (
+        <>
+          <IOSCalendarPickerModal
+            visible={showDatePicker}
+            initialDate={travelDate}
+            minDate={new Date()}
+            maxDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+            onCancel={() => setShowDatePicker(false)}
+            onConfirm={(date) => {
+              applySelectedDate(date);
+              setShowDatePicker(false);
+            }}
+          />
+          <IOSTimePickerModal
+            visible={showTimePicker}
+            initialTime={travelTime}
+            minuteInterval={1}
+            onCancel={() => setShowTimePicker(false)}
+            onConfirm={(time) => {
+              applySelectedTime(time);
+              setShowTimePicker(false);
+            }}
+          />
+        </>
+      ) : (
+        <>
+          {showDatePicker ? (
+            <DateTimePicker
+              value={travelDate}
+              mode="date"
+              display="calendar"
+              onChange={handleDateChange}
+              minimumDate={new Date()}
+              maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+            />
+          ) : null}
+          {showTimePicker ? (
+            <DateTimePicker
+              value={travelTime}
+              mode="time"
+              display="clock"
+              is24Hour
+              onChange={handleTimeChange}
+            />
+          ) : null}
+        </>
       )}
     </SafeAreaView>
   );

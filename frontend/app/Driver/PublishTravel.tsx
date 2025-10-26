@@ -1,6 +1,8 @@
 import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
 import TravelRouteSection from "@/components/travel/TravelRouteSection";
 import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
+import IOSCalendarPickerModal from "@/components/common/IOSCalendarPickerModal";
+import IOSTimePickerModal from "@/components/common/IOSTimePickerModal";
 import travelApiService from "@/Services/TravelApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { TravelCreateData } from "@/types/travel";
@@ -63,8 +65,6 @@ export default function PublishTravel() {
   // Estados para date/time pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [pendingDate, setPendingDate] = useState<Date | null>(null);
-  const [pendingTime, setPendingTime] = useState<Date | null>(null);
 
   useEffect(() => {
     loadUserVehicles();
@@ -407,16 +407,8 @@ export default function PublishTravel() {
   };
 
   const handleDatePickerChange = (event: any, selectedDate?: Date) => {
-    if (Platform.OS === "ios") {
-      if (selectedDate) {
-        setPendingDate(selectedDate);
-      }
-      return;
-    }
-
     if (event?.type === "dismissed") {
       setShowDatePicker(false);
-      setPendingDate(null);
       return;
     }
 
@@ -424,20 +416,11 @@ export default function PublishTravel() {
       applySelectedDate(selectedDate);
     }
     setShowDatePicker(false);
-    setPendingDate(null);
   };
 
   const handleTimePickerChange = (event: any, selectedTime?: Date) => {
-    if (Platform.OS === "ios") {
-      if (selectedTime) {
-        setPendingTime(selectedTime);
-      }
-      return;
-    }
-
     if (event?.type === "dismissed") {
       setShowStartTimePicker(false);
-      setPendingTime(null);
       return;
     }
 
@@ -445,41 +428,14 @@ export default function PublishTravel() {
       applySelectedTime(selectedTime);
     }
     setShowStartTimePicker(false);
-    setPendingTime(null);
-  };
-
-  const confirmIOSDate = () => {
-    const dateToApply = pendingDate ?? formData.startDate;
-    applySelectedDate(dateToApply);
-    setShowDatePicker(false);
-    setPendingDate(null);
-  };
-
-  const confirmIOSTime = () => {
-    const timeToApply = pendingTime ?? formData.startTime;
-    applySelectedTime(timeToApply);
-    setShowStartTimePicker(false);
-    setPendingTime(null);
   };
 
   const openDatePicker = () => {
-    setPendingDate(new Date(formData.startDate));
     setShowDatePicker(true);
   };
 
   const openTimePicker = () => {
-    setPendingTime(new Date(formData.startTime));
     setShowStartTimePicker(true);
-  };
-
-  const closeDatePicker = () => {
-    setShowDatePicker(false);
-    setPendingDate(null);
-  };
-
-  const closeTimePicker = () => {
-    setShowStartTimePicker(false);
-    setPendingTime(null);
   };
 
   // Formatear fecha y hora para mostrar
@@ -674,90 +630,53 @@ export default function PublishTravel() {
       </View>
 
       {/* Date/Time Pickers */}
-      {showDatePicker &&
-        (Platform.OS === "ios" ? (
-          <Modal transparent animationType="fade">
-            <View style={styles.pickerOverlay}>
-              <View style={styles.pickerModalContent}>
-                <Text style={styles.pickerModalTitle}>Selecciona la fecha</Text>
-                <DateTimePicker
-                  value={pendingDate ?? formData.startDate}
-                  mode="date"
-                  display="inline"
-                  locale="es-CL"
-                  onChange={handleDatePickerChange}
-                  minimumDate={new Date()}
-                  maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
-                />
-                <View style={styles.pickerActions}>
-                  <TouchableOpacity
-                    style={styles.pickerActionButton}
-                    onPress={closeDatePicker}
-                  >
-                    <Text style={styles.pickerCancelText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.pickerActionButton, styles.pickerConfirmButton]}
-                    onPress={confirmIOSDate}
-                  >
-                    <Text style={styles.pickerConfirmText}>Listo</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={formData.startDate}
-            mode="date"
-            display="calendar"
-            locale="es-CL"
-            onChange={handleDatePickerChange}
-            minimumDate={new Date()}
-            maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+      {Platform.OS === "ios" ? (
+        <>
+          <IOSCalendarPickerModal
+            visible={showDatePicker}
+            initialDate={formData.startDate}
+            minDate={new Date()}
+            maxDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+            onCancel={() => setShowDatePicker(false)}
+            onConfirm={(date) => {
+              applySelectedDate(date);
+              setShowDatePicker(false);
+            }}
           />
-        ))}
-
-      {showStartTimePicker &&
-        (Platform.OS === "ios" ? (
-          <Modal transparent animationType="fade">
-            <View style={styles.pickerOverlay}>
-              <View style={styles.pickerModalContent}>
-                <Text style={styles.pickerModalTitle}>Selecciona la hora</Text>
-                <DateTimePicker
-                  value={pendingTime ?? formData.startTime}
-                  mode="time"
-                  display="spinner"
-                  locale="es-CL"
-                  minuteInterval={1}
-                  onChange={handleTimePickerChange}
-                />
-                <View style={styles.pickerActions}>
-                  <TouchableOpacity
-                    style={styles.pickerActionButton}
-                    onPress={closeTimePicker}
-                  >
-                    <Text style={styles.pickerCancelText}>Cancelar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.pickerActionButton, styles.pickerConfirmButton]}
-                    onPress={confirmIOSTime}
-                  >
-                    <Text style={styles.pickerConfirmText}>Listo</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-        ) : (
-          <DateTimePicker
-            value={formData.startTime}
-            mode="time"
-            display="clock"
-            is24Hour
-            onChange={handleTimePickerChange}
+          <IOSTimePickerModal
+            visible={showStartTimePicker}
+            initialTime={formData.startTime}
+            minuteInterval={1}
+            onCancel={() => setShowStartTimePicker(false)}
+            onConfirm={(time) => {
+              applySelectedTime(time);
+              setShowStartTimePicker(false);
+            }}
           />
-        ))}
+        </>
+      ) : (
+        <>
+          {showDatePicker ? (
+            <DateTimePicker
+              value={formData.startDate}
+              mode="date"
+              display="calendar"
+              onChange={handleDatePickerChange}
+              minimumDate={new Date()}
+              maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
+            />
+          ) : null}
+          {showStartTimePicker ? (
+            <DateTimePicker
+              value={formData.startTime}
+              mode="time"
+              display="clock"
+              is24Hour
+              onChange={handleTimePickerChange}
+            />
+          ) : null}
+        </>
+      )}
       {/* Vehicle Selection Modal */}
       <Modal
         visible={showVehicleModal}
@@ -1039,61 +958,6 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: "#F8F9FA",
-  },
-  pickerOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  pickerModalContent: {
-    width: "100%",
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  pickerModalTitle: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "700",
-    fontSize: 16,
-    color: "#121417",
-    marginBottom: 12,
-    textAlign: "center",
-  },
-  pickerActions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 16,
-    gap: 12,
-  },
-  pickerActionButton: {
-    flex: 1,
-    height: 44,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  pickerCancelText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "600",
-    color: "#4B5563",
-  },
-  pickerConfirmButton: {
-    backgroundColor: "#F99F7C",
-    borderColor: "#F99F7C",
-  },
-  pickerConfirmText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "700",
-    color: "#FFFFFF",
   },
 });
 

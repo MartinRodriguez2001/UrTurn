@@ -1043,7 +1043,50 @@ export class TravelService {
       });
 
       // Si acepta, crear confirmación y reducir espacios
+      let updatedRoute: Coordinate[] | null = null;
+
       if (accept) {
+        const pickupLat = Number(request.start_latitude);
+        const pickupLng = Number(request.start_longitude);
+
+        if (Number.isFinite(pickupLat) && Number.isFinite(pickupLng)) {
+          const pickupPoint: Coordinate = {
+            latitude: pickupLat,
+            longitude: pickupLng,
+          };
+
+          const existingRoute =
+            this.parseStoredRouteWaypoints(request.travel.route_waypoints) ??
+            this.sanitizeRouteWaypoints([
+              {
+                latitude: Number(request.travel.start_latitude),
+                longitude: Number(request.travel.start_longitude),
+              },
+              {
+                latitude: Number(request.travel.end_latitude),
+                longitude: Number(request.travel.end_longitude),
+              },
+            ]);
+
+          if (existingRoute && existingRoute.length >= 2) {
+            const alreadyIncluded = existingRoute.some(
+              (point) =>
+                Math.abs(point.latitude - pickupPoint.latitude) <= 1e-5 &&
+                Math.abs(point.longitude - pickupPoint.longitude) <= 1e-5
+            );
+
+            if (!alreadyIncluded) {
+              const tentativeRoute = [
+                ...existingRoute.slice(0, existingRoute.length - 1),
+                pickupPoint,
+                existingRoute[existingRoute.length - 1],
+              ];
+
+              updatedRoute = this.sanitizeRouteWaypoints(tentativeRoute) ?? tentativeRoute;
+            }
+          }
+        }
+
         await prisma.confirmation.create({
           data: {
             travelId,
@@ -1051,13 +1094,22 @@ export class TravelService {
           },
         });
 
+        const travelUpdateData: {
+          spaces_available: { decrement: number };
+          route_waypoints?: Coordinate[];
+        } = {
+          spaces_available: {
+            decrement: 1,
+          },
+        };
+
+        if (updatedRoute && updatedRoute.length >= 2) {
+          travelUpdateData.route_waypoints = updatedRoute;
+        }
+
         await prisma.travel.update({
           where: { id: travelId },
-          data: {
-            spaces_available: {
-              decrement: 1,
-            },
-          },
+          data: travelUpdateData,
         });
       }
 
