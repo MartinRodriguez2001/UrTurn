@@ -2,7 +2,7 @@ import DateTimePicker, {
     type DateTimePickerEvent,
     type IOSNativeProps,
 } from "@react-native-community/datetimepicker";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type IOSTimePickerModalProps = {
@@ -14,6 +14,8 @@ type IOSTimePickerModalProps = {
   onConfirm: (time: Date) => void;
 };
 
+const ORANGE = "#F99F7C";
+
 const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
   visible,
   initialTime,
@@ -23,6 +25,16 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
   onConfirm,
 }) => {
   const [selectedTime, setSelectedTime] = useState(new Date(initialTime));
+
+  const formattedTime = useMemo(
+    () =>
+      selectedTime.toLocaleTimeString("es-CL", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }),
+    [selectedTime]
+  );
 
   useEffect(() => {
     if (visible) {
@@ -50,6 +62,9 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
     mode: "time" as const,
     locale: "es-CL",
     minuteInterval,
+    display: "spinner" as const,
+    textColor: ORANGE,
+    themeVariant: "light" as const,
   } satisfies IOSNativeProps;
 
   return (
@@ -57,6 +72,10 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
       <View style={styles.overlay}>
         <View style={styles.content}>
           <Text style={styles.title}>{title}</Text>
+          <View style={styles.previewCard}>
+            <Text style={styles.previewLabel}>Hora seleccionada</Text>
+            <Text style={styles.previewValue}>{formattedTime}</Text>
+          </View>
           <DateTimePicker {...pickerProps} />
           <View style={styles.actions}>
             <TouchableOpacity style={styles.secondaryButton} onPress={onCancel}>
@@ -98,8 +117,33 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
     color: "#121417",
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: "center",
+  },
+  previewCard: {
+    borderRadius: 14,
+    backgroundColor: "#FFF3EC",
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#FFE2D4",
+  },
+  previewLabel: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  previewValue: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 36,
+    fontWeight: "700",
+    color: ORANGE,
   },
   actions: {
     flexDirection: "row",
