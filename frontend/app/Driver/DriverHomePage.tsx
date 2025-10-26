@@ -9,8 +9,8 @@ import {
   TravelStatus,
   TravelCoordinate,
 } from "@/types/travel";
-import { useRouter } from "expo-router";
-import React, { useEffect, useMemo, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -71,8 +71,13 @@ export default function DriverHomePage() {
   const { canAccessDriverMode, loading, refreshStatus } = useDriverStatus();
   const [travels, setTravels] = useState<ProcessedTravel[]>([]);
   const [loadingTravels, setLoadingTravels] = useState(false);
+  const refreshStatusRef = useRef(refreshStatus);
 
-  async function getDriverTravels() {
+  useEffect(() => {
+    refreshStatusRef.current = refreshStatus;
+  }, [refreshStatus]);
+
+  const getDriverTravels = useCallback(async () => {
     try {
       setLoadingTravels(true);
       const response = await travelApiService.getDriverTravels();
@@ -87,7 +92,7 @@ export default function DriverHomePage() {
     } finally {
       setLoadingTravels(false);
     }
-  }
+  }, []);
   const getScheduledTravels = (): ProcessedTravel[] => {
     if (travels.length === 0) return [];
 
@@ -114,12 +119,30 @@ export default function DriverHomePage() {
     );
   };
 
-  useEffect(() => {
-    refreshStatus();
-    setTimeout(() => {
-      getDriverTravels();
-    }, 1000);
+  const triggerStatusRefresh = useCallback(async () => {
+    const currentRefresh = refreshStatusRef.current;
+    if (currentRefresh) {
+      await currentRefresh();
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+
+      const refreshData = async () => {
+        await triggerStatusRefresh();
+        if (!isActive) return;
+        await getDriverTravels();
+      };
+
+      refreshData();
+
+      return () => {
+        isActive = false;
+      };
+    }, [getDriverTravels, triggerStatusRefresh])
+  );
 
   useEffect(() => {
     if (!loading && !canAccessDriverMode) {
@@ -128,10 +151,42 @@ export default function DriverHomePage() {
   }, [loading, canAccessDriverMode, router]);
 
   const handleRefresh = async () => {
-    await Promise.all([refreshStatus(), getDriverTravels()]);
+    await Promise.all([triggerStatusRefresh(), getDriverTravels()]);
   };
 
   // Definir variables para usar en el JSX
+  const buildTravelPayload = (travel: ProcessedTravel): TravelPayload => {
+    const waypoints = travel.route_waypoints ?? travel.routeWaypoints ?? null;
+    return {
+      id: travel.id,
+      start_location_name: travel.start_location_name ?? travel.start_location,
+      start_latitude: travel.start_latitude,
+      start_longitude: travel.start_longitude,
+      end_location_name: travel.end_location_name ?? travel.end_location,
+      end_latitude: travel.end_latitude,
+      end_longitude: travel.end_longitude,
+      start_time: travel.start_time,
+      price: travel.price,
+      route_waypoints: waypoints ?? undefined,
+      routeWaypoints: waypoints ?? undefined,
+    };
+  };
+
+  const mapConfirmedPassengers = (travel: ProcessedTravel): PassengerParam[] => {
+    const confirmed = travel.passengers?.confirmed ?? [];
+    if (!confirmed.length) {
+      return [];
+    }
+
+    return confirmed.map((passenger) => ({
+      id: passenger.id,
+      name: passenger.name,
+      role: "Confirmado",
+      avatar: passenger.profile_picture ?? null,
+      phone: passenger.phone_number ?? null,
+    }));
+  };
+
   const scheduledTravels = getScheduledTravels();
   const nextTravel = scheduledTravels.length > 0 ? scheduledTravels[0] : null;
   const pendingRequests = useMemo<PendingRequestItem[]>(() => {
@@ -221,38 +276,6 @@ export default function DriverHomePage() {
       hour: "2-digit",
       minute: "2-digit",
     });
-  };
-
-  const buildTravelPayload = (travel: ProcessedTravel): TravelPayload => {
-    const waypoints = travel.route_waypoints ?? travel.routeWaypoints ?? null;
-    return {
-      id: travel.id,
-      start_location_name: travel.start_location_name ?? travel.start_location,
-      start_latitude: travel.start_latitude,
-      start_longitude: travel.start_longitude,
-      end_location_name: travel.end_location_name ?? travel.end_location,
-      end_latitude: travel.end_latitude,
-      end_longitude: travel.end_longitude,
-      start_time: travel.start_time,
-      price: travel.price,
-      route_waypoints: waypoints ?? undefined,
-      routeWaypoints: waypoints ?? undefined,
-    };
-  };
-
-  const mapConfirmedPassengers = (travel: ProcessedTravel): PassengerParam[] => {
-    const confirmed = travel.passengers?.confirmed ?? [];
-    if (!confirmed.length) {
-      return [];
-    }
-
-    return confirmed.map((passenger) => ({
-      id: passenger.id,
-      name: passenger.name,
-      role: "Confirmado",
-      avatar: passenger.profile_picture ?? null,
-      phone: passenger.phone_number ?? null,
-    }));
   };
 
   const handleTravelCardPress = (travel: ProcessedTravel) => {

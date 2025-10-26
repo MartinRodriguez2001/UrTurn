@@ -1,7 +1,11 @@
 import { Feather } from "@expo/vector-icons";
+import travelApiService from "@/Services/TravelApiService";
+import { ProcessedTravel } from "@/types/travel";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -188,9 +192,45 @@ const addPickupStopToTravel = (
   };
 };
 
+const buildTravelPayloadFromProcessed = (
+  travel: ProcessedTravel
+): TravelPayload => {
+  const waypoints = travel.route_waypoints ?? travel.routeWaypoints ?? null;
+  return {
+    id: travel.id,
+    start_location_name: travel.start_location_name ?? travel.start_location,
+    start_latitude: travel.start_latitude,
+    start_longitude: travel.start_longitude,
+    end_location_name: travel.end_location_name ?? travel.end_location,
+    end_latitude: travel.end_latitude,
+    end_longitude: travel.end_longitude,
+    start_time: travel.start_time,
+    price: travel.price,
+    route_waypoints: waypoints ?? undefined,
+    routeWaypoints: waypoints ?? undefined,
+  };
+};
+
+const mapConfirmedPassengersFromProcessed = (
+  travel: ProcessedTravel
+): PassengerParam[] => {
+  const confirmed = travel.passengers?.confirmed ?? [];
+  if (!confirmed.length) {
+    return [];
+  }
+  return confirmed.map((passenger) => ({
+    id: passenger.id,
+    name: passenger.name,
+    role: "Confirmado",
+    avatar: passenger.profile_picture ?? null,
+    phone: passenger.phone_number ?? null,
+  }));
+};
+
 export default function RequestTravelDriver() {
   const router = useRouter();
   const params = useLocalSearchParams<{ request?: string }>();
+  const [accepting, setAccepting] = useState(false);
 
   const requestFromParams = useMemo(
     () => parseJSONParam<RequestDetails>(params.request),
@@ -213,32 +253,77 @@ export default function RequestTravelDriver() {
     { id: "time", title: departureTime, subtitle: "Hora de salida", icon: "clock" as const },
   ];
 
-  const handleAccept = () => {
-    const baseTravel = request.travel ?? DEFAULT_TRAVEL_PAYLOAD;
-    const travelWithPickup = addPickupStopToTravel(
-      baseTravel,
-      request.pickupLatitude,
-      request.pickupLongitude
-    ) ?? baseTravel;
+  const handleAccept = async () => {
+    if (accepting) {
+      return;
+    }
 
-    const passengersForTravel: PassengerParam[] = [
-      ...confirmedPassengers,
-      {
+    try {
+      setAccepting(true);
+
+      if (request.requestId) {
+        await travelApiService.respondToTravelRequest(Number(request.requestId), true);
+      }
+
+      let travelPayload = request.travel ?? DEFAULT_TRAVEL_PAYLOAD;
+      let forcePickupInjection = true;
+      const acceptedPassenger: PassengerParam = {
         id: request.passenger.id,
         name: passengerName,
         role: "Pendiente de recogida",
         avatar: request.passenger.profilePicture ?? null,
         phone: request.passenger.phoneNumber ?? undefined,
-      },
-    ];
+      };
+      let passengersPayload: PassengerParam[] = [
+        ...confirmedPassengers,
+        acceptedPassenger,
+      ];
 
-    router.push({
-      pathname: "/Driver/DriverTravel",
-      params: {
-        travel: JSON.stringify(travelWithPickup),
-        passengers: JSON.stringify(passengersForTravel),
-      },
-    });
+      if (request.travel?.id) {
+        const refreshedTravels = await travelApiService.getDriverTravels();
+        if (refreshedTravels.success) {
+          const updatedTravel = refreshedTravels.travels.find(
+            (travel) => travel.id === request.travel?.id
+          );
+          if (updatedTravel) {
+            travelPayload = buildTravelPayloadFromProcessed(updatedTravel);
+            const serverPassengers = mapConfirmedPassengersFromProcessed(updatedTravel);
+            const alreadyIncludesPassenger = serverPassengers.some(
+              (passenger) => passenger.id === acceptedPassenger.id
+            );
+            passengersPayload = alreadyIncludesPassenger
+              ? serverPassengers
+              : [...serverPassengers, acceptedPassenger];
+            forcePickupInjection = false;
+          }
+        }
+      }
+
+      if (forcePickupInjection) {
+        travelPayload =
+          addPickupStopToTravel(
+            travelPayload,
+            request.pickupLatitude,
+            request.pickupLongitude
+          ) ?? travelPayload;
+      }
+
+      router.push({
+        pathname: "/Driver/DriverTravel",
+        params: {
+          travel: JSON.stringify(travelPayload),
+          passengers: JSON.stringify(passengersPayload),
+        },
+      });
+    } catch (error) {
+      console.error("Error accepting travel request", error);
+      Alert.alert(
+        "Error",
+        "No pudimos aceptar la solicitud. Inténtalo nuevamente en unos minutos."
+      );
+    } finally {
+      setAccepting(false);
+    }
   };
 
   return (
@@ -292,8 +377,16 @@ export default function RequestTravelDriver() {
           <TouchableOpacity style={styles.rejectButton}>
             <Text style={styles.rejectButtonText}>Rechazar</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.acceptButton} onPress={handleAccept}>
-            <Text style={styles.acceptButtonText}>Aceptar</Text>
+          <TouchableOpacity
+            style={[styles.acceptButton, accepting && styles.acceptButtonDisabled]}
+            onPress={handleAccept}
+            disabled={accepting}
+          >
+            {accepting ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.acceptButtonText}>Aceptar</Text>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -452,6 +545,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 16,
+  },
+  acceptButtonDisabled: {
+    opacity: 0.7,
   },
   acceptButtonText: {
     fontFamily: "Plus Jakarta Sans",
