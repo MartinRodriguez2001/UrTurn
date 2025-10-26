@@ -2,11 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { ApiResponse } from '@/types/api';
 
-const API_BASE_URL = __DEV__ 
-  ? Platform.OS === 'android' 
-    ? 'http://10.0.2.2:3000/api'
-    : 'http://localhost:3000/api'
-  : 'https://tu-servidor-produccion.com/api';
+const ENV_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+const API_BASE_URL =
+  (ENV_BASE_URL && ENV_BASE_URL.length > 0 ? ENV_BASE_URL : undefined) ??
+  (__DEV__
+    ? Platform.OS === 'android'
+      ? 'http://10.0.2.2:3000/api'
+      : 'http://localhost:3000/api'
+    : 'https://tu-servidor-produccion.com/api');
 
 class BaseApiService {
   protected baseURL = API_BASE_URL;

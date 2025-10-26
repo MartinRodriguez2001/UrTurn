@@ -1,4 +1,4 @@
-import { fetchCarMakes, fetchCarModels } from "@/app/utils/carsGet";
+import { fetchCarMakes, fetchCarModels } from "@/utils/carsGet";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { VehicleFormData } from "@/types/vehicle";

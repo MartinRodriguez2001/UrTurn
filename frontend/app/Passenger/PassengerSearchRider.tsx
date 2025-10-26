@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
     Alert,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -270,7 +271,8 @@ export default function PassengerSearchRider() {
         <DateTimePicker
           value={travelDate}
           mode="date"
-          display="default"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          textColor={Platform.OS === "ios" ? "#121417" : undefined}
           onChange={handleDateChange}
           minimumDate={new Date()}
           maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)}
@@ -281,7 +283,8 @@ export default function PassengerSearchRider() {
         <DateTimePicker
           value={travelTime}
           mode="time"
-          display="default"
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          textColor={Platform.OS === "ios" ? "#121417" : undefined}
           onChange={handleTimeChange}
         />
       )}

@@ -1,10 +1,13 @@
 import type { TravelCoordinate } from "@/types/travel";
+import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
+import { decodePolyline } from "@/utils/polyline";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import {
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -130,6 +133,10 @@ export default function DriverTravel() {
     travel?: string;
     passengers?: string;
   }>();
+  const googleMapsApiKey = useMemo(
+    () => resolveGoogleMapsApiKey()?.trim(),
+    []
+  );
 
   const travelFromParams = useMemo(
     () => parseJSONParam<TravelParam>(params.travel),
@@ -187,13 +194,78 @@ export default function DriverTravel() {
     return DEFAULT_ROUTE;
   }, [endCoordinate, startCoordinate, travel.routeWaypoints, travel.route_waypoints]);
 
+  const [polylineCoordinates, setPolylineCoordinates] =
+    useState<TravelCoordinate[]>(routeCoordinates);
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
+
+  useEffect(() => {
+    setPolylineCoordinates(routeCoordinates);
+  }, [routeCoordinates]);
+
+  useEffect(() => {
+    if (
+      !googleMapsApiKey ||
+      !startCoordinate ||
+      !endCoordinate ||
+      routeCoordinates.length > 2
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchRoute = async () => {
+      try {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/directions/json?origin=${startCoordinate.latitude},${startCoordinate.longitude}&destination=${endCoordinate.latitude},${endCoordinate.longitude}&mode=driving&language=es&key=${googleMapsApiKey}`
+        );
+
+        if (!response.ok) {
+          throw new Error(`Directions API error: ${response.status}`);
+        }
+
+        const data: {
+          status?: string;
+          routes?: Array<{ overview_polyline?: { points?: string } }>;
+        } = await response.json();
+
+        if (data.status !== "OK") {
+          throw new Error(`Directions API status: ${data.status ?? "UNKNOWN"}`);
+        }
+
+        const encoded = data.routes?.[0]?.overview_polyline?.points;
+        if (!encoded) {
+          throw new Error("Directions API missing polyline");
+        }
+
+        const decoded = decodePolyline(encoded);
+        if (!cancelled && decoded.length >= 2) {
+          setPolylineCoordinates(decoded);
+        }
+      } catch (error) {
+        console.warn("No se pudo obtener la ruta desde Google Maps", error);
+      }
+    };
+
+    fetchRoute();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    endCoordinate,
+    googleMapsApiKey,
+    routeCoordinates.length,
+    startCoordinate,
+  ]);
+
   const mapRegion = useMemo(() => {
-    if (!routeCoordinates.length) {
+    if (!polylineCoordinates.length) {
       return DEFAULT_REGION;
     }
 
-    const lats = routeCoordinates.map((point) => point.latitude);
-    const lngs = routeCoordinates.map((point) => point.longitude);
+    const lats = polylineCoordinates.map((point) => point.latitude);
+    const lngs = polylineCoordinates.map((point) => point.longitude);
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
     const minLng = Math.min(...lngs);
@@ -208,7 +280,7 @@ export default function DriverTravel() {
       latitudeDelta,
       longitudeDelta,
     };
-  }, [routeCoordinates]);
+  }, [polylineCoordinates]);
 
   const detailRows = [
     {
@@ -233,6 +305,40 @@ export default function DriverTravel() {
     },
   ];
 
+  const renderRouteMap = (interactive: boolean) => (
+    <MapView
+      style={styles.map}
+      provider={PROVIDER_GOOGLE}
+      region={mapRegion}
+      initialRegion={mapRegion}
+      scrollEnabled={interactive}
+      zoomEnabled={interactive}
+      rotateEnabled={interactive}
+      pitchEnabled={interactive}
+      pointerEvents={interactive ? "auto" : "none"}
+    >
+      {polylineCoordinates.length >= 2 ? (
+        <Polyline coordinates={polylineCoordinates} strokeColor="#4C6EF5" strokeWidth={4} />
+      ) : null}
+
+      {startCoordinate ? (
+        <Marker coordinate={startCoordinate}>
+          <View style={styles.marker}>
+            <Feather name="play" size={14} color="#FFFFFF" />
+          </View>
+        </Marker>
+      ) : null}
+
+      {endCoordinate ? (
+        <Marker coordinate={endCoordinate}>
+          <View style={[styles.marker, styles.markerDestination]}>
+            <Feather name="flag" size={14} color="#FFFFFF" />
+          </View>
+        </Marker>
+      ) : null}
+    </MapView>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -248,39 +354,17 @@ export default function DriverTravel() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.mapCard}>
-          <MapView
-            style={styles.map}
-            provider={PROVIDER_GOOGLE}
-            region={mapRegion}
-            initialRegion={mapRegion}
-            scrollEnabled={false}
-            zoomEnabled={false}
-            rotateEnabled={false}
-            pitchEnabled={false}
-            pointerEvents="none"
-          >
-            {routeCoordinates.length >= 2 ? (
-              <Polyline coordinates={routeCoordinates} strokeColor="#4C6EF5" strokeWidth={4} />
-            ) : null}
-
-            {startCoordinate ? (
-              <Marker coordinate={startCoordinate}>
-                <View style={styles.marker}>
-                  <Feather name="play" size={14} color="#FFFFFF" />
-                </View>
-              </Marker>
-            ) : null}
-
-            {endCoordinate ? (
-              <Marker coordinate={endCoordinate}>
-                <View style={[styles.marker, styles.markerDestination]}>
-                  <Feather name="flag" size={14} color="#FFFFFF" />
-                </View>
-              </Marker>
-            ) : null}
-          </MapView>
-        </View>
+        <TouchableOpacity
+          activeOpacity={0.95}
+          style={styles.mapCard}
+          onPress={() => setIsMapExpanded(true)}
+        >
+          {renderRouteMap(false)}
+          <View style={styles.expandHint}>
+            <Feather name="maximize" size={16} color="#FFFFFF" />
+            <Text style={styles.expandHintText}>Ver mapa completo</Text>
+          </View>
+        </TouchableOpacity>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Detalles del viaje</Text>
@@ -324,6 +408,26 @@ export default function DriverTravel() {
           ) : null}
         </View>
       </ScrollView>
+
+      <Modal
+        visible={isMapExpanded}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setIsMapExpanded(false)}
+      >
+        <View style={styles.fullscreenMapContainer}>
+          <View style={styles.fullscreenMapWrapper}>
+            {renderRouteMap(true)}
+            <TouchableOpacity
+              style={styles.closeMapButton}
+              onPress={() => setIsMapExpanded(false)}
+              accessibilityRole="button"
+            >
+              <Feather name="x" size={22} color="#121417" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       <View style={styles.footer}>
         <TouchableOpacity
@@ -379,6 +483,24 @@ const styles = StyleSheet.create({
   },
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+  expandHint: {
+    position: "absolute",
+    right: 12,
+    bottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(18, 20, 23, 0.6)",
+  },
+  expandHintText: {
+    color: "#FFFFFF",
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    fontWeight: "600",
   },
   section: {
     backgroundColor: "#FFFFFF",
@@ -519,5 +641,34 @@ const styles = StyleSheet.create({
   markerDestination: {
     backgroundColor: "#F97316",
   },
+  fullscreenMapContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 16,
+  },
+  fullscreenMapWrapper: {
+    width: "100%",
+    height: "85%",
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "#F4F5F7",
+  },
+  closeMapButton: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
 });
-

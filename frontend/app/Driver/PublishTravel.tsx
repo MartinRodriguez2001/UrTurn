@@ -1,4 +1,4 @@
-﻿import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
+import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
 import TravelRouteSection from "@/components/travel/TravelRouteSection";
 import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
 import travelApiService from "@/Services/TravelApiService";
@@ -42,7 +42,7 @@ export default function PublishTravel() {
     startTime: (() => {
       const now = new Date();
       const nextHour = new Date(now);
-      nextHour.setHours(now.getHours() + 1, 0, 0, 0); // Próxima hora en punto
+      nextHour.setHours(now.getHours() + 1, 0, 0, 0); // Pr�xima hora en punto
       return nextHour;
     })(),
     seats: "",
@@ -442,7 +442,7 @@ export default function PublishTravel() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#F99F7C" />
-          <Text style={styles.loadingText}>Cargando veh├¡culos...</Text>
+          <Text style={styles.loadingText}>Cargando vehículos...</Text>
         </View>
       </SafeAreaView>
     );
@@ -542,7 +542,7 @@ export default function PublishTravel() {
                   <Text style={styles.label}>Asientos disponibles *</Text>
                   <TextInput
                     style={[styles.input, errors.seats && styles.inputError]}
-                    placeholder="4"
+                    placeholder="Ingresa Asientos"
                     placeholderTextColor="#876363"
                     value={formData.seats}
                     onChangeText={(value) => updateField("seats", value)}
@@ -556,7 +556,7 @@ export default function PublishTravel() {
                   <Text style={styles.label}>Precio por persona *</Text>
                   <TextInput
                     style={[styles.input, errors.price && styles.inputError]}
-                    placeholder="2500"
+                    placeholder="Ingresa Precio"
                     placeholderTextColor="#876363"
                     value={formData.price}
                     onChangeText={(value) => updateField("price", value)}
@@ -599,9 +599,10 @@ export default function PublishTravel() {
           value={formData.startDate}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          textColor={Platform.OS === 'ios' ? '#121417' : undefined}
           onChange={onDateChange}
           minimumDate={new Date()}
-          maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 d├¡as
+          maximumDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 d?as
         />
       )}
 
@@ -610,10 +611,10 @@ export default function PublishTravel() {
           value={formData.startTime}
           mode="time"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          textColor={Platform.OS === 'ios' ? '#121417' : undefined}
           onChange={onStartTimeChange}
         />
       )}
-
       {/* Vehicle Selection Modal */}
       <Modal
         visible={showVehicleModal}
@@ -835,7 +836,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   
-  // Estilos para modal de veh├¡culos
+  // Estilos para modal de vehículos
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
@@ -897,3 +898,4 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8F9FA",
   },
 });
+
