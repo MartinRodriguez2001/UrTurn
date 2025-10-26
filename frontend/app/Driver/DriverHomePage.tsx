@@ -1,10 +1,16 @@
 import NextTravelCard from "@/components/driverComps/NextTravelCard";
-import RequestsCard from "@/components/driverComps/RequestsCard";
+import PendingRequestCard from "@/components/driverComps/PendingRequestCard";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import travelApiService from "@/Services/TravelApiService";
-import { ProcessedTravel, Summary, TravelStatus } from "@/types/travel";
+import {
+  ProcessedTravel,
+  Summary,
+  TravelPassenger,
+  TravelStatus,
+  TravelCoordinate,
+} from "@/types/travel";
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -25,6 +31,39 @@ export interface DriverTravelsListResponse {
   summary: Summary;
   travels: ProcessedTravel[];
 }
+
+type TravelPayload = {
+  id?: number;
+  start_location_name?: string | null;
+  start_latitude?: number | string | null;
+  start_longitude?: number | string | null;
+  end_location_name?: string | null;
+  end_latitude?: number | string | null;
+  end_longitude?: number | string | null;
+  start_time?: string | Date;
+  price?: number | string | null;
+  route_waypoints?: TravelCoordinate[] | null;
+  routeWaypoints?: TravelCoordinate[] | null;
+};
+
+type PassengerParam = {
+  id: number | string;
+  name: string;
+  role?: string;
+  avatar?: string | null;
+  phone?: string | null;
+};
+
+type PendingRequestItem = {
+  travel: ProcessedTravel;
+  travelPayload: TravelPayload;
+  passenger: TravelPassenger;
+  pickupLocation: string;
+  pickupLatitude?: number | null;
+  pickupLongitude?: number | null;
+  destination: string;
+  confirmedPassengers: PassengerParam[];
+};
 
 export default function DriverHomePage() {
   const router = useRouter();
@@ -75,12 +114,6 @@ export default function DriverHomePage() {
     );
   };
 
-  const getPendingRequestsCount = (): number => {
-    return travels.reduce((total, travel) => {
-      return total + (travel.capacity - travel.spaces_available);
-    }, 0);
-  };
-
   useEffect(() => {
     refreshStatus();
     setTimeout(() => {
@@ -97,6 +130,46 @@ export default function DriverHomePage() {
   const handleRefresh = async () => {
     await Promise.all([refreshStatus(), getDriverTravels()]);
   };
+
+  // Definir variables para usar en el JSX
+  const scheduledTravels = getScheduledTravels();
+  const nextTravel = scheduledTravels.length > 0 ? scheduledTravels[0] : null;
+  const pendingRequests = useMemo<PendingRequestItem[]>(() => {
+    return travels.flatMap((travel) => {
+      const pendingPassengers = travel.passengers?.pending ?? [];
+
+      if (!pendingPassengers.length) {
+        return [];
+      }
+
+      return pendingPassengers.map((passenger) => {
+        const pickupLocation =
+          passenger.start_location_name ??
+          passenger.location ??
+          travel.start_location_name ??
+          travel.start_location ??
+          "Origen por definir";
+
+        const destination =
+          travel.end_location_name ??
+          travel.end_location ??
+          "Destino por definir";
+
+        return {
+          travel,
+          travelPayload: buildTravelPayload(travel),
+          passenger,
+          pickupLocation,
+          pickupLatitude: passenger.start_latitude ?? null,
+          pickupLongitude: passenger.start_longitude ?? null,
+          destination,
+          confirmedPassengers: mapConfirmedPassengers(travel),
+        };
+      });
+    });
+  }, [travels]);
+
+  const pendingRequestsCount = pendingRequests.length;
 
   // Mostrar loading mientras se verifica el estado
   if (loading) {
@@ -122,11 +195,6 @@ export default function DriverHomePage() {
     setShowModeModal(false);
     router.replace("/Passenger/PassengerHomePage");
   };
-
-  // Definir variables para usar en el JSX
-  const scheduledTravels = getScheduledTravels();
-  const nextTravel = scheduledTravels.length > 0 ? scheduledTravels[0] : null;
-  const pendingRequestsCount = getPendingRequestsCount();
 
   const formatRouteLabel = (travel: ProcessedTravel) => {
     const origin =
@@ -155,9 +223,9 @@ export default function DriverHomePage() {
     });
   };
 
-  const handleTravelCardPress = (travel: ProcessedTravel) => {
+  const buildTravelPayload = (travel: ProcessedTravel): TravelPayload => {
     const waypoints = travel.route_waypoints ?? travel.routeWaypoints ?? null;
-    const payload = {
+    return {
       id: travel.id,
       start_location_name: travel.start_location_name ?? travel.start_location,
       start_latitude: travel.start_latitude,
@@ -170,12 +238,59 @@ export default function DriverHomePage() {
       route_waypoints: waypoints ?? undefined,
       routeWaypoints: waypoints ?? undefined,
     };
+  };
+
+  const mapConfirmedPassengers = (travel: ProcessedTravel): PassengerParam[] => {
+    const confirmed = travel.passengers?.confirmed ?? [];
+    if (!confirmed.length) {
+      return [];
+    }
+
+    return confirmed.map((passenger) => ({
+      id: passenger.id,
+      name: passenger.name,
+      role: "Confirmado",
+      avatar: passenger.profile_picture ?? null,
+      phone: passenger.phone_number ?? null,
+    }));
+  };
+
+  const handleTravelCardPress = (travel: ProcessedTravel) => {
+    const payload = buildTravelPayload(travel);
+    const passengersPayload = mapConfirmedPassengers(travel);
 
     router.push({
       pathname: "/Driver/DriverTravel",
       params: {
         travel: JSON.stringify(payload),
-        passengers: JSON.stringify([]),
+        passengers: JSON.stringify(passengersPayload),
+      },
+    });
+  };
+
+  const handlePendingRequestPress = (request: PendingRequestItem) => {
+    const payload = {
+      requestId: request.passenger.requestId ?? null,
+      passenger: {
+        id: request.passenger.id,
+        name: request.passenger.name,
+        phoneNumber: request.passenger.phone_number ?? null,
+        profilePicture: request.passenger.profile_picture ?? null,
+      },
+      pickupLocation: request.pickupLocation,
+      pickupLatitude: request.pickupLatitude,
+      pickupLongitude: request.pickupLongitude,
+      destination: request.destination,
+      travelId: request.travel.id,
+      startTime: request.travel.start_time,
+      travel: request.travelPayload,
+      confirmedPassengers: request.confirmedPassengers,
+    };
+
+    router.push({
+      pathname: "/Driver/RequestTravelDriver",
+      params: {
+        request: JSON.stringify(payload),
       },
     });
   };
@@ -276,19 +391,34 @@ export default function DriverHomePage() {
             )}
           </View>
 
-          {pendingRequestsCount > 0 ? (
-            <TouchableOpacity
-              onPress={() => console.log("Ver solicitudes pendientes")}
-            >
-              <RequestsCard
-                RequestCount={pendingRequestsCount}
-                Route={
-                  nextTravel
-                    ? formatRouteLabel(nextTravel)
-                    : "Multiples rutas"
-                }
-              />
-            </TouchableOpacity>
+          {loadingTravels ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#F99F7C" />
+              <Text style={styles.loadingText}>Cargando solicitudes...</Text>
+            </View>
+          ) : pendingRequestsCount > 0 ? (
+            <FlatList
+              horizontal
+              data={pendingRequests}
+              keyExtractor={(item) =>
+                `${item.travel.id}-${item.passenger.requestId ?? item.passenger.id}`
+              }
+              renderItem={({ item }) => (
+                <PendingRequestCard
+                  passengerName={item.passenger.name ?? "Pasajero"}
+                  pickupLocation={item.pickupLocation}
+                  destination={item.destination}
+                  dateLabel={formatTravelDate(item.travel.start_time)}
+                  timeLabel={formatTravelTime(item.travel.start_time)}
+                  onPress={() => handlePendingRequestPress(item)}
+                  style={styles.scheduledCard}
+                />
+              )}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalTravelList}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              nestedScrollEnabled
+            />
           ) : (
             <View style={styles.emptyStateContainer}>
               <Text style={styles.emptyStateIcon}>📭</Text>

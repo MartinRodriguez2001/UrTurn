@@ -58,16 +58,6 @@ const DEFAULT_TRAVEL: TravelParam = {
   route_waypoints: DEFAULT_ROUTE,
 };
 
-const DEFAULT_PASSENGERS: Passenger[] = [
-  {
-    id: "passenger-1",
-    name: "Sofía Mendoza",
-    role: "Pasajero",
-    avatar: "https://i.pravatar.cc/100?img=47",
-    phone: "+56 9 9999 9999",
-  },
-];
-
 const DEFAULT_REGION = {
   latitude: -33.4273,
   longitude: -70.55,
@@ -149,9 +139,7 @@ export default function DriverTravel() {
   );
 
   const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
-  const passengers: Passenger[] = passengersFromParams?.length
-    ? passengersFromParams
-    : DEFAULT_PASSENGERS;
+  const passengers: Passenger[] = passengersFromParams ?? [];
 
   const startCoordinate = useMemo(() => {
     const latitude = toNumber(travel.start_latitude);

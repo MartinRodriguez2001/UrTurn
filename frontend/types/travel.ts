@@ -32,6 +32,40 @@ export enum TravelStatus {
   FINALIZADO = "finalizado",
 }
 
+export type TravelPassengerStatus = "pending" | "accepted" | "confirmed";
+
+export interface TravelPassenger {
+  id: number;
+  name: string;
+  institutional_email?: string | null;
+  phone_number?: string | null;
+  profile_picture?: string | null;
+  description?: string | null;
+  requestId?: number;
+  requestedAt?: string;
+  acceptedAt?: string;
+  confirmedAt?: string;
+  location?: string | null;
+  start_location_name?: string | null;
+  start_latitude?: number;
+  start_longitude?: number;
+  status: TravelPassengerStatus;
+}
+
+export interface TravelPassengersGroup {
+  confirmed: TravelPassenger[];
+  pending: TravelPassenger[];
+  accepted: TravelPassenger[];
+}
+
+export interface TravelStats {
+  totalRequests: number;
+  confirmedPassengers: number;
+  availableSpaces: number;
+  averageRating: number | null;
+  totalReviews: number;
+}
+
 export enum RequestStatus {
   PENDIENTE = "pendiente",
   ACEPTADA = "aceptada",
@@ -79,6 +113,9 @@ export interface ProcessedTravel {
   }[];
 
   driver_rating: number | null;
+
+  passengers?: TravelPassengersGroup;
+  stats?: TravelStats;
 }
 
 export interface TravelFilters {
