@@ -1,22 +1,22 @@
-﻿import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
+﻿import IOSCalendarPickerModal from "@/components/common/IOSCalendarPickerModal";
+import IOSTimePickerModal from "@/components/common/IOSTimePickerModal";
+import type { MapCoordinate } from "@/components/passenger/PassengerMap.types";
 import TravelRouteSection from "@/components/travel/TravelRouteSection";
 import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
-import IOSCalendarPickerModal from "@/components/common/IOSCalendarPickerModal";
-import IOSTimePickerModal from "@/components/common/IOSTimePickerModal";
 import travelApiService from "@/Services/TravelApiService";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-    Alert,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 const createNextHour = () => {

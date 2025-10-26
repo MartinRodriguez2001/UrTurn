@@ -1,9 +1,9 @@
+import DateTimePicker, {
+    type DateTimePickerEvent,
+    type IOSNativeProps,
+} from "@react-native-community/datetimepicker";
 import React, { useEffect, useState } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import DateTimePicker, {
-  type DateTimePickerEvent,
-  type IOSNativeProps,
-} from "@react-native-community/datetimepicker";
 
 type IOSTimePickerModalProps = {
   visible: boolean;
