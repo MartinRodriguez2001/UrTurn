@@ -5,9 +5,10 @@ import travelApiService from "@/Services/TravelApiService";
 import {
   ProcessedTravel,
   Summary,
-  TravelPassenger,
-  TravelStatus,
   TravelCoordinate,
+  TravelPassenger,
+  TravelPlannedStop,
+  TravelStatus,
 } from "@/types/travel";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -44,6 +45,7 @@ type TravelPayload = {
   price?: number | string | null;
   route_waypoints?: TravelCoordinate[] | null;
   routeWaypoints?: TravelCoordinate[] | null;
+  planned_stops?: TravelPlannedStop[] | null;
 };
 
 type PassengerParam = {
@@ -169,6 +171,7 @@ export default function DriverHomePage() {
       price: travel.price,
       route_waypoints: waypoints ?? undefined,
       routeWaypoints: waypoints ?? undefined,
+      planned_stops: travel.planned_stops ?? null,
     };
   };
 
@@ -470,7 +473,7 @@ export default function DriverHomePage() {
                     .length
                 }
               </Text>
-              <Text style={styles.statLabel}>Confirmados</Text>
+              <Text style={styles.statLabel}>Viajes Confirmados</Text>
             </View>
             <View style={styles.statCard}>
               <Text style={styles.statNumber}>
@@ -479,7 +482,7 @@ export default function DriverHomePage() {
                   0
                 )}
               </Text>
-              <Text style={styles.statLabel}>Pasajeros Total</Text>
+              <Text style={styles.statLabel}>Pasajeros Totales</Text>
             </View>
           </View>
         </View>

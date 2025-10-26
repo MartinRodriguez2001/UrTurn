@@ -1,10 +1,9 @@
-import type { TravelCoordinate } from "@/types/travel";
+import type { TravelCoordinate, TravelPlannedStop } from "@/types/travel";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { decodePolyline } from "@/utils/polyline";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import {
   Image,
   Modal,
@@ -15,6 +14,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
 type Passenger = {
   id: string | number;
@@ -36,6 +36,7 @@ type TravelParam = {
   price?: number | string | null;
   route_waypoints?: TravelCoordinate[] | null;
   routeWaypoints?: TravelCoordinate[] | null;
+  planned_stops?: TravelPlannedStop[] | null;
 };
 
 const DEFAULT_ROUTE: TravelCoordinate[] = [
@@ -56,6 +57,7 @@ const DEFAULT_TRAVEL: TravelParam = {
   start_time: new Date().toISOString(),
   price: 1000,
   route_waypoints: DEFAULT_ROUTE,
+  planned_stops: null,
 };
 
 const DEFAULT_REGION = {
@@ -155,6 +157,25 @@ export default function DriverTravel() {
     return { latitude, longitude };
   }, [travel.end_latitude, travel.end_longitude]);
 
+  const stopCoordinates = useMemo<TravelCoordinate[]>(() => {
+    const plannedStops = Array.isArray(travel.planned_stops)
+      ? travel.planned_stops
+      : [];
+
+    const normalizedStops = plannedStops
+      .map((stop) => {
+        const latitude = toNumber(stop.latitude);
+        const longitude = toNumber(stop.longitude);
+        if (latitude === null || longitude === null) {
+          return null;
+        }
+        return { latitude, longitude };
+      })
+      .filter(Boolean) as TravelCoordinate[];
+
+    return normalizedStops;
+  }, [travel.planned_stops]);
+
   const routeCoordinates = useMemo<TravelCoordinate[]>(() => {
     const waypoints =
       travel.route_waypoints && travel.route_waypoints.length >= 2
@@ -175,12 +196,16 @@ export default function DriverTravel() {
       }
     }
 
+    if (stopCoordinates.length >= 2) {
+      return stopCoordinates;
+    }
+
     if (startCoordinate && endCoordinate) {
       return [startCoordinate, endCoordinate];
     }
 
     return DEFAULT_ROUTE;
-  }, [endCoordinate, startCoordinate, travel.routeWaypoints, travel.route_waypoints]);
+  }, [endCoordinate, startCoordinate, stopCoordinates, travel.routeWaypoints, travel.route_waypoints]);
 
   const [polylineCoordinates, setPolylineCoordinates] =
     useState<TravelCoordinate[]>(routeCoordinates);

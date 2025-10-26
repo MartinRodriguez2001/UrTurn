@@ -1,14 +1,15 @@
-import { PrismaClient, TravelStatus } from "../../generated/prisma/index.js";
-import {
-  evaluatePassengerInsertion,
-  estimateRouteMetrics,
-  summarizeAssignmentCandidate,
-} from "../utils/route-assignment.js";
+import { Prisma, PrismaClient, TravelStatus } from "../../generated/prisma/index.js";
+import { decodePolyline } from "../utils/polyline.js";
 import type {
   AssignmentCandidate,
   Coordinate,
   PassengerStops,
   RouteMetrics,
+} from "../utils/route-assignment.js";
+import {
+  estimateRouteMetrics,
+  evaluatePassengerInsertion,
+  summarizeAssignmentCandidate,
 } from "../utils/route-assignment.js";
 
 const prisma = new PrismaClient();
@@ -58,6 +59,17 @@ interface PassengerAssignmentConfig {
 
 type AssignmentSummary = ReturnType<typeof summarizeAssignmentCandidate>;
 
+type TravelStopType = "start" | "pickup" | "dropoff" | "end";
+
+interface TravelStop {
+  type: TravelStopType;
+  latitude: number;
+  longitude: number;
+  locationName?: string | null;
+  passengerId?: number;
+  requestId?: number;
+}
+
 export interface TravelMatchResult {
   travelId: number;
   price: number;
@@ -106,6 +118,14 @@ export class TravelService {
       const normalizedRouteWaypoints = this.sanitizeRouteWaypoints(
         travelData.routeWaypoints
       );
+      const initialPlannedStops = this.buildInitialStopsForTravel(travelData);
+      const computedRouteFromStops = await this.calculateRouteWaypointsFromStops(
+        initialPlannedStops
+      );
+      const initialRouteWaypoints =
+        normalizedRouteWaypoints ??
+        computedRouteFromStops ??
+          this.buildRouteFromStops(initialPlannedStops);
       const driverVehicles = await prisma.vehicle.findMany({
         where: {
           userId: driverId,
@@ -137,14 +157,11 @@ export class TravelService {
           end_location_name: travelData.end_location_name.trim(),
           end_latitude: travelData.end_latitude,
           end_longitude: travelData.end_longitude,
-          ...(normalizedRouteWaypoints
-            ? {
-                route_waypoints: normalizedRouteWaypoints.map((point) => ({
-                  latitude: point.latitude,
-                  longitude: point.longitude,
-                })),
-              }
-            : {}),
+          route_waypoints: initialRouteWaypoints.map((point) => ({
+            latitude: point.latitude,
+            longitude: point.longitude,
+          })),
+          planned_stops: this.serializePlannedStops(initialPlannedStops),
           travel_date: travelData.travel_date,
           start_time: travelStart,
           ...(travelData.end_time ? { end_time: travelEnd } : {}),
@@ -424,6 +441,448 @@ export class TravelService {
     return this.sanitizeRouteWaypoints(candidateWaypoints);
   }
 
+  private buildInitialStopsForTravel(travelData: TravelData): TravelStop[] {
+    return [
+      {
+        type: "start",
+        latitude: Number(travelData.start_latitude),
+        longitude: Number(travelData.start_longitude),
+        locationName: travelData.start_location_name?.trim() ?? null,
+      },
+      {
+        type: "end",
+        latitude: Number(travelData.end_latitude),
+        longitude: Number(travelData.end_longitude),
+        locationName: travelData.end_location_name?.trim() ?? null,
+      },
+    ];
+  }
+
+  private parseStoredStops(stored: unknown): TravelStop[] {
+    if (!Array.isArray(stored)) {
+      return [];
+    }
+
+    const stops: TravelStop[] = [];
+
+    for (const raw of stored) {
+      if (!raw || typeof raw !== "object") {
+        continue;
+      }
+
+      const possibleType = (raw as { type?: unknown }).type;
+      if (
+        possibleType !== "start" &&
+        possibleType !== "pickup" &&
+        possibleType !== "dropoff" &&
+        possibleType !== "end"
+      ) {
+        continue;
+      }
+
+      const latitude = Number(
+        (raw as { latitude?: unknown; lat?: unknown }).latitude ??
+          (raw as { lat?: unknown }).lat
+      );
+      const longitude = Number(
+        (raw as { longitude?: unknown; lng?: unknown }).longitude ??
+          (raw as { lng?: unknown }).lng
+      );
+
+      if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+        continue;
+      }
+
+      const stop: TravelStop = {
+        type: possibleType,
+        latitude,
+        longitude,
+      };
+
+      const maybeLocation = (raw as { locationName?: unknown }).locationName;
+      if (
+        typeof maybeLocation === "string" ||
+        maybeLocation === null
+      ) {
+        stop.locationName = maybeLocation;
+      }
+
+      const maybePassengerId = (raw as { passengerId?: unknown }).passengerId;
+      if (
+        typeof maybePassengerId === "number" &&
+        Number.isInteger(maybePassengerId)
+      ) {
+        stop.passengerId = maybePassengerId;
+      }
+
+      const maybeRequestId = (raw as { requestId?: unknown }).requestId;
+      if (
+        typeof maybeRequestId === "number" &&
+        Number.isInteger(maybeRequestId)
+      ) {
+        stop.requestId = maybeRequestId;
+      }
+
+      stops.push(stop);
+    }
+
+    return stops;
+  }
+
+  private ensureDriverEndpoints(
+    storedStops: unknown,
+    travel: {
+      start_latitude: number;
+      start_longitude: number;
+      start_location_name: string | null;
+      end_latitude: number;
+      end_longitude: number;
+      end_location_name: string | null;
+    }
+  ): TravelStop[] {
+    const parsed = this.parseStoredStops(storedStops);
+
+    const driverStart: TravelStop = {
+      type: "start",
+      latitude: Number(travel.start_latitude),
+      longitude: Number(travel.start_longitude),
+      locationName: travel.start_location_name,
+    };
+
+    const driverEnd: TravelStop = {
+      type: "end",
+      latitude: Number(travel.end_latitude),
+      longitude: Number(travel.end_longitude),
+      locationName: travel.end_location_name,
+    };
+
+    if (parsed.length === 0) {
+      return [driverStart, driverEnd];
+    }
+
+    const stops = parsed.filter((stop) =>
+      Number.isFinite(stop.latitude) && Number.isFinite(stop.longitude)
+    );
+
+    const [first] = stops;
+    if (!first || first.type !== "start") {
+      stops.unshift(driverStart);
+    } else {
+      stops[0] = {
+        type: "start",
+        latitude: driverStart.latitude,
+        longitude: driverStart.longitude,
+        locationName: driverStart.locationName,
+      };
+    }
+
+    const last = stops[stops.length - 1];
+    if (!last || last.type !== "end") {
+      stops.push(driverEnd);
+    } else {
+      stops[stops.length - 1] = {
+        type: "end",
+        latitude: driverEnd.latitude,
+        longitude: driverEnd.longitude,
+        locationName: driverEnd.locationName,
+      };
+    }
+
+    if (stops.length < 2) {
+      stops.push(driverEnd);
+    }
+
+    return stops;
+  }
+
+  private serializePlannedStops(stops: TravelStop[]): Prisma.InputJsonValue {
+    return stops.map((stop) => ({
+      type: stop.type,
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      locationName: stop.locationName ?? null,
+      ...(stop.passengerId !== undefined
+        ? { passengerId: stop.passengerId }
+        : {}),
+      ...(stop.requestId !== undefined
+        ? { requestId: stop.requestId }
+        : {}),
+    }));
+  }
+
+  private buildRouteFromStops(stops: TravelStop[]): Coordinate[] {
+    const coordinates = stops.map((stop) => ({
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+    }));
+
+    return this.sanitizeRouteWaypoints(coordinates) ?? coordinates;
+  }
+
+  private resolveMapsApiKey(): string | null {
+    const candidates = [
+      process.env.GOOGLE_MAPS_DIRECTIONS_KEY,
+      process.env.GOOGLE_MAPS_API_KEY,
+      process.env.GOOGLE_MAPS_KEY,
+      process.env.MAPS_API_KEY,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim().length > 0) {
+        return candidate.trim();
+      }
+    }
+
+    return null;
+  }
+
+  private async calculateRouteWaypointsFromStops(
+    stops: TravelStop[]
+  ): Promise<Coordinate[] | null> {
+    if (stops.length < 2) {
+      return null;
+    }
+
+    const googleRoute = await this.tryGoogleDirections(stops);
+    if (googleRoute && googleRoute.length >= 2) {
+      return googleRoute;
+    }
+
+    const osrmRoute = await this.tryOsrmDirections(stops);
+    if (osrmRoute && osrmRoute.length >= 2) {
+      return osrmRoute;
+    }
+
+    return this.buildRouteFromStops(stops);
+  }
+
+  private async tryGoogleDirections(
+    stops: TravelStop[]
+  ): Promise<Coordinate[] | null> {
+    const apiKey = this.resolveMapsApiKey();
+    if (!apiKey) {
+      return null;
+    }
+
+    const firstStop = stops[0];
+    const lastStop = stops[stops.length - 1];
+    if (!firstStop || !lastStop) {
+      return null;
+    }
+
+    const origin = `${firstStop.latitude},${firstStop.longitude}`;
+    const destination = `${lastStop.latitude},${lastStop.longitude}`;
+    const intermediateStops = stops.slice(1, stops.length - 1);
+    const waypointParam =
+      intermediateStops.length > 0
+        ? intermediateStops
+            .map((stop) => `via:${stop.latitude},${stop.longitude}`)
+            .join("|")
+        : null;
+
+    const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
+    url.searchParams.set("origin", origin);
+    url.searchParams.set("destination", destination);
+    url.searchParams.set("mode", "driving");
+    url.searchParams.set("units", "metric");
+    url.searchParams.set("key", apiKey);
+    if (waypointParam) {
+      url.searchParams.set("waypoints", waypointParam);
+    }
+
+    try {
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error(`Direcciones respondió con estado ${response.status}`);
+      }
+
+      const payload: unknown = await response.json();
+      const routes =
+        payload && typeof payload === "object"
+          ? (payload as { routes?: Array<Record<string, unknown>> }).routes ?? []
+          : [];
+
+      if (!routes || routes.length === 0) {
+        throw new Error("El servicio de direcciones no devolvió rutas");
+      }
+
+      const primaryRoute = routes[0];
+      const overview =
+        primaryRoute && typeof primaryRoute === "object"
+          ? (primaryRoute as { overview_polyline?: { points?: string } }).overview_polyline
+          : undefined;
+
+      let points = overview?.points ? decodePolyline(overview.points) : [];
+
+      if (points.length === 0) {
+        const legs =
+          primaryRoute && typeof primaryRoute === "object"
+            ? (primaryRoute as { legs?: Array<Record<string, unknown>> }).legs ?? []
+            : [];
+
+        const legPoints: { latitude: number; longitude: number }[] = [];
+
+        for (const leg of legs) {
+          const steps =
+            leg && typeof leg === "object"
+              ? (leg as { steps?: Array<Record<string, unknown>> }).steps ?? []
+              : [];
+
+          for (const step of steps) {
+            const encoded =
+              step && typeof step === "object"
+                ? (step as { polyline?: { points?: string } }).polyline?.points
+                : undefined;
+            if (!encoded) {
+              continue;
+            }
+            const decoded = decodePolyline(encoded);
+            if (decoded.length > 0) {
+              legPoints.push(...decoded);
+            }
+          }
+        }
+
+        if (legPoints.length > 0) {
+          points = legPoints;
+        }
+      }
+
+      if (points.length === 0) {
+        throw new Error("No se pudieron decodificar puntos de la ruta");
+      }
+
+      const coordinates = points.map((point) => ({
+        latitude: point.latitude,
+        longitude: point.longitude,
+      }));
+
+      return this.sanitizeRouteWaypoints(coordinates) ?? coordinates;
+    } catch (error) {
+      console.warn(
+        "[TravelService] Google Directions falló, usando rutas alternativas:",
+        error
+      );
+      return null;
+    }
+  }
+
+  private async tryOsrmDirections(
+    stops: TravelStop[]
+  ): Promise<Coordinate[] | null> {
+    if (stops.length < 2) {
+      return null;
+    }
+
+    try {
+      const baseUrl = "https://router.project-osrm.org/route/v1/driving";
+      const coordinatePath = stops
+        .map((stop) => `${stop.longitude},${stop.latitude}`)
+        .join(";");
+      const url = new URL(`${baseUrl}/${coordinatePath}`);
+      url.searchParams.set("overview", "full");
+      url.searchParams.set("steps", "false");
+      url.searchParams.set("geometries", "geojson");
+
+      const response = await fetch(url.toString());
+      if (!response.ok) {
+        throw new Error(`OSRM respondió con estado ${response.status}`);
+      }
+
+      const payload: unknown = await response.json();
+      const routes =
+        payload && typeof payload === "object"
+          ? (payload as {
+              routes?: Array<{ geometry?: { coordinates?: Array<[number, number]> } }>;
+            }).routes ?? []
+          : [];
+
+      const coordinates = routes?.[0]?.geometry?.coordinates ?? [];
+      if (!Array.isArray(coordinates) || coordinates.length === 0) {
+        return null;
+      }
+
+      const mapped = coordinates.map(([longitude, latitude]) => ({
+        latitude,
+        longitude,
+      }));
+
+      return this.sanitizeRouteWaypoints(mapped) ?? mapped;
+    } catch (error) {
+      console.warn(
+        "[TravelService] OSRM Directions falló, se usará ruta directa entre paradas:",
+        error
+      );
+      return null;
+    }
+  }
+
+  private createPassengerStopEntries(
+    request: {
+      id: number;
+      passengerId: number;
+      start_latitude: number;
+      start_longitude: number;
+      end_latitude: number;
+      end_longitude: number;
+      start_location_name: string | null;
+      end_location_name: string | null;
+    }
+  ): { pickup: TravelStop; dropoff: TravelStop } {
+    return {
+      pickup: {
+        type: "pickup",
+        latitude: Number(request.start_latitude),
+        longitude: Number(request.start_longitude),
+        locationName: request.start_location_name,
+        passengerId: request.passengerId,
+        requestId: request.id,
+      },
+      dropoff: {
+        type: "dropoff",
+        latitude: Number(request.end_latitude),
+        longitude: Number(request.end_longitude),
+        locationName: request.end_location_name,
+        passengerId: request.passengerId,
+        requestId: request.id,
+      },
+    };
+  }
+
+  private applyPassengerInsertionToStops(
+    existingStops: TravelStop[],
+    passengerStops: { pickup: TravelStop; dropoff: TravelStop },
+    indexes: { pickup: number; dropoff: number }
+  ): TravelStop[] {
+    const updated = [...existingStops];
+
+    const pickupIndex = Math.min(
+      Math.max(indexes.pickup, 1),
+      updated.length
+    );
+    updated.splice(pickupIndex, 0, passengerStops.pickup);
+
+    let dropoffIndex = indexes.dropoff;
+    if (dropoffIndex <= pickupIndex) {
+      dropoffIndex = pickupIndex + 1;
+    }
+    dropoffIndex = Math.min(Math.max(dropoffIndex, pickupIndex + 1), updated.length);
+    updated.splice(dropoffIndex, 0, passengerStops.dropoff);
+
+    return updated;
+  }
+
+  private fallbackAddPassengerStops(
+    existingStops: TravelStop[],
+    passengerStops: { pickup: TravelStop; dropoff: TravelStop }
+  ): TravelStop[] {
+    const updated = [...existingStops];
+    const insertionIndex = Math.max(updated.length - 1, 1);
+    updated.splice(insertionIndex, 0, passengerStops.pickup);
+    updated.splice(insertionIndex + 1, 0, passengerStops.dropoff);
+    return updated;
+  }
+
   async getDriverTravels(driverId: number) {
     try {
       const travels = await prisma.travel.findMany({
@@ -535,7 +994,35 @@ export class TravelService {
         },
       });
       //7. Procesar datos para el frontend
-      const processedTravels = travels.map((travel) => ({
+      const processedTravels = travels.map((travel) => {
+        const plannedStops = this.ensureDriverEndpoints(
+          travel.planned_stops,
+          {
+            start_latitude: travel.start_latitude,
+            start_longitude: travel.start_longitude,
+            start_location_name: travel.start_location_name ?? null,
+            end_latitude: travel.end_latitude,
+            end_longitude: travel.end_longitude,
+            end_location_name: travel.end_location_name ?? null,
+          }
+        );
+
+        const normalizedRoute =
+          this.parseStoredRouteWaypoints(travel.route_waypoints) ??
+          this.buildRouteFromStops(plannedStops);
+
+        const formattedStops = plannedStops.map((stop) => ({
+          type: stop.type,
+          latitude: stop.latitude,
+          longitude: stop.longitude,
+          locationName: stop.locationName ?? null,
+          ...(stop.passengerId !== undefined
+            ? { passengerId: stop.passengerId }
+            : {}),
+          ...(stop.requestId !== undefined ? { requestId: stop.requestId } : {}),
+        }));
+
+        return {
         // Información básica del viaje
         id: travel.id,
         start_location: travel.start_location_name,
@@ -546,6 +1033,9 @@ export class TravelService {
         end_location_name: travel.end_location_name,
         end_latitude: travel.end_latitude,
         end_longitude: travel.end_longitude,
+        route_waypoints: normalizedRoute,
+        routeWaypoints: normalizedRoute,
+        planned_stops: formattedStops,
         travel_date: travel.travel_date,
         capacity: travel.capacity,
         price: travel.price,
@@ -614,7 +1104,8 @@ export class TravelService {
         // Reviews y reportes
         reviews: travel.reviews,
         reports: travel.reports,
-      }));
+        };
+      });
 
       return {
         success: true,
@@ -1042,50 +1533,130 @@ export class TravelService {
         },
       });
 
-      // Si acepta, crear confirmación y reducir espacios
+      // Si acepta, recalcular la ruta y persistirla
       let updatedRoute: Coordinate[] | null = null;
+      let plannedStopsForResponse: TravelStop[] | null = null;
+      let insertionSummary: AssignmentSummary | undefined;
 
       if (accept) {
+        console.log("[TravelService] Starting route update", {
+          requestId,
+          travelId,
+          passengerId: request.passengerId,
+        });
+
         const pickupLat = Number(request.start_latitude);
         const pickupLng = Number(request.start_longitude);
+        const dropoffLat = Number(request.end_latitude);
+        const dropoffLng = Number(request.end_longitude);
 
-        if (Number.isFinite(pickupLat) && Number.isFinite(pickupLng)) {
-          const pickupPoint: Coordinate = {
-            latitude: pickupLat,
-            longitude: pickupLng,
+        const driverStopsContext = {
+          start_latitude: Number(request.travel.start_latitude),
+          start_longitude: Number(request.travel.start_longitude),
+          start_location_name: request.travel.start_location_name ?? null,
+          end_latitude: Number(request.travel.end_latitude),
+          end_longitude: Number(request.travel.end_longitude),
+          end_location_name: request.travel.end_location_name ?? null,
+        };
+
+        let plannedStops = this.ensureDriverEndpoints(
+          request.travel.planned_stops,
+          driverStopsContext
+        );
+
+        const baselineRoute = plannedStops.map((stop) => ({
+          latitude: stop.latitude,
+          longitude: stop.longitude,
+        }));
+
+        const passengerStops = this.createPassengerStopEntries({
+          id: request.id,
+          passengerId: request.passengerId,
+          start_latitude: pickupLat,
+          start_longitude: pickupLng,
+          end_latitude: dropoffLat,
+          end_longitude: dropoffLng,
+          start_location_name:
+            request.start_location_name ??
+            request.travel.start_location_name ??
+            null,
+          end_location_name:
+            request.end_location_name ??
+            request.travel.end_location_name ??
+            null,
+        });
+
+        const hasValidPickup =
+          Number.isFinite(pickupLat) && Number.isFinite(pickupLng);
+        const hasValidDropoff =
+          Number.isFinite(dropoffLat) && Number.isFinite(dropoffLng);
+
+        let insertionIndexes: { pickup: number; dropoff: number } | null = null;
+
+        if (hasValidPickup && hasValidDropoff && baselineRoute.length >= 2) {
+          const passengerInput: PassengerAssignmentInput = {
+            pickupLatitude: pickupLat,
+            pickupLongitude: pickupLng,
+            dropoffLatitude: dropoffLat,
+            dropoffLongitude: dropoffLng,
           };
 
-          const existingRoute =
-            this.parseStoredRouteWaypoints(request.travel.route_waypoints) ??
-            this.sanitizeRouteWaypoints([
+          try {
+            const evaluation = await this.evaluatePassengerAssignment(
+              travelId,
+              passengerInput,
               {
-                latitude: Number(request.travel.start_latitude),
-                longitude: Number(request.travel.start_longitude),
-              },
-              {
-                latitude: Number(request.travel.end_latitude),
-                longitude: Number(request.travel.end_longitude),
-              },
-            ]);
-
-          if (existingRoute && existingRoute.length >= 2) {
-            const alreadyIncluded = existingRoute.some(
-              (point) =>
-                Math.abs(point.latitude - pickupPoint.latitude) <= 1e-5 &&
-                Math.abs(point.longitude - pickupPoint.longitude) <= 1e-5
+                averageSpeedKmh: 30,
+                maxAdditionalMinutes: 60,
+                routeWaypoints: baselineRoute,
+              }
             );
 
-            if (!alreadyIncluded) {
-              const tentativeRoute = [
-                ...existingRoute.slice(0, existingRoute.length - 1),
-                pickupPoint,
-                existingRoute[existingRoute.length - 1],
-              ];
-
-              updatedRoute = this.sanitizeRouteWaypoints(tentativeRoute) ?? tentativeRoute;
+            if (evaluation.success && evaluation.candidate) {
+              insertionIndexes = {
+                pickup: evaluation.candidate.pickupInsertIndex,
+                dropoff: evaluation.candidate.dropoffInsertIndex,
+              };
+              insertionSummary = evaluation.summary;
+              console.log("[TravelService] Assignment evaluator produced plan", {
+                requestId,
+                travelId,
+                pickupIndex: insertionIndexes.pickup,
+                dropoffIndex: insertionIndexes.dropoff,
+                additionalMinutes: evaluation.summary?.additionalMinutes,
+              });
             }
+          } catch (evaluationError) {
+            console.warn(
+              "No se pudo recalcular la ruta con el evaluador de asignaciones:",
+              evaluationError
+            );
           }
         }
+
+        if (insertionIndexes) {
+          plannedStops = this.applyPassengerInsertionToStops(
+            plannedStops,
+            passengerStops,
+            insertionIndexes
+          );
+        } else {
+          plannedStops = this.fallbackAddPassengerStops(
+            plannedStops,
+            passengerStops
+          );
+          console.log("[TravelService] Using fallback stop insertion", {
+            requestId,
+            travelId,
+            totalStops: plannedStops.length,
+          });
+        }
+
+        const recalculatedRoute =
+          (await this.calculateRouteWaypointsFromStops(plannedStops)) ??
+          this.buildRouteFromStops(plannedStops);
+        updatedRoute = recalculatedRoute;
+        plannedStopsForResponse = plannedStops;
 
         await prisma.confirmation.create({
           data: {
@@ -1094,28 +1665,37 @@ export class TravelService {
           },
         });
 
-        const travelUpdateData: {
-          spaces_available: { decrement: number };
-          route_waypoints?: Coordinate[];
-        } = {
+        const travelUpdateData: Prisma.TravelUpdateInput = {
           spaces_available: {
             decrement: 1,
           },
+          planned_stops: this.serializePlannedStops(plannedStops),
         };
 
-        if (updatedRoute && updatedRoute.length >= 2) {
-          travelUpdateData.route_waypoints = updatedRoute;
-        }
+        travelUpdateData.route_waypoints = recalculatedRoute.map((point) => ({
+          latitude: point.latitude,
+          longitude: point.longitude,
+        })) as Prisma.InputJsonValue;
 
         await prisma.travel.update({
           where: { id: travelId },
           data: travelUpdateData,
+        });
+
+        console.log("[TravelService] Planned stops and route persisted", {
+          travelId,
+          requestId,
+          totalStops: plannedStops.length,
+          totalWaypoints: recalculatedRoute.length,
         });
       }
 
       return {
         success: true,
         request: updatedRequest,
+        ...(updatedRoute ? { updatedRoute } : {}),
+        ...(plannedStopsForResponse ? { plannedStops: plannedStopsForResponse } : {}),
+        ...(insertionSummary ? { insertionSummary } : {}),
         message: accept
           ? "Pasajero aceptado exitosamente"
           : "Solicitud rechazada",

@@ -15,6 +15,7 @@ export interface Travel {
   end_longitude: number;
   route_waypoints?: TravelCoordinate[] | null;
   routeWaypoints?: TravelCoordinate[] | null;
+  planned_stops?: TravelPlannedStop[] | null;
   capacity: number;
   price: number;
   travel_date: Date;
@@ -84,6 +85,7 @@ export interface ProcessedTravel {
   end_longitude: number;
   route_waypoints?: TravelCoordinate[] | null;
   routeWaypoints?: TravelCoordinate[] | null;
+  planned_stops?: TravelPlannedStop[] | null;
   travel_date: Date;
   capacity: number;
   price: number;
@@ -196,6 +198,17 @@ export interface TravelRequestRecord {
 export interface TravelCoordinate {
   latitude: number;
   longitude: number;
+}
+
+export type TravelStopType = "start" | "pickup" | "dropoff" | "end";
+
+export interface TravelPlannedStop {
+  type: TravelStopType;
+  latitude: number;
+  longitude: number;
+  locationName?: string | null;
+  passengerId?: number;
+  requestId?: number;
 }
 
 export interface RouteMetricsSummary {

@@ -1,17 +1,17 @@
-import { Feather } from "@expo/vector-icons";
 import travelApiService from "@/Services/TravelApiService";
-import { ProcessedTravel } from "@/types/travel";
+import { ProcessedTravel, TravelPlannedStop } from "@/types/travel";
+import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 type PassengerDetails = {
@@ -33,6 +33,7 @@ type TravelPayload = {
   price?: number | string | null;
   route_waypoints?: Array<{ latitude: number; longitude: number }> | null;
   routeWaypoints?: Array<{ latitude: number; longitude: number }> | null;
+  planned_stops?: TravelPlannedStop[] | null;
 };
 
 type PassengerParam = {
@@ -67,6 +68,7 @@ const DEFAULT_TRAVEL_PAYLOAD: TravelPayload = {
   start_time: new Date().toISOString(),
   route_waypoints: null,
   routeWaypoints: null,
+  planned_stops: null,
 };
 
 const DEFAULT_REQUEST: RequestDetails = {
@@ -208,6 +210,7 @@ const buildTravelPayloadFromProcessed = (
     price: travel.price,
     route_waypoints: waypoints ?? undefined,
     routeWaypoints: waypoints ?? undefined,
+    planned_stops: travel.planned_stops ?? null,
   };
 };
 

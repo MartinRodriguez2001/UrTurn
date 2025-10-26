@@ -74,6 +74,7 @@ model Travel {
   end_longitude Float
 
   route_waypoints Json?
+  planned_stops Json?
 
   capacity Int
   price Float
