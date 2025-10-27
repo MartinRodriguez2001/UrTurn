@@ -7,8 +7,12 @@ import type {
   RouteMetrics,
 } from "../utils/route-assignment.js";
 import {
+  computeRouteBoundingBox,
   estimateRouteMetrics,
   evaluatePassengerInsertion,
+  expandBoundingBox,
+  isCoordinateWithinBoundingBox,
+  simplifyRouteWaypoints,
   summarizeAssignmentCandidate,
 } from "../utils/route-assignment.js";
 
@@ -102,6 +106,9 @@ export interface PassengerMatchingOptions extends PassengerAssignmentConfig {
   timeWindowMinutes?: number;
   maxResults?: number;
 }
+
+const DEFAULT_PASSENGER_MATCH_RADIUS_METERS = 4_000;
+const ROUTE_SIMPLIFICATION_TOLERANCE_METERS = 75;
 
 export class TravelService {
   async registerTravel(travelData: TravelData, driverId: number) {
@@ -2463,13 +2470,80 @@ export class TravelService {
             travel.route_waypoints
           );
 
+          const simplifiedRoute =
+            routeWaypoints && routeWaypoints.length >= 2
+              ? simplifyRouteWaypoints(
+                  routeWaypoints,
+                  ROUTE_SIMPLIFICATION_TOLERANCE_METERS,
+                  2
+                )
+              : null;
+
+          const evaluationRoute =
+            simplifiedRoute && simplifiedRoute.length >= 2
+              ? simplifiedRoute
+              : routeWaypoints && routeWaypoints.length >= 2
+              ? routeWaypoints
+              : null;
+
+          const fallbackRoute: Coordinate[] = [
+            {
+              latitude: travel.start_latitude,
+              longitude: travel.start_longitude,
+            },
+            {
+              latitude: travel.end_latitude,
+              longitude: travel.end_longitude,
+            },
+          ];
+
+          const boundingRoute = evaluationRoute ?? fallbackRoute;
+
+          const boundingBox = computeRouteBoundingBox(boundingRoute);
+
+          if (!boundingBox) {
+            return null;
+          }
+
+          const pickupCoordinate: Coordinate = {
+            latitude: passenger.pickupLatitude,
+            longitude: passenger.pickupLongitude,
+          };
+          const dropoffCoordinate: Coordinate = {
+            latitude: passenger.dropoffLatitude,
+            longitude: passenger.dropoffLongitude,
+          };
+
+          const boundingExpansion = Math.max(
+            DEFAULT_PASSENGER_MATCH_RADIUS_METERS,
+            maxDeviationMeters ?? 0
+          );
+
+          const expandedBoundingBox = expandBoundingBox(
+            boundingBox,
+            boundingExpansion
+          );
+
+          const pickupWithinBounds = isCoordinateWithinBoundingBox(
+            pickupCoordinate,
+            expandedBoundingBox
+          );
+          const dropoffWithinBounds = isCoordinateWithinBoundingBox(
+            dropoffCoordinate,
+            expandedBoundingBox
+          );
+
+          if (!pickupWithinBounds || !dropoffWithinBounds) {
+            return null;
+          }
+
           const evaluationConfig: PassengerAssignmentConfig = {
             averageSpeedKmh,
             maxAdditionalMinutes,
             ...(maxDeviationMeters !== undefined
               ? { maxDeviationMeters }
               : {}),
-            ...(routeWaypoints ? { routeWaypoints } : {}),
+            ...(evaluationRoute ? { routeWaypoints: evaluationRoute } : {}),
           };
 
           const evaluation = await this.evaluatePassengerAssignment(

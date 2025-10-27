@@ -39,6 +39,13 @@ export interface AssignmentCandidate {
   baseMetrics: RouteMetrics;
 }
 
+export interface RouteBoundingBox {
+  minLatitude: number;
+  maxLatitude: number;
+  minLongitude: number;
+  maxLongitude: number;
+}
+
 const EARTH_RADIUS_KM = 6371;
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -177,6 +184,93 @@ function pointToSegmentDistanceMeters(
   return Math.sqrt(distanceX * distanceX + distanceY * distanceY);
 }
 
+function metersToLatitudeDegrees(meters: number): number {
+  return meters / 111_132;
+}
+
+function metersToLongitudeDegrees(
+  meters: number,
+  referenceLatitude: number
+): number {
+  const latRad = toRadians(referenceLatitude);
+  const metersPerDegreeLon = 111_320 * Math.cos(latRad);
+  if (metersPerDegreeLon === 0) {
+    return 0;
+  }
+  return meters / metersPerDegreeLon;
+}
+
+export function computeRouteBoundingBox(
+  route: Coordinate[]
+): RouteBoundingBox | null {
+  if (!route.length) {
+    return null;
+  }
+
+  let minLatitude = route[0]!.latitude;
+  let maxLatitude = route[0]!.latitude;
+  let minLongitude = route[0]!.longitude;
+  let maxLongitude = route[0]!.longitude;
+
+  for (const waypoint of route) {
+    if (!waypoint) {
+      continue;
+    }
+    if (waypoint.latitude < minLatitude) {
+      minLatitude = waypoint.latitude;
+    }
+    if (waypoint.latitude > maxLatitude) {
+      maxLatitude = waypoint.latitude;
+    }
+    if (waypoint.longitude < minLongitude) {
+      minLongitude = waypoint.longitude;
+    }
+    if (waypoint.longitude > maxLongitude) {
+      maxLongitude = waypoint.longitude;
+    }
+  }
+
+  return {
+    minLatitude,
+    maxLatitude,
+    minLongitude,
+    maxLongitude,
+  };
+}
+
+export function expandBoundingBox(
+  boundingBox: RouteBoundingBox,
+  meters: number
+): RouteBoundingBox {
+  if (meters <= 0) {
+    return boundingBox;
+  }
+
+  const averageLatitude =
+    (boundingBox.minLatitude + boundingBox.maxLatitude) / 2;
+  const latDelta = metersToLatitudeDegrees(meters);
+  const lonDelta = metersToLongitudeDegrees(meters, averageLatitude);
+
+  return {
+    minLatitude: boundingBox.minLatitude - latDelta,
+    maxLatitude: boundingBox.maxLatitude + latDelta,
+    minLongitude: boundingBox.minLongitude - lonDelta,
+    maxLongitude: boundingBox.maxLongitude + lonDelta,
+  };
+}
+
+export function isCoordinateWithinBoundingBox(
+  coordinate: Coordinate,
+  boundingBox: RouteBoundingBox
+): boolean {
+  return (
+    coordinate.latitude >= boundingBox.minLatitude &&
+    coordinate.latitude <= boundingBox.maxLatitude &&
+    coordinate.longitude >= boundingBox.minLongitude &&
+    coordinate.longitude <= boundingBox.maxLongitude
+  );
+}
+
 function minimalDistanceToRouteMeters(
   route: Coordinate[],
   point: Coordinate
@@ -204,6 +298,92 @@ function minimalDistanceToRouteMeters(
   }
 
   return minDistance;
+}
+
+function removeConsecutiveDuplicates(route: Coordinate[]): Coordinate[] {
+  if (route.length === 0) {
+    return [];
+  }
+
+  const deduped: Coordinate[] = [route[0]!];
+
+  for (let index = 1; index < route.length; index++) {
+    const current = route[index];
+    const last = deduped[deduped.length - 1];
+    if (
+      current &&
+      last &&
+      (Math.abs(current.latitude - last.latitude) > 1e-6 ||
+        Math.abs(current.longitude - last.longitude) > 1e-6)
+    ) {
+      deduped.push(current);
+    }
+  }
+
+  return deduped;
+}
+
+function douglasPeucker(
+  route: Coordinate[],
+  epsilonMeters: number
+): Coordinate[] {
+  if (route.length <= 2) {
+    return route;
+  }
+
+  let maxDistance = 0;
+  let maxIndex = 0;
+
+  const start = route[0]!;
+  const end = route[route.length - 1]!;
+
+  for (let index = 1; index < route.length - 1; index++) {
+    const point = route[index];
+    if (!point) {
+      continue;
+    }
+    const distance = pointToSegmentDistanceMeters(point, start, end);
+    if (distance > maxDistance) {
+      maxDistance = distance;
+      maxIndex = index;
+    }
+  }
+
+  if (maxDistance <= epsilonMeters) {
+    return [start, end];
+  }
+
+  const left = douglasPeucker(route.slice(0, maxIndex + 1), epsilonMeters);
+  const right = douglasPeucker(route.slice(maxIndex), epsilonMeters);
+
+  return [...left.slice(0, -1), ...right];
+}
+
+export function simplifyRouteWaypoints(
+  routeWaypoints: Coordinate[],
+  toleranceMeters: number,
+  minimumPoints = 2
+): Coordinate[] {
+  if (routeWaypoints.length <= minimumPoints) {
+    return routeWaypoints.slice();
+  }
+
+  const epsilon = Math.max(toleranceMeters, 0);
+  if (epsilon === 0) {
+    return removeConsecutiveDuplicates(routeWaypoints);
+  }
+
+  const deduped = removeConsecutiveDuplicates(routeWaypoints);
+  if (deduped.length <= minimumPoints) {
+    return deduped;
+  }
+
+  const simplified = douglasPeucker(deduped, epsilon);
+  if (simplified.length < minimumPoints) {
+    return deduped.slice(0, minimumPoints);
+  }
+
+  return simplified;
 }
 
 export function evaluatePassengerInsertion(
@@ -248,8 +428,9 @@ export function evaluatePassengerInsertion(
   }
 
   let bestCandidate: AssignmentCandidate | null = null;
+  let bestAdditionalMinutes = Number.POSITIVE_INFINITY;
 
-  for (
+  outerLoop: for (
     let pickupIndex = 0;
     pickupIndex < routeWaypoints.length - 1;
     pickupIndex++
@@ -283,6 +464,10 @@ export function evaluatePassengerInsertion(
         continue;
       }
 
+      if (additionalMinutes > bestAdditionalMinutes + 1e-3) {
+        continue;
+      }
+
       const additionalDistanceKm =
         updatedMetrics.totalDistanceKm - baseMetrics.totalDistanceKm;
 
@@ -298,6 +483,7 @@ export function evaluatePassengerInsertion(
 
       if (!bestCandidate) {
         bestCandidate = candidate;
+        bestAdditionalMinutes = candidate.additionalMinutes;
         continue;
       }
 
@@ -309,6 +495,10 @@ export function evaluatePassengerInsertion(
           additionalDistanceKm < bestCandidate.additionalDistanceKm)
       ) {
         bestCandidate = candidate;
+        bestAdditionalMinutes = candidate.additionalMinutes;
+        if (bestAdditionalMinutes <= 1e-3) {
+          break outerLoop;
+        }
       }
     }
   }
