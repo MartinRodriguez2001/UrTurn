@@ -1,13 +1,15 @@
 import { ApiResponse } from "@/api";
 import {
-  TravelCreateData,
-  TravelFilters,
-  TravelRequestCreatePayload,
-  TravelRequestRecord,
-  TravelResponse,
-  TravelsResponse,
-  TravelMatchRequestPayload,
-  TravelMatchResponse
+    PassengerConfirmedTravel,
+    PassengerRequestedTravel,
+    TravelCreateData,
+    TravelFilters,
+    TravelMatchRequestPayload,
+    TravelMatchResponse,
+    TravelRequestCreatePayload,
+    TravelRequestRecord,
+    TravelResponse,
+    TravelsResponse,
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
 
@@ -58,10 +60,14 @@ class TravelApiService extends BaseApiService {
   }
 
   //  4. Obtener viajes del pasajero
-  async getPassengerTravels(): Promise<ApiResponse<{
-    requested: any[];
-    confirmed: any[];
-  }>> {
+  async getPassengerTravels(): Promise<
+    ApiResponse<{
+      data: {
+        requested: PassengerRequestedTravel[];
+        confirmed: PassengerConfirmedTravel[];
+      };
+    }>
+  > {
     return this.makeRequest('/travels/passenger', {
       method: 'GET'
     });

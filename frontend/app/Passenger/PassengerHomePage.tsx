@@ -8,6 +8,9 @@ import {
   PassengerRequestedTravel,
   ProcessedTravel,
   RequestStatus,
+  TravelCoordinate,
+  TravelPassenger,
+  TravelPlannedStop,
 } from "@/types/travel";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -21,6 +24,29 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
+type TravelPayload = {
+  id?: number;
+  start_location_name?: string | null;
+  start_latitude?: number | string | null;
+  start_longitude?: number | string | null;
+  end_location_name?: string | null;
+  end_latitude?: number | string | null;
+  end_longitude?: number | string | null;
+  start_time?: string | Date;
+  price?: number | string | null;
+  route_waypoints?: TravelCoordinate[] | null;
+  routeWaypoints?: TravelCoordinate[] | null;
+  planned_stops?: TravelPlannedStop[] | null;
+};
+
+type PassengerParam = {
+  id: number | string;
+  name: string;
+  role?: string;
+  avatar?: string | null;
+  phone?: string | null;
+};
 
 export default function PassengerHomePage() {
   const router = useRouter();
@@ -138,6 +164,89 @@ export default function PassengerHomePage() {
     [requestedTravels]
   );
 
+  const buildTravelPayload = (travel?: ProcessedTravel | null): TravelPayload | null => {
+    if (!travel) return null;
+    const waypoints = travel.route_waypoints ?? travel.routeWaypoints ?? null;
+
+    return {
+      id: travel.id,
+      start_location_name: travel.start_location_name ?? travel.start_location ?? null,
+      start_latitude: travel.start_latitude,
+      start_longitude: travel.start_longitude,
+      end_location_name: travel.end_location_name ?? travel.end_location ?? null,
+      end_latitude: travel.end_latitude,
+      end_longitude: travel.end_longitude,
+      start_time: travel.start_time,
+      price: travel.price,
+      route_waypoints: waypoints ?? null,
+      routeWaypoints: waypoints ?? null,
+      planned_stops: travel.planned_stops ?? null,
+    };
+  };
+
+  const mapConfirmedPassengers = (travel?: ProcessedTravel | null): PassengerParam[] => {
+    const confirmedPassengers: TravelPassenger[] =
+      travel?.passengers?.confirmed ?? [];
+
+    return confirmedPassengers.map((passenger) => ({
+      id: passenger.id,
+      name: passenger.name,
+      role: "Pasajero",
+      avatar: passenger.profile_picture ?? null,
+      phone: passenger.phone_number ?? null,
+    }));
+  };
+
+  const handleScheduledTravelPress = (item: PassengerConfirmedTravel) => {
+    const payload = buildTravelPayload(item.travel);
+    if (!payload) return;
+
+    const passengersPayload = mapConfirmedPassengers(item.travel);
+    const driver = item.travel?.driver_id
+      ? {
+          id: item.travel.driver_id.id,
+          name: item.travel.driver_id.name,
+          avatar: item.travel.driver_id.profile_picture ?? null,
+          phone: item.travel.driver_id.phone_number ?? null,
+        }
+      : null;
+
+    router.push({
+      pathname: "/Passenger/PassengerTravel",
+      params: {
+        travel: JSON.stringify(payload),
+        passengers: JSON.stringify(passengersPayload),
+        ...(driver ? { driver: JSON.stringify(driver) } : {}),
+      },
+    });
+  };
+
+  const handlePendingTravelPress = (item: PassengerRequestedTravel) => {
+    if (!item.travel) return;
+
+    const payload = buildTravelPayload(item.travel);
+    if (!payload) return;
+
+    const passengersPayload = mapConfirmedPassengers(item.travel);
+    const driver = item.travel.driver_id
+      ? {
+          id: item.travel.driver_id.id,
+          name: item.travel.driver_id.name,
+          avatar: item.travel.driver_id.profile_picture ?? null,
+          phone: item.travel.driver_id.phone_number ?? null,
+        }
+      : null;
+
+    router.push({
+      pathname: "/Passenger/PassengerTravel",
+      params: {
+        travel: JSON.stringify(payload),
+        passengers: JSON.stringify(passengersPayload),
+        ...(driver ? { driver: JSON.stringify(driver) } : {}),
+      },
+    });
+  };
+
   const handleDriverAction = () => {
     if (loading) return;
 
@@ -239,6 +348,7 @@ export default function PassengerHomePage() {
                   Route={formatRouteLabel(item.travel)}
                   Date={formatTravelDate(item.travel)}
                   Time={formatTravelTime(item.travel)}
+                  onPress={() => handleScheduledTravelPress(item)}
                   style={styles.scheduledCard}
                 />
               ))}
@@ -282,6 +392,7 @@ export default function PassengerHomePage() {
                   destination={getDestinationLabel(item.travel)}
                   dateLabel={formatTravelDate(item.travel)}
                   timeLabel={formatTravelTime(item.travel)}
+                  onPress={item.travel ? () => handlePendingTravelPress(item) : undefined}
                   style={styles.scheduledCard}
                 />
               ))}
@@ -312,26 +423,6 @@ export default function PassengerHomePage() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.bottomNavigation}>
-        <View style={styles.navItem}>
-          <Text style={styles.navIcon}>🏠</Text>
-          <Text style={styles.navLabelActive}>Inicio</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Passenger/PassengerRiderOffers")}
-        >
-          <Text style={styles.navIcon}>🧭</Text>
-          <Text style={styles.navLabel}>Explorar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.navItem}
-          onPress={() => router.push("/Passenger/PassengerProfile")}
-        >
-          <Text style={styles.navIcon}>👤</Text>
-          <Text style={styles.navLabel}>Perfil</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -541,38 +632,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     fontSize: 16,
     color: "#FFFFFF",
-  },
-  bottomNavigation: {
-    flexDirection: "row",
-    height: 75,
-    backgroundColor: "#FFFFFF",
-    paddingTop: 9,
-    paddingHorizontal: 16,
-    borderTopWidth: 1,
-    borderTopColor: "#F0F2F5",
-  },
-  navItem: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-  navIcon: {
-    fontSize: 22,
-    textAlignVertical: "center",
-  },
-  navLabel: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "500",
-    fontSize: 12,
-    color: "#61758A",
-    textAlign: "center",
-  },
-  navLabelActive: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "600",
-    fontSize: 12,
-    color: "#121417",
-    textAlign: "center",
   },
 });

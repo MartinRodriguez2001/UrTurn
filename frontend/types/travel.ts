@@ -73,6 +73,31 @@ export enum RequestStatus {
   RECHAZADA = "rechazada",
 }
 
+export interface PassengerRequestedTravel {
+  id: number;
+  travelId: number | null;
+  start_location_name: string | null;
+  start_latitude: number;
+  start_longitude: number;
+  end_location_name: string | null;
+  end_latitude: number;
+  end_longitude: number;
+  pickup_date: string | null;
+  pickup_time: string | null;
+  status: RequestStatus;
+  passengerId: number;
+  created_at: string;
+  travel: ProcessedTravel | null;
+}
+
+export interface PassengerConfirmedTravel {
+  id: number;
+  travelId: number;
+  usuarioId: number;
+  date: string;
+  travel: ProcessedTravel | null;
+}
+
 export interface ProcessedTravel {
   id: number;
   start_location: string | null;
