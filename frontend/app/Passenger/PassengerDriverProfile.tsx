@@ -1,6 +1,8 @@
+import travelApiService from '@/Services/TravelApiService';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+    Alert,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -22,6 +24,111 @@ interface Review {
 export default function PassengerDriverProfile() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const [isRequesting, setIsRequesting] = useState(false);
+
+    const getParamValue = (value: string | string[] | undefined) =>
+        Array.isArray(value) ? value[0] : value;
+
+    const pickupDateValue = getParamValue(params.pickupDate);
+    const pickupTimeValue = getParamValue(params.pickupTime);
+    const pickupLocation = getParamValue(params.pickupLocation) ?? '';
+    const pickupLatitudeParam =
+        getParamValue(params.pickupLatitude) ?? getParamValue(params.originLat);
+    const pickupLongitudeParam =
+        getParamValue(params.pickupLongitude) ?? getParamValue(params.originLng);
+    const travelIdParam = getParamValue(params.travelId);
+    const travelId = travelIdParam ? Number(travelIdParam) : NaN;
+
+    const pickupLatitude = pickupLatitudeParam ? Number(pickupLatitudeParam) : NaN;
+    const pickupLongitude = pickupLongitudeParam ? Number(pickupLongitudeParam) : NaN;
+
+    const pickupDateDate = useMemo(() => {
+        if (!pickupDateValue) {
+            return undefined;
+        }
+        const parsed = new Date(pickupDateValue);
+        if (Number.isNaN(parsed.valueOf())) {
+            return undefined;
+        }
+        parsed.setHours(0, 0, 0, 0);
+        return parsed;
+    }, [pickupDateValue]);
+
+    const pickupTimeDate = useMemo(() => {
+        if (!pickupTimeValue) {
+            return undefined;
+        }
+        const parsed = new Date(pickupTimeValue);
+        if (Number.isNaN(parsed.valueOf())) {
+            return undefined;
+        }
+        parsed.setSeconds(0, 0);
+        if (pickupDateDate) {
+            parsed.setFullYear(
+                pickupDateDate.getFullYear(),
+                pickupDateDate.getMonth(),
+                pickupDateDate.getDate()
+            );
+        }
+        return parsed;
+    }, [pickupTimeValue, pickupDateDate]);
+
+    const handleRequestRide = async () => {
+        if (Number.isNaN(travelId)) {
+            Alert.alert('Información incompleta', 'No se pudo determinar el viaje a solicitar.');
+            return;
+        }
+
+        if (!pickupDateDate || !pickupTimeDate) {
+            Alert.alert(
+                'Selecciona fecha y hora',
+                'Debes elegir una fecha y hora de recogida antes de solicitar.'
+            );
+            return;
+        }
+
+        if (!pickupLocation.trim()) {
+            Alert.alert('Selecciona un punto de recogida', 'Debes elegir una ubicación de recogida antes de solicitar.');
+            return;
+        }
+
+        if (!Number.isFinite(pickupLatitude) || Math.abs(pickupLatitude) > 90) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de recogida. Selecciona una ubicación válida.');
+            return;
+        }
+
+        if (!Number.isFinite(pickupLongitude) || Math.abs(pickupLongitude) > 180) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de recogida. Selecciona una ubicación válida.');
+            return;
+        }
+
+        try {
+            setIsRequesting(true);
+            const response = await travelApiService.requestToJoinTravel(
+                travelId,
+                pickupLocation,
+                pickupLatitude,
+                pickupLongitude,
+                pickupDateDate,
+                pickupTimeDate
+            );
+
+            if (response.success) {
+                Alert.alert('Solicitud enviada', response.message ?? 'Tu solicitud fue enviada correctamente.');
+                router.push("/Passenger/PassengerConfirmRider");
+            } else {
+                Alert.alert('No se pudo enviar', response.message ?? 'Intenta nuevamente en unos minutos.');
+            }
+        } catch (error) {
+            console.error('Error al solicitar viaje:', error);
+            Alert.alert(
+                'Error',
+                'No pudimos enviar tu solicitud en este momento. Verifica tu conexión e inténtalo nuevamente.'
+            );
+        } finally {
+            setIsRequesting(false);
+        }
+    };
     
     // Get driver info from params or use default
     const driverName = params.name as string || 'Victor Lazcano';
@@ -218,15 +325,14 @@ export default function PassengerDriverProfile() {
 
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity style={styles.requestButton}
-                    onPress={
-                            () => router.push("/Passenger/PassengerConfirmRider")
-                        }
+                <TouchableOpacity
+                    style={[styles.requestButton, isRequesting ? styles.requestButtonDisabled : null]}
+                    onPress={handleRequestRide}
+                    disabled={isRequesting}
                 >
-                    <Text style={styles.requestButtonText}
-                    
-                    >Solicitar viaje</Text>
-
+                    <Text style={styles.requestButtonText}>
+                        {isRequesting ? 'Solicitando...' : 'Solicitar viaje'}
+                    </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.messageButton}>
                     <Text style={styles.messageButtonText}>Mensaje</Text>
@@ -546,6 +652,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 20,
+    },
+    requestButtonDisabled: {
+        opacity: 0.6,
     },
     requestButtonText: {
         fontFamily: 'Plus Jakarta Sans',

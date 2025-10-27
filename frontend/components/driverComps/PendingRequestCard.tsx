@@ -7,21 +7,25 @@ import {
   ViewStyle,
 } from "react-native";
 
-export interface NextTravelCardProps {
-  Route: string;
-  Date: string;
-  Time: string;
+export interface PendingRequestCardProps {
+  passengerName: string;
+  pickupLocation: string;
+  destination: string;
+  dateLabel: string;
+  timeLabel: string;
   onPress?: () => void;
   style?: StyleProp<ViewStyle>;
 }
 
-export default function NextTravelCard({
-  Route,
-  Date,
-  Time,
+export default function PendingRequestCard({
+  passengerName,
+  pickupLocation,
+  destination,
+  dateLabel,
+  timeLabel,
   onPress,
   style,
-}: NextTravelCardProps) {
+}: PendingRequestCardProps) {
   return (
     <TouchableOpacity
       style={[styles.card, style]}
@@ -29,22 +33,28 @@ export default function NextTravelCard({
       onPress={onPress}
       disabled={!onPress}
     >
-      <Text style={styles.badgeText}>Programado</Text>
-      <Text style={styles.routeText} numberOfLines={2}>
-        {Route}
+      <View style={styles.badgeRow}>
+        <Text style={styles.badgeText}>Pendiente</Text>
+        <Text style={styles.passengerText} numberOfLines={1}>
+          {passengerName}
+        </Text>
+      </View>
+
+      <Text style={styles.routeLabel} numberOfLines={2}>
+        {pickupLocation} -> {destination}
       </Text>
 
       <View style={styles.infoRow}>
         <View style={styles.infoBlock}>
           <Text style={styles.infoLabel}>Fecha</Text>
-          <Text style={styles.infoValue}>{Date}</Text>
+          <Text style={styles.infoValue}>{dateLabel}</Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.infoBlock}>
           <Text style={styles.infoLabel}>Hora</Text>
-          <Text style={styles.infoValue}>{Time}</Text>
+          <Text style={styles.infoValue}>{timeLabel}</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -56,24 +66,37 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     minWidth: 240,
     borderRadius: 16,
-    backgroundColor: "#FDF8F5",
+    backgroundColor: "#F5FBFF",
     padding: 16,
     gap: 12,
     borderWidth: 1,
-    borderColor: "#FCE0D3",
+    borderColor: "#D8ECF7",
+  },
+  badgeRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
   },
   badgeText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 12,
     fontWeight: "600",
-    color: "#F97316",
-    backgroundColor: "#FFECE3",
+    color: "#046C9A",
+    backgroundColor: "#E0F2FF",
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 999,
-    alignSelf: "flex-start",
   },
-  routeText: {
+  passengerText: {
+    flex: 1,
+    textAlign: "right",
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    fontWeight: "500",
+    color: "#61758A",
+  },
+  routeLabel: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 16,
     fontWeight: "600",
@@ -91,7 +114,7 @@ const styles = StyleSheet.create({
   infoLabel: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 12,
-    color: "#9CA3AF",
+    color: "#8894A9",
     marginBottom: 4,
   },
   infoValue: {
@@ -103,6 +126,6 @@ const styles = StyleSheet.create({
   divider: {
     width: 1,
     height: "100%",
-    backgroundColor: "#FCE0D3",
+    backgroundColor: "#D8ECF7",
   },
 });

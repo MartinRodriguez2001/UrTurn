@@ -1,6 +1,15 @@
 import React from 'react';
-import MapView, { MapLongPressEvent, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import type { PassengerMapProps } from './PassengerMap.types';
+
+type MapGestureEvent = {
+    nativeEvent: {
+        coordinate: {
+            latitude: number;
+            longitude: number;
+        };
+    };
+};
 
 const PassengerMap: React.FC<PassengerMapProps> = ({
     style,
@@ -15,6 +24,17 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
 }) => {
     const mapRef = React.useRef<MapView | null>(null);
 
+    const selectCoordinate = React.useCallback(
+        ({ latitude, longitude }: { latitude: number; longitude: number }) => {
+            if (!allowManualSelection || !onSelectCoordinate) {
+                return;
+            }
+
+            onSelectCoordinate({ latitude, longitude });
+        },
+        [allowManualSelection, onSelectCoordinate],
+    );
+
     React.useEffect(() => {
         if (focusRegion && mapRef.current) {
             mapRef.current.animateToRegion(focusRegion, 600);
@@ -22,15 +42,17 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
     }, [focusRegion]);
 
     const handleMapLongPress = React.useCallback(
-        (event: MapLongPressEvent) => {
-            if (!allowManualSelection || !onSelectCoordinate) {
-                return;
-            }
-
-            const { latitude, longitude } = event.nativeEvent.coordinate;
-            onSelectCoordinate({ latitude, longitude });
+        (event: MapGestureEvent) => {
+            selectCoordinate(event.nativeEvent.coordinate);
         },
-        [allowManualSelection, onSelectCoordinate],
+        [selectCoordinate],
+    );
+
+    const handleMapPress = React.useCallback(
+        (event: MapGestureEvent) => {
+            selectCoordinate(event.nativeEvent.coordinate);
+        },
+        [selectCoordinate],
     );
 
     return (
@@ -45,6 +67,7 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
             showsIndoors={false}
             toolbarEnabled={false}
             onRegionChangeComplete={onRegionChangeComplete}
+            onPress={handleMapPress}
             onLongPress={handleMapLongPress}
             showsUserLocation={showsUserLocation}
         >

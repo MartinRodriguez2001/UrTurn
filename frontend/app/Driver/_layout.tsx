@@ -24,7 +24,7 @@ const router = useRouter()
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem} onPress={() => {}}>
-          <Text style={styles.navIcon}>⏰</Text>
+          <Text style={styles.navIcon}>📋</Text>
           <Text style={styles.navLabel}>Historial</Text>
         </TouchableOpacity>
         

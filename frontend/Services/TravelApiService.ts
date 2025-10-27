@@ -1,9 +1,15 @@
 import { ApiResponse } from "@/api";
 import {
+    PassengerConfirmedTravel,
+    PassengerRequestedTravel,
     TravelCreateData,
     TravelFilters,
+    TravelMatchRequestPayload,
+    TravelMatchResponse,
+    TravelRequestCreatePayload,
+    TravelRequestRecord,
     TravelResponse,
-    TravelsResponse
+    TravelsResponse,
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
 
@@ -54,24 +60,49 @@ class TravelApiService extends BaseApiService {
   }
 
   //  4. Obtener viajes del pasajero
-  async getPassengerTravels(): Promise<ApiResponse<{
-    requested: any[];
-    confirmed: any[];
-  }>> {
+  async getPassengerTravels(): Promise<
+    ApiResponse<{
+      data: {
+        requested: PassengerRequestedTravel[];
+        confirmed: PassengerConfirmedTravel[];
+      };
+    }>
+  > {
     return this.makeRequest('/travels/passenger', {
       method: 'GET'
     });
   }
 
+  //  4.5 Registrar solicitud sin viaje asignado
+  async createTravelRequest(
+    payload: TravelRequestCreatePayload
+  ): Promise<ApiResponse<{ request: TravelRequestRecord }>> {
+    return this.makeRequest<{ request: TravelRequestRecord }>('/travels/requests', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+  }
+
   //  5. Solicitar unirse a un viaje
-  async requestToJoinTravel(travelId: number, pickupLocation: string): Promise<ApiResponse<{
+  async requestToJoinTravel(
+    travelId: number,
+    pickupLocation: string,
+    pickupLatitude: number,
+    pickupLongitude: number,
+    pickupDate?: Date,
+    pickupTime?: Date
+  ): Promise<ApiResponse<{
     request: any;
     message: string;
   }>> {
     return this.makeRequest(`/travels/${travelId}/request`, {
       method: 'POST',
       body: JSON.stringify({
-        pickupLocation
+        pickupLocation,
+        pickupLatitude,
+        pickupLongitude,
+        pickupDate: pickupDate ? pickupDate.toISOString() : undefined,
+        pickupTime: pickupTime ? pickupTime.toISOString() : undefined
       })
     });
   }
@@ -128,6 +159,15 @@ class TravelApiService extends BaseApiService {
   async searchTravelsByLocation(query: string): Promise<ApiResponse<TravelsResponse>> {
     return this.makeRequest<TravelsResponse>(`/travels/search?query=${encodeURIComponent(query)}`, {
       method: 'GET'
+    });
+  }
+
+  async matchTravelsForPassenger(
+    payload: TravelMatchRequestPayload
+  ): Promise<ApiResponse<TravelMatchResponse>> {
+    return this.makeRequest<TravelMatchResponse>('/travels/matching', {
+      method: 'POST',
+      body: JSON.stringify(payload)
     });
   }
 }

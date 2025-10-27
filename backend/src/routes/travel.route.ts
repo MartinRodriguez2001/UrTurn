@@ -30,6 +30,19 @@ router.post(
   travelController.createTravel.bind(travelController)
 );
 
+// POST /api/travels/requests - Registrar solicitud sin viaje asignado
+router.post(
+  "/requests",
+  authenticateToken,
+  travelController.createOpenTravelRequest.bind(travelController)
+);
+
+router.post(
+  "/matching",
+  authenticateToken,
+  travelController.findMatchingTravels.bind(travelController)
+);
+
 // GET /api/travels/driver - Obtener viajes del conductor autenticado
 router.get(
   "/driver",

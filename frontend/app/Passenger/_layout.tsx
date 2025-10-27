@@ -23,8 +23,8 @@ export default function PassengerLayout() {
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>🎒</Text>
-          <Text style={styles.navLabel}>Mis Viajes</Text>
+          <Text style={styles.navIcon}>📋</Text>
+          <Text style={styles.navLabel}>Historial</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem}>

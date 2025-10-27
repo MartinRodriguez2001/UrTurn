@@ -62,12 +62,25 @@ model User {
 
 model Travel {
   id Int @id @default(autoincrement())
-  start_location String
-  end_location String
+
+  // Ubicación de inicio
+  start_location_name String?           // Nombre legible: "Campus Universidad"
+  start_latitude Float
+  start_longitude Float
+
+  // Ubicación de destino
+  end_location_name String?             // Nombre legible: "Metro Los Leones"
+  end_latitude Float
+  end_longitude Float
+
+  route_waypoints Json?
+  planned_stops Json?
+
   capacity Int
   price Float
+  travel_date DateTime
   start_time DateTime
-  end_time DateTime
+  end_time DateTime? 
   spaces_available Int
   status TravelStatus @default(pendiente)
 
@@ -119,9 +132,21 @@ model Review {
 model TravelRequest {
   id Int @id @default(autoincrement())
 
-  travelId Int
-  travel Travel @relation(fields: [travelId], references: [id])
-  location String
+  travelId Int?
+  travel   Travel? @relation(fields: [travelId], references: [id])
+  
+  // Ubicación de inicio
+  start_location_name String?           // Nombre legible: "Campus Universidad"
+  start_latitude Float
+  start_longitude Float
+
+  // Ubicación de destino
+  end_location_name String?             // Nombre legible: "Metro Los Leones"
+  end_latitude Float
+  end_longitude Float
+  
+  pickup_date DateTime?
+  pickup_time DateTime?
   status RequestStatus @default(pendiente)
 
 
@@ -155,5 +180,3 @@ model Report {
   description String
   date DateTime @default(now())
 }
-
-

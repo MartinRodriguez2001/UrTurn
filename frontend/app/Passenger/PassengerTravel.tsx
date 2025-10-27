@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
     Image,
+    Linking,
     Modal,
     SafeAreaView,
     ScrollView,
@@ -16,10 +17,9 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
-type Passenger = {
+type DriverInfo = {
   id: string | number;
   name: string;
-  role?: string;
   avatar?: string | null;
   phone?: string | null;
 };
@@ -58,6 +58,13 @@ const DEFAULT_TRAVEL: TravelParam = {
   price: 1000,
   route_waypoints: DEFAULT_ROUTE,
   planned_stops: null,
+};
+
+const DEFAULT_DRIVER: DriverInfo = {
+  id: 1,
+  name: "Conductor",
+  avatar: null,
+  phone: null,
 };
 
 const DEFAULT_REGION = {
@@ -131,11 +138,12 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-export default function DriverTravel() {
+export default function PassengerTravel() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     travel?: string;
     passengers?: string;
+    driver?: string;
   }>();
   const googleMapsApiKey = useMemo(
     () => resolveGoogleMapsApiKey()?.trim(),
@@ -147,13 +155,14 @@ export default function DriverTravel() {
     [params.travel]
   );
 
-  const passengersFromParams = useMemo(
-    () => parseJSONParam<Passenger[]>(params.passengers),
-    [params.passengers]
+  const driverFromParams = useMemo(
+    () => parseJSONParam<DriverInfo>(params.driver),
+    [params.driver]
   );
 
   const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
-  const passengers: Passenger[] = passengersFromParams ?? [];
+  const driver: DriverInfo = driverFromParams ?? DEFAULT_DRIVER;
+  const contactPhone = useMemo(() => driver.phone?.replace(/\s+/g, ""), [driver.phone]);
 
   const startCoordinate = useMemo(() => {
     const latitude = toNumber(travel.start_latitude);
@@ -412,30 +421,34 @@ export default function DriverTravel() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pasajeros confirmados</Text>
-          {passengers.map((passenger) => (
-            <View key={passenger.id} style={styles.passengerRow}>
-              {passenger.avatar ? (
-                <Image source={{ uri: passenger.avatar }} style={styles.passengerAvatar} />
-              ) : (
-                <View style={styles.passengerFallbackAvatar}>
-                  <Text style={styles.passengerInitials}>{getInitials(passenger.name)}</Text>
-                </View>
-              )}
-              <View style={styles.passengerInfo}>
-                <Text style={styles.passengerName}>{passenger.name}</Text>
-                <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
+          <Text style={styles.sectionTitle}>Conductor</Text>
+          <View style={styles.driverRow}>
+            {driver.avatar ? (
+              <Image source={{ uri: driver.avatar }} style={styles.driverAvatar} />
+            ) : (
+              <View style={styles.driverFallbackAvatar}>
+                <Text style={styles.driverInitials}>{getInitials(driver.name)}</Text>
               </View>
-              <TouchableOpacity style={styles.contactButton} activeOpacity={0.85}>
-                <Text style={styles.contactButtonText}>Contactar</Text>
-              </TouchableOpacity>
+            )}
+            <View style={styles.driverInfo}>
+              <Text style={styles.driverName}>{driver.name}</Text>
+              <Text style={styles.driverPhone}>
+                {driver.phone ? `Teléfono: ${driver.phone}` : "Teléfono no disponible"}
+              </Text>
             </View>
-          ))}
-          {!passengers.length ? (
-            <Text style={styles.emptyStateText}>
-              Aún no se confirman pasajeros para este viaje.
-            </Text>
-          ) : null}
+            <TouchableOpacity
+              style={[styles.contactButton, !contactPhone && styles.contactButtonDisabled]}
+              activeOpacity={contactPhone ? 0.85 : 1}
+              onPress={contactPhone ? () => Linking.openURL(`tel:${contactPhone}`) : undefined}
+              disabled={!contactPhone}
+            >
+              <Text
+                style={[styles.contactButtonText, !contactPhone && styles.contactButtonTextDisabled]}
+              >
+                Contactar
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -458,16 +471,6 @@ export default function DriverTravel() {
           </View>
         </View>
       </Modal>
-
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.9}
-          onPress={() => router.push("/Driver/DriverOnTravel")}
-        >
-          <Text style={styles.primaryButtonText}>Empezar viaje</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -502,7 +505,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-    paddingBottom: 140,
+    paddingBottom: 80,
     gap: 20,
   },
   mapCard: {
@@ -579,18 +582,18 @@ const styles = StyleSheet.create({
     color: "#61758A",
     marginTop: 2,
   },
-  passengerRow: {
+  driverRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
     paddingVertical: 8,
   },
-  passengerAvatar: {
+  driverAvatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
   },
-  passengerFallbackAvatar: {
+  driverFallbackAvatar: {
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -598,22 +601,22 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  passengerInitials: {
+  driverInitials: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "700",
     fontSize: 16,
     color: "#F97316",
   },
-  passengerInfo: {
+  driverInfo: {
     flex: 1,
   },
-  passengerName: {
+  driverName: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "600",
     fontSize: 16,
     color: "#121417",
   },
-  passengerRole: {
+  driverPhone: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
     color: "#61758A",
@@ -625,40 +628,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
   },
+  contactButtonDisabled: {
+    backgroundColor: "#F3F4F6",
+  },
   contactButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "600",
     fontSize: 14,
     color: "#F97316",
   },
-  emptyStateText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 14,
+  contactButtonTextDisabled: {
     color: "#9CA3AF",
-    marginTop: 8,
-  },
-  footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: "rgba(255,255,255,0.95)",
-    borderTopWidth: 1,
-    borderTopColor: "#F0F2F5",
-  },
-  primaryButton: {
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: "#F99F7C",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  primaryButtonText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "700",
-    fontSize: 16,
-    color: "#FFFFFF",
   },
   marker: {
     width: 32,
