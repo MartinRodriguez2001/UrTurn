@@ -1,6 +1,5 @@
-import travelApiService from '@/Services/TravelApiService';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+﻿import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useMemo } from 'react';
 import {
     Alert,
     SafeAreaView,
@@ -24,7 +23,6 @@ interface Review {
 export default function PassengerDriverProfile() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const [isRequesting, setIsRequesting] = useState(false);
 
     const getParamValue = (value: string | string[] | undefined) =>
         Array.isArray(value) ? value[0] : value;
@@ -46,6 +44,14 @@ export default function PassengerDriverProfile() {
         getParamValue(params.dropoffLongitude) ?? destinationLngParam;
     const travelIdParam = getParamValue(params.travelId);
     const travelId = travelIdParam ? Number(travelIdParam) : NaN;
+    const priceValueParam = getParamValue(params.priceValue);
+    const driverPhone = getParamValue(params.driverPhone) ?? '';
+    const driverRatingParam = getParamValue(params.driverRating);
+    const spacesAvailableParam = getParamValue(params.spacesAvailable);
+    const startTimeParam = getParamValue(params.startTime);
+    const additionalMinutesParam = getParamValue(params.additionalMinutes);
+    const additionalDistanceParam = getParamValue(params.additionalDistanceKm);
+    const routeWaypointsParam = getParamValue(params.routeWaypoints);
 
     const pickupLatitude = pickupLatitudeParam ? Number(pickupLatitudeParam) : NaN;
     const pickupLongitude = pickupLongitudeParam ? Number(pickupLongitudeParam) : NaN;
@@ -83,7 +89,7 @@ export default function PassengerDriverProfile() {
         return parsed;
     }, [pickupTimeValue, pickupDateDate]);
 
-    const handleRequestRide = async () => {
+    const handleRequestRide = () => {
         if (Number.isNaN(travelId)) {
             Alert.alert('Información incompleta', 'No se pudo determinar el viaje a solicitar.');
             return;
@@ -127,35 +133,31 @@ export default function PassengerDriverProfile() {
             return;
         }
 
-        try {
-            setIsRequesting(true);
-            const response = await travelApiService.requestToJoinTravel(
-                travelId,
+        router.push({
+            pathname: "/Passenger/PassengerConfirmation",
+            params: {
+                travelId: travelId.toString(),
                 pickupLocation,
-                pickupLatitude,
-                pickupLongitude,
+                pickupLatitude: pickupLatitude.toString(),
+                pickupLongitude: pickupLongitude.toString(),
                 dropoffLocation,
-                dropoffLatitude,
-                dropoffLongitude,
-                pickupDateDate,
-                pickupTimeDate
-            );
-
-            if (response.success) {
-                Alert.alert('Solicitud enviada', response.message ?? 'Tu solicitud fue enviada correctamente.');
-                router.push("/Passenger/PassengerConfirmRider");
-            } else {
-                Alert.alert('No se pudo enviar', response.message ?? 'Intenta nuevamente en unos minutos.');
-            }
-        } catch (error) {
-            console.error('Error al solicitar viaje:', error);
-            Alert.alert(
-                'Error',
-                'No pudimos enviar tu solicitud en este momento. Verifica tu conexión e inténtalo nuevamente.'
-            );
-        } finally {
-            setIsRequesting(false);
-        }
+                dropoffLatitude: dropoffLatitude.toString(),
+                dropoffLongitude: dropoffLongitude.toString(),
+                pickupDate: pickupDateDate.toISOString(),
+                pickupTime: pickupTimeDate.toISOString(),
+                price,
+                priceValue: priceValueParam ?? '',
+                driverName,
+                driverPhone,
+                driverRating: driverRatingParam ?? '',
+                spacesAvailable: spacesAvailableParam ?? '',
+                startTime: startTimeParam ?? '',
+                vehicle: vehicleType,
+                additionalMinutes: additionalMinutesParam ?? '',
+                additionalDistanceKm: additionalDistanceParam ?? '',
+                routeWaypoints: routeWaypointsParam ?? '',
+            },
+        });
     };
     
     // Get driver info from params or use default
@@ -241,7 +243,7 @@ export default function PassengerDriverProfile() {
                     style={styles.backButton}
                     onPress={() => router.back()}
                 >
-                    <Text style={styles.backIcon}>←</Text>
+                    <Text style={styles.backIcon}>â†</Text>
                 </TouchableOpacity>
                 
                 <View style={styles.titleContainer}>
@@ -354,12 +356,11 @@ export default function PassengerDriverProfile() {
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
-                    style={[styles.requestButton, isRequesting ? styles.requestButtonDisabled : null]}
+                    style={styles.requestButton}
                     onPress={handleRequestRide}
-                    disabled={isRequesting}
                 >
                     <Text style={styles.requestButtonText}>
-                        {isRequesting ? 'Solicitando...' : 'Solicitar viaje'}
+                        Revisar detalles
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.messageButton}>
@@ -680,9 +681,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 20,
-    },
-    requestButtonDisabled: {
-        opacity: 0.6,
     },
     requestButtonText: {
         fontFamily: 'Plus Jakarta Sans',

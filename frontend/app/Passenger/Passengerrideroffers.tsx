@@ -201,7 +201,16 @@ export default function PassengerRiderOffers() {
               name: match.driver.name,
               vehicle: vehicleLabel,
               price: priceLabel,
+              priceValue: match.price.toString(),
+              driverId: match.driver.id.toString(),
+              driverPhone: match.driver.phone_number ?? "",
+              driverRating:
+                match.driver.rating !== null
+                  ? match.driver.rating.toString()
+                  : "",
               travelId: match.travelId.toString(),
+              spacesAvailable: match.spacesAvailable.toString(),
+              startTime: match.startTime,
               pickupDate: pickupDateParam ?? "",
               pickupTime: pickupTimeParam ?? "",
               pickupLocation: pickupLocationParam,
@@ -214,6 +223,7 @@ export default function PassengerRiderOffers() {
               additionalMinutes: match.summary.additionalMinutes.toString(),
               additionalDistanceKm:
                 match.summary.additionalDistanceKm.toString(),
+              routeWaypoints: JSON.stringify(match.originalRoute ?? []),
             },
           })
         }
