@@ -368,21 +368,21 @@ export default function RequestTravelDriver() {
     { id: "time", title: departureTime, subtitle: "Hora de salida", icon: "clock" as const },
   ];
 
-  const renderRouteMap = (interactive: boolean) => (
+  const mapRegionKey = `${mapRegion.latitude}-${mapRegion.longitude}-${mapRegion.latitudeDelta}-${mapRegion.longitudeDelta}`;
+
+  const renderRouteMap = (mode: "preview" | "fullscreen") => (
     <MapView
-      key={`${mapRegion.latitude}-${mapRegion.longitude}-${mapRegion.latitudeDelta}`}
+      key={`${mode}-${mapRegionKey}`}
       style={styles.map}
       provider={PROVIDER_GOOGLE}
       initialRegion={mapRegion}
-      region={interactive ? undefined : mapRegion}
-      scrollEnabled={interactive}
-      zoomEnabled={interactive}
-      rotateEnabled={interactive}
-      pitchEnabled={interactive}
       showsBuildings
-      showsCompass={interactive}
-      toolbarEnabled={interactive}
-      pointerEvents={interactive ? "auto" : "none"}
+      showsCompass={mode === "fullscreen"}
+      toolbarEnabled={mode === "fullscreen"}
+      scrollEnabled
+      zoomEnabled
+      rotateEnabled={mode === "fullscreen"}
+      pitchEnabled={mode === "fullscreen"}
     >
       {travelPolyline.length >= 2 ? (
         <Polyline
@@ -525,18 +525,18 @@ export default function RequestTravelDriver() {
           </View>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.95}
-          style={styles.mapContainer}
-          onPress={() => setIsMapExpanded(true)}
-          accessibilityRole="button"
-        >
-          {renderRouteMap(false)}
-          <View style={styles.expandHint}>
+        <View style={styles.mapContainer}>
+          {renderRouteMap("preview")}
+          <TouchableOpacity
+            style={styles.expandHint}
+            onPress={() => setIsMapExpanded(true)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
             <Feather name="maximize" size={16} color="#FFFFFF" />
             <Text style={styles.expandHintText}>Ver mapa completo</Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
         
         {details.map((detail) => (
           <View style={styles.infoSection} key={detail.id}>
@@ -582,7 +582,7 @@ export default function RequestTravelDriver() {
       >
         <View style={styles.fullscreenMapOverlay}>
           <View style={styles.fullscreenMapWrapper}>
-            {renderRouteMap(true)}
+            {renderRouteMap("fullscreen")}
             <TouchableOpacity
               style={styles.closeMapButton}
               onPress={() => setIsMapExpanded(false)}
