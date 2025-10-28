@@ -3,26 +3,26 @@ import PendingRequestCard from "@/components/driverComps/PendingRequestCard";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import travelApiService from "@/Services/TravelApiService";
 import {
-  ProcessedTravel,
-  Summary,
-  TravelCoordinate,
-  TravelPassenger,
-  TravelPlannedStop,
-  TravelStatus,
+    ProcessedTravel,
+    Summary,
+    TravelCoordinate,
+    TravelPassenger,
+    TravelPlannedStop,
+    TravelStatus,
 } from "@/types/travel";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  FlatList,
-  Modal,
-  RefreshControl,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    FlatList,
+    Modal,
+    RefreshControl,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export interface DriverTravelsListResponse {
@@ -64,6 +64,9 @@ type PendingRequestItem = {
   pickupLatitude?: number | null;
   pickupLongitude?: number | null;
   destination: string;
+  dropoffLocation: string;
+  dropoffLatitude?: number | null;
+  dropoffLongitude?: number | null;
   confirmedPassengers: PassengerParam[];
 };
 
@@ -209,9 +212,13 @@ export default function DriverHomePage() {
           "Origen por definir";
 
         const destination =
+          passenger.end_location_name ??
           travel.end_location_name ??
           travel.end_location ??
           "Destino por definir";
+
+        const dropoffLatitude = passenger.end_latitude ?? travel.end_latitude ?? null;
+        const dropoffLongitude = passenger.end_longitude ?? travel.end_longitude ?? null;
 
         return {
           travel,
@@ -221,6 +228,9 @@ export default function DriverHomePage() {
           pickupLatitude: passenger.start_latitude ?? null,
           pickupLongitude: passenger.start_longitude ?? null,
           destination,
+          dropoffLocation: destination,
+          dropoffLatitude,
+          dropoffLongitude,
           confirmedPassengers: mapConfirmedPassengers(travel),
         };
       });
@@ -307,6 +317,9 @@ export default function DriverHomePage() {
       pickupLatitude: request.pickupLatitude,
       pickupLongitude: request.pickupLongitude,
       destination: request.destination,
+  dropoffLocation: request.dropoffLocation,
+  dropoffLatitude: request.dropoffLatitude ?? null,
+  dropoffLongitude: request.dropoffLongitude ?? null,
       travelId: request.travel.id,
       startTime: request.travel.start_time,
       travel: request.travelPayload,

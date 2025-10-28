@@ -50,6 +50,9 @@ export interface TravelPassenger {
   start_location_name?: string | null;
   start_latitude?: number;
   start_longitude?: number;
+  end_location_name?: string | null;
+  end_latitude?: number;
+  end_longitude?: number;
   status: TravelPassengerStatus;
 }
 
