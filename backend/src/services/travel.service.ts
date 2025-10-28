@@ -316,11 +316,18 @@ export class TravelService {
     const normalizedStartDate = new Date(startTime);
     normalizedStartDate.setHours(0, 0, 0, 0);
 
-    if (normalizedTravelDate.getTime() !== normalizedStartDate.getTime()) {
+    const maxDifferenceMs = 30 * 24 * 60 * 60 * 1000;
+    if (
+      Math.abs(
+        normalizedTravelDate.getTime() - normalizedStartDate.getTime()
+      ) > maxDifferenceMs
+    ) {
       throw new Error(
-        "La fecha del viaje debe coincidir con la fecha de inicio del viaje"
+        "La fecha del viaje no puede estar a más de 30 días de la fecha de inicio"
       );
     }
+
+    travelData.travel_date = normalizedTravelDate;
   }
 
   private async validateNoOverlappingTravels(

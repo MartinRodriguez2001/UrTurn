@@ -157,15 +157,62 @@ export class TravelController {
         endTime = parsedEnd;
       }
 
+      const parseTravelDate = (value: string): Date => {
+        const trimmed = value.trim();
+
+        if (!trimmed) {
+          throw new Error("La fecha del viaje es inválida");
+        }
+
+        const dateOnlyMatch = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+        if (dateOnlyMatch) {
+          const [, yearStr, monthStr, dayStr] = dateOnlyMatch;
+          const year = Number(yearStr);
+          const month = Number(monthStr);
+          const day = Number(dayStr);
+
+          if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+            throw new Error("La fecha del viaje es inválida");
+          }
+
+          if (month < 1 || month > 12 || day < 1 || day > 31) {
+            throw new Error("La fecha del viaje es inválida");
+          }
+
+          const parsed = new Date(year, month - 1, day);
+          if (Number.isNaN(parsed.getTime())) {
+            throw new Error("La fecha del viaje es inválida");
+          }
+
+          parsed.setHours(0, 0, 0, 0);
+          return parsed;
+        }
+
+        const parsed = new Date(trimmed);
+        if (Number.isNaN(parsed.getTime())) {
+          throw new Error("La fecha del viaje es inválida");
+        }
+
+        parsed.setHours(0, 0, 0, 0);
+        return parsed;
+      };
+
       const rawTravelDate = pickString("travel_date", "travelDate");
-      const travelDate = rawTravelDate ? new Date(rawTravelDate) : new Date(startTime);
-      if (Number.isNaN(travelDate.getTime())) {
-        return res.status(400).json({
-          success: false,
-          message: "La fecha del viaje es inválida"
-        });
+      let travelDate: Date;
+
+      if (rawTravelDate) {
+        try {
+          travelDate = parseTravelDate(rawTravelDate);
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: error instanceof Error ? error.message : "La fecha del viaje es inválida"
+          });
+        }
+      } else {
+        travelDate = new Date(startTime);
+        travelDate.setHours(0, 0, 0, 0);
       }
-      travelDate.setHours(0, 0, 0, 0);
 
       const resolveRouteWaypoints = (
         input: unknown
