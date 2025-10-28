@@ -424,7 +424,12 @@ export class TravelController {
       }
 
       const travelId = parseInt(req.params.id || "");
-      const { pickupLocation, pickupDate, pickupTime } = req.body ?? {};
+      const {
+        pickupLocation,
+        pickupDate,
+        pickupTime,
+        dropoffLocation,
+      } = req.body ?? {};
 
       const parseCoordinate = (value: unknown): number | undefined => {
         if (value === undefined || value === null) {
@@ -440,6 +445,12 @@ export class TravelController {
       const pickupLongitude =
         parseCoordinate(req.body?.pickup_longitude) ??
         parseCoordinate(req.body?.pickupLongitude);
+      const dropoffLatitude =
+        parseCoordinate(req.body?.dropoff_latitude) ??
+        parseCoordinate(req.body?.dropoffLatitude);
+      const dropoffLongitude =
+        parseCoordinate(req.body?.dropoff_longitude) ??
+        parseCoordinate(req.body?.dropoffLongitude);
 
       if (pickupDate && typeof pickupDate !== "string") {
         return res.status(400).json({
@@ -462,6 +473,13 @@ export class TravelController {
         });
       }
 
+      if (!dropoffLocation?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "La ubicación de destino es requerida"
+        });
+      }
+
       if (pickupLatitude === undefined || Math.abs(pickupLatitude) > 90) {
         return res.status(400).json({
           success: false,
@@ -473,6 +491,20 @@ export class TravelController {
         return res.status(400).json({
           success: false,
           message: "La longitud de recogida es inválida"
+        });
+      }
+
+      if (dropoffLatitude === undefined || Math.abs(dropoffLatitude) > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "La latitud de destino es inválida"
+        });
+      }
+
+      if (dropoffLongitude === undefined || Math.abs(dropoffLongitude) > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "La longitud de destino es inválida"
         });
       }
 
@@ -516,6 +548,9 @@ export class TravelController {
         pickupLocation,
         pickupLatitude,
         pickupLongitude,
+        dropoffLocation,
+        dropoffLatitude,
+        dropoffLongitude,
         parsedPickupDate,
         parsedPickupTime
       );

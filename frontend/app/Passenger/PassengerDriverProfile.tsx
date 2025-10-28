@@ -36,11 +36,21 @@ export default function PassengerDriverProfile() {
         getParamValue(params.pickupLatitude) ?? getParamValue(params.originLat);
     const pickupLongitudeParam =
         getParamValue(params.pickupLongitude) ?? getParamValue(params.originLng);
+    const destinationLatParam = getParamValue(params.destinationLat);
+    const destinationLngParam = getParamValue(params.destinationLng);
+    const dropoffLocation =
+        getParamValue(params.dropoffLocation) ?? getParamValue(params.destination) ?? '';
+    const dropoffLatitudeParam =
+        getParamValue(params.dropoffLatitude) ?? destinationLatParam;
+    const dropoffLongitudeParam =
+        getParamValue(params.dropoffLongitude) ?? destinationLngParam;
     const travelIdParam = getParamValue(params.travelId);
     const travelId = travelIdParam ? Number(travelIdParam) : NaN;
 
     const pickupLatitude = pickupLatitudeParam ? Number(pickupLatitudeParam) : NaN;
     const pickupLongitude = pickupLongitudeParam ? Number(pickupLongitudeParam) : NaN;
+    const dropoffLatitude = dropoffLatitudeParam ? Number(dropoffLatitudeParam) : NaN;
+    const dropoffLongitude = dropoffLongitudeParam ? Number(dropoffLongitudeParam) : NaN;
 
     const pickupDateDate = useMemo(() => {
         if (!pickupDateValue) {
@@ -92,6 +102,11 @@ export default function PassengerDriverProfile() {
             return;
         }
 
+        if (!dropoffLocation.trim()) {
+            Alert.alert('Selecciona un destino', 'Debes elegir una ubicación de destino antes de solicitar.');
+            return;
+        }
+
         if (!Number.isFinite(pickupLatitude) || Math.abs(pickupLatitude) > 90) {
             Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de recogida. Selecciona una ubicación válida.');
             return;
@@ -102,6 +117,16 @@ export default function PassengerDriverProfile() {
             return;
         }
 
+        if (!Number.isFinite(dropoffLatitude) || Math.abs(dropoffLatitude) > 90) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de destino. Selecciona una ubicación válida.');
+            return;
+        }
+
+        if (!Number.isFinite(dropoffLongitude) || Math.abs(dropoffLongitude) > 180) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de destino. Selecciona una ubicación válida.');
+            return;
+        }
+
         try {
             setIsRequesting(true);
             const response = await travelApiService.requestToJoinTravel(
@@ -109,6 +134,9 @@ export default function PassengerDriverProfile() {
                 pickupLocation,
                 pickupLatitude,
                 pickupLongitude,
+                dropoffLocation,
+                dropoffLatitude,
+                dropoffLongitude,
                 pickupDateDate,
                 pickupTimeDate
             );

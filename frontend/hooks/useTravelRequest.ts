@@ -6,6 +6,9 @@ interface TravelRequestParams {
   pickupLocation: string;
   pickupLatitude: number;
   pickupLongitude: number;
+  dropoffLocation: string;
+  dropoffLatitude: number;
+  dropoffLongitude: number;
   pickupDate?: Date;
   pickupTime?: Date;
 }
@@ -20,6 +23,9 @@ export const useTravelRequest = () => {
     pickupLocation,
     pickupLatitude,
     pickupLongitude,
+    dropoffLocation,
+    dropoffLatitude,
+    dropoffLongitude,
     pickupDate,
     pickupTime
   }: TravelRequestParams) => {
@@ -32,6 +38,7 @@ export const useTravelRequest = () => {
       console.log('📋 Parámetros recibidos:', {
         travelId,
         pickupLocation,
+        dropoffLocation,
         pickupDate: pickupDate?.toISOString(),
         pickupTime: pickupTime?.toISOString(),
       });
@@ -47,6 +54,31 @@ export const useTravelRequest = () => {
         throw new Error('La ubicación de recogida es requerida');
       }
 
+      if (!dropoffLocation || dropoffLocation.trim() === '') {
+        console.log('❌ useTravelRequest: Ubicación de destino vacía');
+        throw new Error('La ubicación de destino es requerida');
+      }
+
+      if (!Number.isFinite(pickupLatitude) || Math.abs(pickupLatitude) > 90) {
+        console.log('❌ useTravelRequest: Latitud de recogida inválida');
+        throw new Error('La latitud de recogida es inválida');
+      }
+
+      if (!Number.isFinite(pickupLongitude) || Math.abs(pickupLongitude) > 180) {
+        console.log('❌ useTravelRequest: Longitud de recogida inválida');
+        throw new Error('La longitud de recogida es inválida');
+      }
+
+      if (!Number.isFinite(dropoffLatitude) || Math.abs(dropoffLatitude) > 90) {
+        console.log('❌ useTravelRequest: Latitud de destino inválida');
+        throw new Error('La latitud de destino es inválida');
+      }
+
+      if (!Number.isFinite(dropoffLongitude) || Math.abs(dropoffLongitude) > 180) {
+        console.log('❌ useTravelRequest: Longitud de destino inválida');
+        throw new Error('La longitud de destino es inválida');
+      }
+
       console.log('✅ useTravelRequest: Validaciones previas pasadas');
       console.log('📡 useTravelRequest: Enviando solicitud al backend...');
 
@@ -55,6 +87,9 @@ export const useTravelRequest = () => {
         pickupLocation,
         pickupLatitude,
         pickupLongitude,
+        dropoffLocation,
+        dropoffLatitude,
+        dropoffLongitude,
         pickupDate,
         pickupTime
       );

@@ -3,13 +3,13 @@ import type { TravelMatchAppliedConfig, TravelMatchResult } from "@/types/travel
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 const MAX_RESULTS = 10;
@@ -208,6 +208,9 @@ export default function PassengerRiderOffers() {
               requestId: requestIdParam,
               pickupLatitude: pickupLatitude?.toString() ?? "",
               pickupLongitude: pickupLongitude?.toString() ?? "",
+              dropoffLocation: destinationNameParam,
+              dropoffLatitude: dropoffLatitude?.toString() ?? "",
+              dropoffLongitude: dropoffLongitude?.toString() ?? "",
               additionalMinutes: match.summary.additionalMinutes.toString(),
               additionalDistanceKm:
                 match.summary.additionalDistanceKm.toString(),

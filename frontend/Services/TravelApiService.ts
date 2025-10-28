@@ -89,6 +89,9 @@ class TravelApiService extends BaseApiService {
     pickupLocation: string,
     pickupLatitude: number,
     pickupLongitude: number,
+    dropoffLocation: string,
+    dropoffLatitude: number,
+    dropoffLongitude: number,
     pickupDate?: Date,
     pickupTime?: Date
   ): Promise<ApiResponse<{
@@ -101,6 +104,9 @@ class TravelApiService extends BaseApiService {
         pickupLocation,
         pickupLatitude,
         pickupLongitude,
+        dropoffLocation,
+        dropoffLatitude,
+        dropoffLongitude,
         pickupDate: pickupDate ? pickupDate.toISOString() : undefined,
         pickupTime: pickupTime ? pickupTime.toISOString() : undefined
       })
