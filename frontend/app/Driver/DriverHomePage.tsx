@@ -3,26 +3,26 @@ import PendingRequestCard from "@/components/driverComps/PendingRequestCard";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import travelApiService from "@/Services/TravelApiService";
 import {
-    ProcessedTravel,
-    Summary,
-    TravelCoordinate,
-    TravelPassenger,
-    TravelPlannedStop,
-    TravelStatus,
+  ProcessedTravel,
+  Summary,
+  TravelCoordinate,
+  TravelPassenger,
+  TravelPlannedStop,
+  TravelStatus,
 } from "@/types/travel";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    ActivityIndicator,
-    FlatList,
-    Modal,
-    RefreshControl,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export interface DriverTravelsListResponse {
