@@ -5,15 +5,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Image,
-    Linking,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -323,7 +323,7 @@ export default function PassengerTravel() {
       value: travel.start_location_name ?? "Por confirmar",
     },
     {
-      icon: "navigation" as const,
+      icon: "flag" as const,
       label: "Destino",
       value: travel.end_location_name ?? "Por confirmar",
     },

@@ -398,7 +398,7 @@ export default function RequestTravelDriver() {
 
   const details = [
     { id: "origin", title: "Origen", subtitle: pickupLocation, icon: "map-pin" as const },
-    { id: "destination", title: "Destino", subtitle: destination, icon: "navigation" as const },
+    { id: "destination", title: "Destino", subtitle: destination, icon: "flag" as const },
     { id: "date", title: "Fecha", subtitle: departureDate, icon: "calendar" as const },
     { id: "time", title: "Hora de salida", subtitle: departureTime, icon: "clock" as const },
   ];

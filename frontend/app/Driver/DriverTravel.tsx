@@ -67,6 +67,17 @@ const DEFAULT_REGION = {
   longitudeDelta: 0.09,
 };
 
+const STOP_TYPES_TO_IGNORE: ReadonlyArray<TravelPlannedStop["type"]> = ["start", "end"];
+const COORDINATE_EPSILON = 1e-5;
+
+const isSameCoordinate = (reference: TravelCoordinate | null, candidate: TravelCoordinate) => {
+  if (!reference) return false;
+  return (
+    Math.abs(reference.latitude - candidate.latitude) <= COORDINATE_EPSILON &&
+    Math.abs(reference.longitude - candidate.longitude) <= COORDINATE_EPSILON
+  );
+};
+
 const parseJSONParam = <T,>(raw?: string | string[]) => {
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (!value) return null;
@@ -169,24 +180,71 @@ export default function DriverTravel() {
     return { latitude, longitude };
   }, [travel.end_latitude, travel.end_longitude]);
 
-  const stopCoordinates = useMemo<TravelCoordinate[]>(() => {
-    const plannedStops = Array.isArray(travel.planned_stops)
-      ? travel.planned_stops
-      : [];
+  const passengerStops = useMemo(
+    () => {
+      if (!Array.isArray(travel.planned_stops)) {
+        return [] as { coordinate: TravelCoordinate; label: string | null }[];
+      }
 
-    const normalizedStops = plannedStops
-      .map((stop) => {
-        const latitude = toNumber(stop.latitude);
-        const longitude = toNumber(stop.longitude);
-        if (latitude === null || longitude === null) {
-          return null;
-        }
-        return { latitude, longitude };
-      })
-      .filter(Boolean) as TravelCoordinate[];
+      return travel.planned_stops.reduce<{ coordinate: TravelCoordinate; label: string | null }[]>(
+        (accumulator, stop) => {
+          const latitude = toNumber(stop.latitude);
+          const longitude = toNumber(stop.longitude);
+          if (latitude === null || longitude === null) {
+            return accumulator;
+          }
 
-    return normalizedStops;
-  }, [travel.planned_stops]);
+          const coordinate = { latitude, longitude };
+          const stopType = stop.type;
+
+          const shouldIgnoreType =
+            typeof stopType === "string" &&
+            STOP_TYPES_TO_IGNORE.includes(stopType as TravelPlannedStop["type"]);
+
+          if (shouldIgnoreType) {
+            return accumulator;
+          }
+
+          if (isSameCoordinate(startCoordinate, coordinate) || isSameCoordinate(endCoordinate, coordinate)) {
+            return accumulator;
+          }
+
+          let label: string | null = null;
+
+          if (stop && typeof stop === "object") {
+            const s = stop as unknown as Record<string, unknown>;
+            const locationName = s["locationName"];
+            if (typeof locationName === "string" && locationName.trim().length) {
+              label = locationName;
+            } else {
+              const legacyLocationName = s["location_name"];
+              if (
+                typeof legacyLocationName === "string" &&
+                legacyLocationName.trim().length
+              ) {
+                label = legacyLocationName;
+              } else {
+                const fallbackName = s["name"];
+                if (typeof fallbackName === "string" && fallbackName.trim().length) {
+                  label = fallbackName;
+                }
+              }
+            }
+          }
+
+          accumulator.push({ coordinate, label });
+          return accumulator;
+        },
+        []
+      );
+    },
+    [endCoordinate, startCoordinate, travel.planned_stops]
+  );
+
+  const stopCoordinates = useMemo<TravelCoordinate[]>(
+    () => passengerStops.map((stop) => stop.coordinate),
+    [passengerStops]
+  );
 
   const routeCoordinates = useMemo<TravelCoordinate[]>(() => {
     const waypoints =
@@ -314,7 +372,7 @@ export default function DriverTravel() {
       value: travel.start_location_name ?? "Por confirmar",
     },
     {
-      icon: "navigation" as const,
+      icon: "flag" as const,
       label: "Destino",
       value: travel.end_location_name ?? "Por confirmar",
     },
@@ -369,6 +427,22 @@ export default function DriverTravel() {
           </View>
         </Marker>
       ) : null}
+
+      {/* Passenger planned stops markers */}
+      {passengerStops.map((stop, idx) => {
+        const label = stop.label ?? `Parada pasajero ${idx + 1}`;
+        return (
+          <Marker
+            key={`passenger-stop-${idx}`}
+            coordinate={stop.coordinate}
+            title={label}
+          >
+            <View style={styles.stopMarker}>
+              <Text style={styles.stopMarkerText}>{String(idx + 1)}</Text>
+            </View>
+          </Marker>
+        );
+      })}
     </MapView>
   );
 
@@ -674,6 +748,22 @@ const styles = StyleSheet.create({
   },
   markerDestination: {
     backgroundColor: "#F97316",
+  },
+  stopMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  stopMarkerText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "700",
+    fontSize: 14,
+    color: "#FFFFFF",
   },
   fullscreenMapContainer: {
     flex: 1,

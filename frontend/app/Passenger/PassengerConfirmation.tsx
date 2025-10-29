@@ -1,3 +1,5 @@
+import { useTravelRequest } from "@/hooks/useTravelRequest";
+import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
 import {
@@ -18,8 +20,6 @@ import MapView, {
   PROVIDER_GOOGLE,
   type Region,
 } from "react-native-maps";
-import { Feather } from "@expo/vector-icons";
-import { useTravelRequest } from "@/hooks/useTravelRequest";
 
 type Coordinate = { latitude: number; longitude: number };
 
@@ -279,12 +279,6 @@ export default function PassengerConfirmation() {
         subtitle: "Fecha",
         icon: "calendar",
       },
-      {
-        id: "schedule",
-        title: scheduleTitle,
-        subtitle: "Horario estimado",
-        icon: "clock",
-      },
     ];
 
     if (driverStartLabel !== "--:--") {
@@ -292,14 +286,14 @@ export default function PassengerConfirmation() {
         id: "driver-start",
         title: driverStartLabel,
         subtitle: "Salida del conductor",
-        icon: "navigation",
+        icon: "clock",
       });
     }
 
     items.push({
       id: "price",
       title: priceDisplay,
-      subtitle: "Precio estimado",
+      subtitle: "Precio",
       icon: "dollar-sign",
     });
 
