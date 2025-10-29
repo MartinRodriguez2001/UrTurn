@@ -54,22 +54,12 @@ export default function LogInScreen() {
 
       if (result.success) {
         console.log('✅ Login exitoso! Navegando...');
-        Alert.alert(
-          'Login Exitoso',
-          '¡Bienvenido de vuelta!',
-          [
-            {
-              text: 'Continuar',
-              onPress: () => {
-                // Limpiar formulario
-                setEmail('');
-                setPassword('');
-                setRememberMe(false);
-                router.replace("/ChooseModeScreen");
-              }
-            }
-          ]
-        );
+        // Navegar directamente sin mostrar alerta modal
+        // Limpiar formulario
+        setEmail('');
+        setPassword('');
+        setRememberMe(false);
+        router.replace("/ChooseModeScreen");
       } else {
         console.log('❌ Error en login:', result.message);
         Alert.alert('Error de Autenticación', result.message || 'Credenciales inválidas');

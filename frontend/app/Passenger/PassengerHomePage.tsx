@@ -269,7 +269,7 @@ export default function PassengerHomePage() {
           <Text style={styles.subTitle}>Hola, {user?.name ?? "Pasajero"}</Text>
         </View>
 
-        <TouchableOpacity style={styles.profileButton}>
+        <TouchableOpacity style={styles.profileButton} onPress={() => router.push("/Driver/DriverProfile")}>
           <View style={styles.profileImage}>
             <Text style={styles.profileInitial}>{user?.name?.[0] ?? "U"}</Text>
           </View>
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   },
   searchButtonContainer: {
     position: "absolute",
-    bottom: 91,
+    bottom: 30, // Ajustado para quedar encima del navbar
     left: 20,
     right: 20,
     zIndex: 1,
@@ -619,18 +619,20 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: "#F99F7C",
     height: 56,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    gap: 12,
+    borderRadius: 12,
+    paddingHorizontal: 20,
   },
   searchIcon: {
-    fontSize: 22,
+    fontSize: 24,
     color: "#FFFFFF",
+    fontWeight: "bold",
+    marginRight: 8,
   },
   searchText: {
     fontFamily: "Plus Jakarta Sans",
-    fontWeight: "700",
+    fontWeight: "bold",
     fontSize: 16,
+    lineHeight: 24,
     color: "#FFFFFF",
   },
 });
