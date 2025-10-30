@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -31,11 +32,12 @@ export default function DriverOnTravel() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+          >
+            <Feather name="arrow-left" size={22} color="#121417" />
+          </TouchableOpacity>
 
         <View style={styles.titleContainer}>
           <Text style={styles.headerTitle}>Solicitar un viaje</Text>

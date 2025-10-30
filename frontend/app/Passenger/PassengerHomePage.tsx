@@ -358,7 +358,7 @@ export default function PassengerHomePage() {
               <Text style={styles.emptyStateIcon}>🗓️</Text>
               <Text style={styles.emptyStateTitle}>Sin viajes confirmados</Text>
               <Text style={styles.emptyStateMessage}>
-                Aún no tienes viajes confirmados con conductores. Solicita un viaje y aparecerá acá.
+                Aún no tienes viajes confirmados con conductores. Solicita un viaje y aparecerá aquí.
               </Text>
             </View>
           )}

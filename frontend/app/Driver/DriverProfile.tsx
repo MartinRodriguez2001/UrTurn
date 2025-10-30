@@ -2,6 +2,8 @@ import { userApi } from "@/Services/UserApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { UserProfile } from "@/types/user";
 import { Vehicle } from "@/types/vehicle";
+import { Feather } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -16,6 +18,7 @@ import {
 } from "react-native";
 
 export default function DriverProfile() {
+  const router = useRouter();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [validatingVehicle, setValidatingVehicle] = useState<number | null>(
     null
@@ -124,9 +127,15 @@ export default function DriverProfile() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle}>Perfil</Text>
-        </View>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          accessibilityRole="button"
+        >
+          <Feather name="arrow-left" size={22} color="#121417" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Perfil</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -271,6 +280,9 @@ const styles = StyleSheet.create({
     color: "#121417",
     textAlign: "center",
   },
+  headerSpacer: {
+    width: 48,
+  },
   scrollContainer: {
     flex: 1,
   },
@@ -310,6 +322,13 @@ const styles = StyleSheet.create({
   },
   photoPlaceholder: {
     fontSize: 40,
+  },
+  backButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
   },
   editIconContainer: {
     position: "absolute",

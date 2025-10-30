@@ -156,10 +156,11 @@ const continueWithPhoto = async () => {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
             onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Feather name="arrow-left" size={22} color="#121417" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Upload Picture</Text>

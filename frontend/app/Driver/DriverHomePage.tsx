@@ -376,7 +376,7 @@ export default function DriverHomePage() {
                 </Text>
               </View>
               <View style={styles.switchArrow}>
-                <Text style={styles.switchArrowIcon}>&gt;</Text>
+                <Text style={styles.switchArrowIcon}>➜</Text>
               </View>
             </View>
           </TouchableOpacity>

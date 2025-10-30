@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import {
@@ -127,10 +128,11 @@ export default function RegisterScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
-            style={styles.backButton}
             onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
           >
-            <Text style={styles.backIcon}>←</Text>
+            <Feather name="arrow-left" size={22} color="#121417" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
             <Text style={styles.title}>Sign Up</Text>
