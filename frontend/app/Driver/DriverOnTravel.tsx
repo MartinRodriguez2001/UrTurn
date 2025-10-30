@@ -755,11 +755,6 @@ export default function DriverOnTravel() {
           }
         >
           <View style={styles.bottomHandle} />
-          <Feather
-            name={isBottomSheetCollapsed ? "chevron-up" : "chevron-down"}
-            size={18}
-            color="#475569"
-          />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -775,8 +770,9 @@ export default function DriverOnTravel() {
           {isBottomSheetCollapsed ? (
             <View style={styles.nextStopCollapsedRow}>
               <Feather name="map-pin" size={16} color="#1E3A8A" />
-              <Text style={styles.nextStopCollapsedLabel}>Siguiente parada</Text>
-              <Feather name="chevron-up" size={18} color="#1E3A8A" />
+              <Text style={styles.nextStopTitle}>
+                  {nextStop ? nextStop.label : "Ruta completada"}
+                </Text>
             </View>
           ) : (
             <>

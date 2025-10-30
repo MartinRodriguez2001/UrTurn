@@ -446,6 +446,18 @@ export default function DriverTravel() {
     </MapView>
   );
 
+  const handleStartTrip = () => {
+    const paramsPayload: Record<string, string> = {
+      travel: JSON.stringify(travel),
+      passengers: JSON.stringify(passengers),
+    };
+
+    router.push({
+      pathname: "/Driver/DriverOnTravel",
+      params: paramsPayload,
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -541,7 +553,7 @@ export default function DriverTravel() {
         <TouchableOpacity
           style={styles.primaryButton}
           activeOpacity={0.9}
-          onPress={() => router.push("/Driver/DriverOnTravel")}
+          onPress={handleStartTrip}
         >
           <Text style={styles.primaryButtonText}>Empezar viaje</Text>
         </TouchableOpacity>
