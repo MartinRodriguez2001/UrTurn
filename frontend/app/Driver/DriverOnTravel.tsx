@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -118,6 +119,64 @@ const isSameCoordinate = (reference: TravelCoordinate | null, candidate: TravelC
 
 const deg2rad = (value: number) => (value * Math.PI) / 180;
 
+const rad2deg = (value: number) => (value * 180) / Math.PI;
+
+// Bearing from origin to destination in degrees [0..360)
+const getBearing = (origin: LatLngLike, destination: LatLngLike) => {
+  const lat1 = deg2rad(origin.latitude);
+  const lat2 = deg2rad(destination.latitude);
+  const dLon = deg2rad(destination.longitude - origin.longitude);
+
+  const y = Math.sin(dLon) * Math.cos(lat2);
+  const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLon);
+  const brng = Math.atan2(y, x);
+  return (rad2deg(brng) + 360) % 360;
+};
+
+// Determine a heading to orient the map while following the user.
+// Prefer the next stop if available, otherwise use the next point on the polyline.
+const getHeadingForFollow = (
+  origin: LatLngLike | null | undefined,
+  nextStop: StopInfo | null,
+  polyline: TravelCoordinate[]
+) => {
+  if (!origin) return 0;
+  // Prefer computing heading along the polyline (road) so the map orients with the route.
+  if (Array.isArray(polyline) && polyline.length >= 2) {
+    // find the closest polyline point index to the origin
+    let minIndex = 0;
+    let minDist = Number.POSITIVE_INFINITY;
+    for (let i = 0; i < polyline.length; i++) {
+      const p = polyline[i];
+      const d = getDistanceMeters(origin, p as LatLngLike);
+      if (d < minDist) {
+        minDist = d;
+        minIndex = i;
+      }
+    }
+
+    // walk forward along the polyline until we accumulate ~lookAheadMeters
+    const lookAheadMeters = 30; // small look-ahead distance to capture local curvature
+    let acc = 0;
+    let idx = minIndex;
+    while (idx < polyline.length - 1 && acc < lookAheadMeters) {
+      const a = polyline[idx] as LatLngLike;
+      const b = polyline[idx + 1] as LatLngLike;
+      acc += getDistanceMeters(a, b);
+      idx += 1;
+    }
+
+    const target = polyline[Math.min(idx, polyline.length - 1)];
+    return getBearing(origin, target as LatLngLike);
+  }
+
+  if (nextStop) {
+    return getBearing(origin, nextStop.coordinate);
+  }
+
+  return 0;
+};
+
 const getDistanceMeters = (origin: LatLngLike | null | undefined, destination: LatLngLike) => {
   if (!origin) return Number.POSITIVE_INFINITY;
   const R = 6371000;
@@ -160,6 +219,12 @@ const getFirstName = (full?: string | null): string | null => {
 };
 
 const FOLLOW_CAMERA_ANIMATION_MS = 750;
+// Camera settings used when following the user's location (third-person, closer view)
+const FOLLOW_CAMERA_ZOOM = 18;
+// Reduce pitch so the map is seen more from above with a slight tilt (not so "acostado").
+const FOLLOW_CAMERA_PITCH = 45;
+// Reduce the visual rotation of the driver icon so it's less "laid over" at steep headings.
+const DRIVER_ICON_ROTATION_FACTOR = 0.7;
 export default function DriverOnTravel() {
   const router = useRouter();
   const params = useLocalSearchParams<{ travel?: string; passengers?: string }>();
@@ -335,6 +400,7 @@ export default function DriverOnTravel() {
   const [isFollowingUser, setIsFollowingUser] = useState(true);
   const [visitedStops, setVisitedStops] = useState<Record<string, true>>({});
   const [isBottomSheetCollapsed, setIsBottomSheetCollapsed] = useState(false);
+  const [bottomSheetHeight, setBottomSheetHeight] = useState(0);
 
   const mapRef = useRef<MapView | null>(null);
   const locationSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
@@ -521,10 +587,14 @@ export default function DriverOnTravel() {
       return;
     }
 
-    const heading =
-      typeof currentLocation.heading === "number" && currentLocation.heading >= 0
-        ? currentLocation.heading
-        : 0;
+    const mapHeadingNum = getHeadingForFollow(currentLocation, nextStop, polylineCoordinates);
+
+    // smoothing to avoid jarring heading jumps
+    const last = lastMapHeadingRef.current;
+    const alpha = HEADING_SMOOTHING;
+    const smoothed = last === null ? mapHeadingNum : last * (1 - alpha) + mapHeadingNum * alpha;
+    lastMapHeadingRef.current = smoothed;
+    setMapHeadingState(smoothed);
 
     mapRef.current.animateCamera(
       {
@@ -532,9 +602,9 @@ export default function DriverOnTravel() {
           latitude: currentLocation.latitude,
           longitude: currentLocation.longitude,
         },
-        pitch: 50,
-        heading,
-        zoom: 16,
+        pitch: FOLLOW_CAMERA_PITCH,
+        heading: smoothed,
+        zoom: FOLLOW_CAMERA_ZOOM,
       },
       { duration: FOLLOW_CAMERA_ANIMATION_MS }
     );
@@ -561,7 +631,9 @@ export default function DriverOnTravel() {
     });
   }, [currentLocation, stops]);
   const upcomingStops = useMemo(
-    () => stops.filter((stop) => !visitedStops[stop.key]),
+    // Excluir la parada de tipo 'start' para que no aparezca como "siguiente parada"
+    // cuando el viaje comienza desde ahí.
+    () => stops.filter((stop) => stop.type !== "start" && !visitedStops[stop.key]),
     [stops, visitedStops]
   );
   const nextStop = upcomingStops[0] ?? null;
@@ -586,7 +658,13 @@ export default function DriverOnTravel() {
     typeof currentLocation?.heading === "number" && currentLocation.heading >= 0
       ? currentLocation.heading
       : 0;
-  const headingRotation = currentHeading + "deg";
+  // rotation of the vehicle according to device heading
+  const driverIconRotation = currentHeading * DRIVER_ICON_ROTATION_FACTOR + "deg";
+  // mapHeadingState will be updated in the follow effect with smoothing; use here for UI rotation
+  const [mapHeadingState, setMapHeadingState] = useState<number>(0);
+  const lastMapHeadingRef = useRef<number | null>(null);
+  const HEADING_SMOOTHING = 0.15;
+  const headingRotation = mapHeadingState + "deg";
   const nextStopSubtitleText = nextStop
     ? "Siguiente: " + nextStop.label
     : "Todas las paradas completadas";
@@ -598,15 +676,22 @@ export default function DriverOnTravel() {
   const handleEnableFollow = () => {
     setIsFollowingUser(true);
     if (currentLocation && mapRef.current) {
+      const mapHeadingNum = getHeadingForFollow(currentLocation, nextStop, polylineCoordinates);
+      const last = lastMapHeadingRef.current;
+      const alpha = HEADING_SMOOTHING;
+      const smoothed = last === null ? mapHeadingNum : last * (1 - alpha) + mapHeadingNum * alpha;
+      lastMapHeadingRef.current = smoothed;
+      setMapHeadingState(smoothed);
+
       mapRef.current.animateCamera(
         {
           center: {
             latitude: currentLocation.latitude,
             longitude: currentLocation.longitude,
           },
-          pitch: 50,
-          heading: currentHeading,
-          zoom: 16,
+          pitch: FOLLOW_CAMERA_PITCH,
+          heading: smoothed,
+          zoom: FOLLOW_CAMERA_ZOOM,
         },
         { duration: FOLLOW_CAMERA_ANIMATION_MS }
       );
@@ -697,10 +782,10 @@ export default function DriverOnTravel() {
                 <View
                   style={[
                     styles.driverHeadingPointer,
-                    { transform: [{ rotate: headingRotation }] },
+                    { transform: [{ rotate: driverIconRotation }] },
                   ]}
                 >
-                  <Feather name="navigation" size={16} color="#FFFFFF" />
+                  <Feather name="navigation" size={16} color="#ffffffff" />
                 </View>
                 <View style={styles.driverMarkerCore} />
               </View>
@@ -722,28 +807,40 @@ export default function DriverOnTravel() {
           <Text style={styles.topSubtitle}>{nextStopSubtitleText}</Text>
         </View>
 
+        {/* El botón de centrar se muestra ahora como botón flotante sobre la bandeja inferior. */}
+      </View>
+      {/* Floating follow button: positioned based on measured bottomSheet height so it
+          always sits above the tray (no overlap between map and tray). */}
+      {!isFollowingUser ? (
         <TouchableOpacity
           onPress={handleEnableFollow}
-          style={[
-            styles.circleButton,
-            isFollowingUser && styles.circleButtonActive,
-          ]}
           accessibilityRole="button"
+          accessibilityLabel="Centrar mapa en mi ubicación"
+          style={[
+            styles.followFloatingButton,
+            { bottom: bottomSheetHeight + 12 },
+          ]}
         >
           <Feather
             name="navigation"
             size={18}
-            color={isFollowingUser ? "#FFFFFF" : "#111827"}
-            style={{ transform: [{ rotate: headingRotation }] }}
+            color="#2563EB"
           />
+          <Text style={styles.centerFrameButton}>Centrar</Text>
         </TouchableOpacity>
-      </View>
+      ) : null}
+      {/* Botón flotante para centrar la vista: aparece solo cuando la vista está descentrada
+          Lo renderizamos dentro del bottomSheet y usamos top negativo para que quede sobre la bandeja. */}
+
       <View
+        onLayout={(e) => setBottomSheetHeight(e.nativeEvent.layout.height)}
         style={[
           styles.bottomSheet,
           isBottomSheetCollapsed && styles.bottomSheetCollapsed,
         ]}
       >
+        {/* Botón flotante: lo renderizamos como hijo del SafeAreaView y usamos la altura
+            del bottomSheet para colocarlo justo sobre la bandeja. */}
         <TouchableOpacity
           style={styles.bottomHandlePressable}
           onPress={toggleBottomSheet}
@@ -778,9 +875,14 @@ export default function DriverOnTravel() {
             <>
               <View>
                 <Text style={styles.nextStopLabel}>Siguiente parada</Text>
-                <Text style={styles.nextStopTitle}>
-                  {nextStop ? nextStop.label : "Ruta completada"}
-                </Text>
+                {nextStop ? (
+                  nextStop.label !== "Inicio del viaje" ? (
+                    <Text style={styles.nextStopTitle}>{nextStop.label}</Text>
+                  ) : null
+                ) : (
+                  <Text style={styles.nextStopTitle}>Ruta completada</Text>
+                )}
+                  
                 {nextStop && nextStop.subtitle ? (
                   <Text style={styles.nextStopSubtitle}>{nextStop.subtitle}</Text>
                 ) : null}
@@ -914,7 +1016,7 @@ const styles = StyleSheet.create({
   },
   topControls: {
     position: "absolute",
-    top: 16,
+    top: Platform.OS === "ios" ? 48 : 16,
     left: 16,
     right: 16,
     flexDirection: "row",
@@ -1184,6 +1286,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#FFFFFF",
   },
+  followFloatingButton: {
+    position: "absolute",
+    left: 20,
+    minWidth: 110,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    paddingHorizontal: 12,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 6,
+    zIndex: 4,
+  },
   driverMarker: {
     alignItems: "center",
     justifyContent: "center",
@@ -1228,5 +1348,12 @@ const styles = StyleSheet.create({
   stopMarkerVisited: {
     backgroundColor: "#D1FAE5",
     borderColor: "#047857",
+  },
+  centerFrameButton: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    color: "#2563EB",
+    fontWeight: "700",
+    marginLeft: 8,
   },
 });
