@@ -410,6 +410,9 @@ export default function DriverOnTravel() {
   const [isBottomSheetCollapsed, setIsBottomSheetCollapsed] = useState(false);
   const [bottomSheetHeight, setBottomSheetHeight] = useState(0);
 
+  const sheetHeightRef = useRef(0);
+  const SHEET_PEEK_HEIGHT = 120; // visible part when collapsed
+
   const mapRef = useRef<MapView | null>(null);
   const locationSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
   const hasFitRouteRef = useRef(false);
@@ -710,12 +713,28 @@ export default function DriverOnTravel() {
     setIsFollowingUser((prev) => (prev ? false : prev));
   };
   const toggleBottomSheet = () => {
+    // kept for backward-compatibility but we don't use click to toggle anymore
     setIsBottomSheetCollapsed((prev) => !prev);
   };
 
   const expandBottomSheet = () => {
     setIsBottomSheetCollapsed(false);
   };
+
+  // No drag gestures: we use a simple tap on the handle to toggle collapsed state.
+  // Chevron icon helper keeps the handle consistent for both directions.
+  const PuntaChevron = ({ direction }: { direction: "up" | "down" }) => (
+    <View style={styles.puntaContainer}>
+      <Feather
+        name={direction === "up" ? "chevron-up" : "chevron-down"}
+        size={20}
+        color="#94A3B8"
+      />
+    </View>
+  );
+
+  const PuntaUp = () => <PuntaChevron direction="up" />;
+  const PuntaDown = () => <PuntaChevron direction="down" />;
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.mapContainer}>
@@ -841,30 +860,28 @@ export default function DriverOnTravel() {
           Lo renderizamos dentro del bottomSheet y usamos top negativo para que quede sobre la bandeja. */}
 
       <View
-        onLayout={(e) => setBottomSheetHeight(e.nativeEvent.layout.height)}
-        style={[
-          styles.bottomSheet,
-          isBottomSheetCollapsed && styles.bottomSheetCollapsed,
-        ]}
+        onLayout={(e) => {
+          const h = e.nativeEvent.layout.height;
+          setBottomSheetHeight(h);
+          sheetHeightRef.current = h;
+        }}
+        style={[styles.bottomSheet, isBottomSheetCollapsed && styles.bottomSheetCollapsed]}
       >
         {/* Botón flotante: lo renderizamos como hijo del SafeAreaView y usamos la altura
             del bottomSheet para colocarlo justo sobre la bandeja. */}
         <TouchableOpacity
           style={styles.bottomHandlePressable}
-          onPress={toggleBottomSheet}
           accessibilityRole="button"
           accessibilityLabel={
-            isBottomSheetCollapsed
-              ? "Expandir detalles del viaje"
-              : "Contraer detalles del viaje"
+            isBottomSheetCollapsed ? "Expandir detalles del viaje" : "Contraer detalles del viaje"
           }
+          onPress={toggleBottomSheet}
         >
-          <View style={styles.bottomHandle} />
+          {isBottomSheetCollapsed ? <PuntaUp /> : <PuntaDown />}
         </TouchableOpacity>
 
         <TouchableOpacity
           activeOpacity={0.9}
-          onPress={expandBottomSheet}
           style={[
             styles.nextStopCard,
             isBottomSheetCollapsed && styles.nextStopCardCollapsed,
@@ -1009,7 +1026,7 @@ export default function DriverOnTravel() {
             </View>
           </>
         ) : null}
-      </View>
+  </View>
     </SafeAreaView>
   );
 }
@@ -1363,5 +1380,11 @@ const styles = StyleSheet.create({
     color: "#2563EB",
     fontWeight: "700",
     marginLeft: 8,
+  },
+  puntaContainer: {
+    width: 32,
+    height: 18,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
