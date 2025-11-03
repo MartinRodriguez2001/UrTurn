@@ -350,7 +350,7 @@ export default function PassengerHomePage() {
             </ScrollView>
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Feather name="check" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
+              <Feather name="frown" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
               <Text style={styles.emptyStateTitle}>Sin viajes confirmados</Text>
               <Text style={styles.emptyStateMessage}>
                 Aún no tienes viajes confirmados con conductores. Solicita un viaje y aparecerá aquí.
@@ -413,7 +413,7 @@ export default function PassengerHomePage() {
           style={styles.searchButton}
           onPress={() => router.push("/Passenger/PassengerSearchRider")}
         >
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Feather name="search" size={24} color="#FFFFFF" />
           <Text style={styles.searchText}>Buscar un viaje</Text>
         </TouchableOpacity>
       </View>
@@ -629,5 +629,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: "#FFFFFF",
+    marginLeft: 15
   },
 });

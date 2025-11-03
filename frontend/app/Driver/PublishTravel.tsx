@@ -535,7 +535,7 @@ export default function PublishTravel() {
           {/* Date and Time Section */}
           <View style={styles.sectionContainer}>
             <TravelScheduleSection
-              title="🕒 Fecha y hora"
+              title="Fecha y hora"
               dateLabel="Fecha del viaje *"
               timeLabel="Hora de partida *"
               dateValue={formatDate(formData.startDate)}
@@ -550,7 +550,7 @@ export default function PublishTravel() {
           {/* Trip Details Section */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🚗 Detalles del viaje</Text>
+              <Text style={styles.sectionTitle}>Detalles del viaje</Text>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Vehículo *</Text>
