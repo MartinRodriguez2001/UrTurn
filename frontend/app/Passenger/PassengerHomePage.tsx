@@ -12,6 +12,7 @@ import {
   TravelPassenger,
   TravelPlannedStop,
 } from "@/types/travel";
+import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -268,12 +269,6 @@ export default function PassengerHomePage() {
           <Text style={styles.headerTitle}>Página Principal</Text>
           <Text style={styles.subTitle}>Hola, {user?.name ?? "Pasajero"}</Text>
         </View>
-
-        <TouchableOpacity style={styles.profileButton} onPress={() => router.push("/Driver/DriverProfile")}>
-          <View style={styles.profileImage}>
-            <Text style={styles.profileInitial}>{user?.name?.[0] ?? "U"}</Text>
-          </View>
-        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -295,7 +290,7 @@ export default function PassengerHomePage() {
           >
             <View style={styles.driverCardContent}>
               <View style={styles.driverIconContainer}>
-                <Text style={styles.driverIcon}>🚗</Text>
+                <Feather name="user" size={24} color="#FFFFFF" />
               </View>
               <View style={styles.driverInfo}>
                 <Text style={styles.driverTitle}>
@@ -355,7 +350,7 @@ export default function PassengerHomePage() {
             </ScrollView>
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateIcon}>🗓️</Text>
+              <Feather name="check" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
               <Text style={styles.emptyStateTitle}>Sin viajes confirmados</Text>
               <Text style={styles.emptyStateMessage}>
                 Aún no tienes viajes confirmados con conductores. Solicita un viaje y aparecerá aquí.
@@ -399,7 +394,7 @@ export default function PassengerHomePage() {
             </ScrollView>
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateIcon}>📭</Text>
+              <Feather name="inbox" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
               <Text style={styles.emptyStateTitle}>No tienes solicitudes pendientes</Text>
               <Text style={styles.emptyStateMessage}>
                 Cuando envíes una solicitud a un conductor, podrás ver su estado aquí.

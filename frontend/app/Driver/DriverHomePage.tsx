@@ -11,6 +11,7 @@ import {
   TravelPlannedStop,
   TravelStatus,
 } from "@/types/travel";
+import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -367,7 +368,7 @@ export default function DriverHomePage() {
           >
             <View style={styles.switchCardContent}>
               <View style={styles.switchIconContainer}>
-                <Text style={styles.switchIcon}>🙋‍♂️</Text>
+                <Feather name="users" size={24} color="#FFFFFF" />
               </View>
               <View style={styles.switchInfo}>
                 <Text style={styles.switchTitle}>Cambiar a Passenger</Text>
@@ -413,7 +414,7 @@ export default function DriverHomePage() {
             />
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateIcon}>🚗</Text>
+              <Feather name="inbox" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
               <Text style={styles.emptyStateTitle}>
                 No tienes viajes programados
               </Text>
@@ -471,7 +472,7 @@ export default function DriverHomePage() {
             />
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateIcon}>📭</Text>
+              <Feather name="inbox" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
               <Text style={styles.emptyStateTitle}>
                 No hay solicitudes pendientes
               </Text>

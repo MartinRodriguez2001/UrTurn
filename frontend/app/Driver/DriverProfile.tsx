@@ -168,7 +168,7 @@ export default function DriverProfile() {
 
             {/* Indicador de edición */}
             <View style={styles.editIconContainer}>
-              <Text style={styles.editIcon}>✏️</Text>
+              <Feather name="edit-2" size={16} color="#F99F7C" />
             </View>
           </TouchableOpacity>
 
