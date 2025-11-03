@@ -58,6 +58,9 @@ model User {
   // Relaciones para reviews
   reviewsGiven Review[] @relation("ReviewerToTarget")    // Reviews que este usuario ha dado
   reviewsReceived Review[] @relation("TargetToReviewer") // Reviews que este usuario ha recibido
+  
+  // Relación para mensajes de viaje
+  travelMessages TravelMessage[]
 }
 
 model Travel {
@@ -91,6 +94,7 @@ model Travel {
   requests TravelRequest[]
   confirmations Confirmation[]
   reports Report[]
+  conversation TravelConversation?
 
   userId Int
   driver_id User @relation(fields: [userId], references: [id])
@@ -179,4 +183,22 @@ model Report {
 
   description String
   date DateTime @default(now())
+}
+
+model TravelConversation{
+  id Int @id @default(autoincrement())
+  travelId Int @unique
+  travel Travel @relation(fields: [travelId], references: [id])
+  messages TravelMessage[]
+  created_at DateTime @default(now())
+}
+
+model TravelMessage {
+  id Int @id @default(autoincrement())
+  converasationId Int
+  conversation TravelConversation @relation(fields: [converasationId], references: [id])
+  senderId Int
+  sender User @relation(fields: [senderId], references: [id])
+  body String
+  sentAt DateTime @default(now())
 }

@@ -57,6 +57,20 @@ router.get(
   travelController.getTravelRequests.bind(travelController)
 );
 
+// GET /api/travels/:id/messages - Obtener historial de chat del viaje
+router.get(
+  "/:id/messages",
+  authenticateToken,
+  travelController.getTravelMessages.bind(travelController)
+);
+
+// POST /api/travels/:id/messages - Enviar mensaje del viaje
+router.post(
+  "/:id/messages",
+  authenticateToken,
+  travelController.sendTravelMessage.bind(travelController)
+);
+
 // PUT /api/travels/:id/complete - Finalizar un viaje
 router.put(
   "/:id/complete",

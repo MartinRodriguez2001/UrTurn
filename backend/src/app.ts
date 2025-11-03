@@ -15,7 +15,6 @@ dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
-const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors({
@@ -75,31 +74,6 @@ app.use((req, res) => {
     success: false,
     message: 'Ruta no encontrada'
   });
-});
-
-app.listen(PORT, () => {
-  console.log(`
-╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║  ██╗   ██╗██████╗ ████████╗██╗   ██╗██████╗ ███╗   ██╗     ║
-║  ██║   ██║██╔══██╗╚══██╔══╝██║   ██║██╔══██╗████╗  ██║     ║
-║  ██║   ██║██████╔╝   ██║   ██║   ██║██████╔╝██╔██╗ ██║     ║
-║  ██║   ██║██╔══██╗   ██║   ██║   ██║██╔══██╗██║╚██╗██║     ║
-║  ╚██████╔╝██║  ██║   ██║   ╚██████╔╝██║  ██║██║ ╚████║     ║
-║   ╚═════╝ ╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═══╝     ║
-║                                                              ║
-║                Ride Sharing Platform API                ║
-║                                                              ║
-║  Server: http://localhost:${PORT}                               ║
-║  Status: ✅ Running                                          ║
-║  Database: ✅ Connected                                      ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-  `);
-});
-
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
 });
 
 export default app;

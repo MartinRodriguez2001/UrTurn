@@ -150,19 +150,48 @@ export default function PassengerTravel() {
     []
   );
 
-  const travelFromParams = useMemo(
+const travelFromParams = useMemo(
     () => parseJSONParam<TravelParam>(params.travel),
     [params.travel]
   );
 
-  const driverFromParams = useMemo(
+const driverFromParams = useMemo(
     () => parseJSONParam<DriverInfo>(params.driver),
     [params.driver]
   );
 
-  const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
-  const driver: DriverInfo = driverFromParams ?? DEFAULT_DRIVER;
-  const contactPhone = useMemo(() => driver.phone?.replace(/\s+/g, ""), [driver.phone]);
+const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
+const driver: DriverInfo = driverFromParams ?? DEFAULT_DRIVER;
+const travelId = useMemo(() => {
+  const rawId = travel?.id;
+  if (rawId === undefined || rawId === null) {
+    return undefined;
+  }
+  const parsed = typeof rawId === "string" ? Number(rawId) : rawId;
+  return Number.isFinite(parsed) ? Number(parsed) : undefined;
+}, [travel?.id]);
+
+const contactPhone = useMemo(() => driver.phone?.replace(/\s+/g, ""), [driver.phone]);
+
+const handleOpenChat = () => {
+  const paramsPayload: Record<string, string> = {
+    travel: JSON.stringify(travel),
+    driver: JSON.stringify(driver),
+  };
+
+  if (travelId !== undefined) {
+    paramsPayload.travelId = String(travelId);
+  }
+
+  router.push({ pathname: "/Passenger/PassengerChat", params: paramsPayload });
+};
+
+const handleCallDriver = () => {
+  if (!contactPhone) {
+    return;
+  }
+  Linking.openURL(`tel:${contactPhone}`);
+};
 
   const startCoordinate = useMemo(() => {
     const latitude = toNumber(travel.start_latitude);
@@ -440,19 +469,42 @@ export default function PassengerTravel() {
                 {driver.phone ? `Teléfono: ${driver.phone}` : "Teléfono no disponible"}
               </Text>
             </View>
-            <TouchableOpacity
-              style={[styles.contactButton, !contactPhone && styles.contactButtonDisabled]}
-              activeOpacity={contactPhone ? 0.85 : 1}
-              onPress={contactPhone ? () => Linking.openURL(`tel:${contactPhone}`) : undefined}
-              disabled={!contactPhone}
-            >
-              <Text
-                style={[styles.contactButtonText, !contactPhone && styles.contactButtonTextDisabled]}
+            <View style={styles.contactActions}>
+              <TouchableOpacity
+                style={styles.chatButton}
+                activeOpacity={0.85}
+                onPress={handleOpenChat}
               >
-                Contactar
-              </Text>
-            </TouchableOpacity>
+                <Feather name="message-circle" size={16} color="#1E3A8A" />
+                <Text style={styles.chatButtonText}>Chat</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.callButton,
+                  !contactPhone && styles.callButtonDisabled,
+                ]}
+                activeOpacity={contactPhone ? 0.85 : 1}
+                onPress={contactPhone ? handleCallDriver : undefined}
+                disabled={!contactPhone}
+              >
+                <Feather
+                  name="phone"
+                  size={16}
+                  color={contactPhone ? "#1E40AF" : "#94A3B8"}
+                />
+                <Text
+                  style={[
+                    styles.callButtonText,
+                    !contactPhone && styles.callButtonTextDisabled,
+                  ]}
+                >
+                  Llamar
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
+
         </View>
       </ScrollView>
 
@@ -626,23 +678,49 @@ const styles = StyleSheet.create({
     color: "#61758A",
     marginTop: 2,
   },
-  contactButton: {
-    backgroundColor: "#FFECE3",
-    paddingHorizontal: 20,
+  contactActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#E0EAFF",
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 999,
   },
-  contactButtonDisabled: {
-    backgroundColor: "#F3F4F6",
-  },
-  contactButtonText: {
+  chatButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "600",
     fontSize: 14,
-    color: "#F97316",
+    color: "#1E3A8A",
   },
-  contactButtonTextDisabled: {
-    color: "#9CA3AF",
+  callButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    backgroundColor: "#FFFFFF",
+  },
+  callButtonDisabled: {
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+  },
+  callButtonText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 14,
+    color: "#1E40AF",
+  },
+  callButtonTextDisabled: {
+    color: "#94A3B8",
   },
   marker: {
     width: 32,

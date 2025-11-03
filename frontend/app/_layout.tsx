@@ -4,6 +4,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { AuthProvider } from '../context/authContext';
+import { ChatProvider } from '../context/chatContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -28,13 +29,15 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="register" />
-        <Stack.Screen name='ChooseModeScreen'/>
-        <Stack.Screen name="Driver/DriverHomePage"/>
-        <Stack.Screen name="Driver/PublishTravel"/>
-      </Stack>
+      <ChatProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="register" />
+          <Stack.Screen name='ChooseModeScreen'/>
+          <Stack.Screen name="Driver/DriverHomePage"/>
+          <Stack.Screen name="Driver/PublishTravel"/>
+        </Stack>
+      </ChatProvider>
     </AuthProvider>
   );
 }

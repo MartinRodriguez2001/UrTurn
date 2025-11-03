@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth.js";
 import { TravelData, TravelService } from "../services/travel.service.js";
+import { ChatService } from "../services/chat.service.js";
 import type { Coordinate } from "../utils/route-assignment.js";
 
 const travelService = new TravelService();
+const chatService = new ChatService();
 
 export class TravelController {
 
@@ -956,6 +958,98 @@ export class TravelController {
       res.status(400).json({
         success: false,
         message: error instanceof Error ? error.message : "Error al abandonar viaje"
+      });
+    }
+  }
+
+  // ✅ GET /travels/:id/messages - Obtener historial de chat del viaje
+  async getTravelMessages(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const travelId = Number(req.params.id);
+      if (!Number.isFinite(travelId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de viaje inválido"
+        });
+      }
+
+      const messages = await chatService.getMessages(travelId, userId);
+      return res.status(200).json({
+        success: true,
+        messages
+      });
+    } catch (error) {
+      console.error("Error in getTravelMessages:", error);
+      const message = error instanceof Error ? error.message : "Error al obtener mensajes";
+      const status = message.includes("no encontrado")
+        ? 404
+        : message.includes("autorizado")
+          ? 403
+          : 500;
+      return res.status(status).json({
+        success: false,
+        message
+      });
+    }
+  }
+
+  // ✅ POST /travels/:id/messages - Enviar mensaje del viaje
+  async sendTravelMessage(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const travelId = Number(req.params.id);
+      if (!Number.isFinite(travelId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de viaje inválido"
+        });
+      }
+
+      const body: unknown = req.body?.body ?? req.body?.message ?? req.body?.text;
+      if (typeof body !== "string" || body.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "El mensaje es requerido"
+        });
+      }
+
+      const message = await chatService.sendMessage({
+        travelId,
+        senderId: userId,
+        body
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Mensaje enviado",
+        data: message
+      });
+    } catch (error) {
+      console.error("Error in sendTravelMessage:", error);
+      const message = error instanceof Error ? error.message : "Error al enviar mensaje";
+      const status = message.includes("no encontrado")
+        ? 404
+        : message.includes("autorizado")
+          ? 403
+          : 500;
+      return res.status(status).json({
+        success: false,
+        message
       });
     }
   }

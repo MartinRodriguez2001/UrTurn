@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
+  Linking,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -153,18 +154,26 @@ export default function DriverTravel() {
     []
   );
 
-  const travelFromParams = useMemo(
+const travelFromParams = useMemo(
     () => parseJSONParam<TravelParam>(params.travel),
     [params.travel]
   );
 
-  const passengersFromParams = useMemo(
+const passengersFromParams = useMemo(
     () => parseJSONParam<Passenger[]>(params.passengers),
     [params.passengers]
   );
 
-  const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
-  const passengers: Passenger[] = passengersFromParams ?? [];
+const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
+const passengers: Passenger[] = passengersFromParams ?? [];
+const travelId = useMemo(() => {
+  const rawId = travel?.id;
+  if (rawId === undefined || rawId === null) {
+    return undefined;
+  }
+  const parsed = typeof rawId === "string" ? Number(rawId) : rawId;
+  return Number.isFinite(parsed) ? Number(parsed) : undefined;
+}, [travel?.id]);
 
   const startCoordinate = useMemo(() => {
     const latitude = toNumber(travel.start_latitude);
@@ -458,6 +467,26 @@ export default function DriverTravel() {
     });
   };
 
+  const handleOpenChat = () => {
+    const paramsPayload: Record<string, string> = {
+      travel: JSON.stringify(travel),
+      passengers: JSON.stringify(passengers),
+    };
+
+    if (travelId !== undefined) {
+      paramsPayload.travelId = String(travelId);
+    }
+
+    router.push({ pathname: "/Driver/DriverChat", params: paramsPayload });
+  };
+
+  const handleCallPassenger = (phone?: string | null) => {
+    if (!phone) {
+      return;
+    }
+    Linking.openURL(`tel:${phone}`);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
@@ -516,9 +545,26 @@ export default function DriverTravel() {
                 <Text style={styles.passengerName}>{passenger.name}</Text>
                 <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
               </View>
-              <TouchableOpacity style={styles.contactButton} activeOpacity={0.85}>
-                <Text style={styles.contactButtonText}>Contactar</Text>
-              </TouchableOpacity>
+              <View style={styles.contactActions}>
+                <TouchableOpacity
+                  style={styles.contactButton}
+                  activeOpacity={0.85}
+                  onPress={handleOpenChat}
+                >
+                  <Feather name="message-circle" size={16} color="#F97316" />
+                  <Text style={styles.contactButtonText}>Chat</Text>
+                </TouchableOpacity>
+                {passenger.phone ? (
+                  <TouchableOpacity
+                    style={styles.callButton}
+                    activeOpacity={0.85}
+                    onPress={() => handleCallPassenger(passenger.phone)}
+                  >
+                    <Feather name="phone" size={16} color="#1E40AF" />
+                    <Text style={styles.callButtonText}>Llamar</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           ))}
           {!passengers.length ? (
@@ -709,17 +755,42 @@ const styles = StyleSheet.create({
     color: "#61758A",
     marginTop: 2,
   },
+  contactActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   contactButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: "#FFECE3",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 999,
   },
   contactButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "600",
     fontSize: 14,
     color: "#F97316",
+  },
+  callButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    backgroundColor: "#FFFFFF",
+  },
+  callButtonText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 14,
+    color: "#1E40AF",
   },
   emptyStateText: {
     fontFamily: "Plus Jakarta Sans",

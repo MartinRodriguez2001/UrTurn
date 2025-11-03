@@ -245,6 +245,14 @@ export default function DriverOnTravel() {
 
   const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
   const passengers: Passenger[] = passengersFromParams ?? [];
+  const travelId = useMemo(() => {
+    const idValue = travel?.id;
+    if (idValue === undefined || idValue === null) {
+      return undefined;
+    }
+    const numeric = typeof idValue === "string" ? Number(idValue) : idValue;
+    return Number.isFinite(numeric) ? numeric : undefined;
+  }, [travel?.id]);
 
   const passengerMap = useMemo(() => {
     const map = new Map<string, Passenger>();
