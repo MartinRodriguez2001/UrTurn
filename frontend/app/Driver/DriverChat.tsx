@@ -108,11 +108,6 @@ export default function DriverChat() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Chat del viaje</Text>
-          <Text style={styles.headerSubtitle}>
-            {travel.start_location_name && travel.end_location_name
-              ? `${travel.start_location_name} → ${travel.end_location_name}`
-              : "Comunícate con tus pasajeros"}
-          </Text>
         </View>
         <View style={styles.headerSpacer} />
       </View>
