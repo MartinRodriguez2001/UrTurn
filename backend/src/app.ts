@@ -4,6 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { PrismaClient } from '../generated/prisma/index.js';
 import authRoutes from "./routes/auth.route.js";
+import notificationRoutes from "./routes/notification.route.js";
 import reportRoutes from "./routes/report.route.js";
 import reviewRoutes from "./routes/review.route.js";
 import statsRoutes from "./routes/stats.route.js";
@@ -28,7 +29,14 @@ app.use(cors({
     'http://127.0.0.1:5173',
     'http://127.0.0.1:8081',
     'http://127.0.0.1:8082',
-    'http://127.0.0.1:19006'
+    'http://127.0.0.1:19006',
+    // Network IP for mobile devices
+    'http://192.168.0.9:8081',  // Expo on network IP
+    'http://192.168.0.9:8082',  // Frontend on network IP
+    'http://192.168.0.9:3000',  // Direct API access
+    // Allow expo mobile apps
+    'exp://192.168.0.9:8081',
+    'exp://192.168.0.9:8082'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
@@ -62,11 +70,12 @@ app.get('/health', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use("/api/vehicles", vehicleRoutes);
-app.use("/api/travels", travelRoutes);
-app.use("/api/reviews", reviewRoutes);
-app.use("/api/reports", reportRoutes);
-app.use("/api/stats", statsRoutes);
+app.use('/api/vehicles', vehicleRoutes);
+app.use('/api/travels', travelRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Manejo de errores 404
 app.use((req, res) => {

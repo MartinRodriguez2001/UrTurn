@@ -114,11 +114,6 @@ export default function PassengerChat() {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Chat con el conductor</Text>
-          <Text style={styles.headerSubtitle}>
-            {travel.start_location_name && travel.end_location_name
-              ? `${travel.start_location_name} → ${travel.end_location_name}`
-              : "Coordina detalles de tu viaje"}
-          </Text>
         </View>
         <View style={styles.headerSpacer} />
       </View>

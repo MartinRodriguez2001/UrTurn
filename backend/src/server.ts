@@ -1,9 +1,9 @@
 import http from 'http';
 import { Server, type DefaultEventsMap } from 'socket.io';
-import app from './app.js';
-import { verifyToken } from './utils/jwt.js';
 import { PrismaClient } from '../generated/prisma/index.js';
+import app from './app.js';
 import { ChatService } from './services/chat.service.js';
+import { verifyToken } from './utils/jwt.js';
 
 const prisma = new PrismaClient();
 const chatService = new ChatService();
@@ -29,7 +29,14 @@ const io = new Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, Sock
       'http://127.0.0.1:5173',
       'http://127.0.0.1:8081',
       'http://127.0.0.1:8082',
-      'http://127.0.0.1:19006'
+      'http://127.0.0.1:19006',
+      // Network IP for mobile devices
+      'http://192.168.0.9:8081',
+      'http://192.168.0.9:8082',
+      'http://192.168.0.9:3000',
+      // Allow expo mobile apps
+      'exp://192.168.0.9:8081',
+      'exp://192.168.0.9:8082'
     ],
     credentials: true
   }
@@ -144,8 +151,9 @@ io.on('connection', (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`HTTP + Socket.IO escuchando en http://localhost:${PORT}`);
+server.listen(Number(PORT), '0.0.0.0', () => {
+  console.log(`HTTP + Socket.IO escuchando en http://0.0.0.0:${PORT}`);
+  console.log(`Disponible en red local: http://192.168.0.9:${PORT}`);
 });
 
 process.on('SIGTERM', async () => {

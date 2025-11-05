@@ -1,6 +1,8 @@
 import { PrismaClient } from "../../generated/prisma/index.js";
+import NotificationService from "./notification.service.js";
 
 const prisma = new PrismaClient();
+const notificationService = new NotificationService();
 
 export type ParticipantRole = "driver" | "passenger";
 
@@ -147,6 +149,23 @@ export class ChatService {
             profile_picture: true
           }
         }
+      }
+    });
+
+    // Enviar notificaciones push de forma asíncrona (no bloquear la respuesta)
+    setImmediate(async () => {
+      try {
+        await notificationService.sendChatNotification({
+          travelId: message.conversation.travelId,
+          senderId: message.sender.id,
+          senderName: message.sender.name,
+          messageText: message.body,
+          excludeUserIds: [senderId], // No notificar al remitente
+        });
+        console.log(`Notificación de chat enviada para mensaje ${message.id} en viaje ${travelId}`);
+      } catch (notificationError) {
+        console.error('Error al enviar notificación de chat:', notificationError);
+        // No lanzar error para no afectar el flujo principal
       }
     });
 

@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { AuthProvider } from '../context/authContext';
 import { ChatProvider } from '../context/chatContext';
+import { NotificationProvider } from '../context/notificationContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -29,15 +30,17 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ChatProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="register" />
-          <Stack.Screen name='ChooseModeScreen'/>
-          <Stack.Screen name="Driver/DriverHomePage"/>
-          <Stack.Screen name="Driver/PublishTravel"/>
-        </Stack>
-      </ChatProvider>
+      <NotificationProvider>
+        <ChatProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+            <Stack.Screen name="register" />
+            <Stack.Screen name='ChooseModeScreen'/>
+            <Stack.Screen name="Driver/DriverHomePage"/>
+            <Stack.Screen name="Driver/PublishTravel"/>
+          </Stack>
+        </ChatProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 }
