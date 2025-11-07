@@ -15,9 +15,9 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.mrjuantapia.urturn",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para mostrarte resultados cercanos y centrar el mapa.",
-        "bundleIdentifier": "com.mrjuantapia.urturn"
+        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para mostrarte resultados cercanos y centrar el mapa."
       }
     },
     "android": {
