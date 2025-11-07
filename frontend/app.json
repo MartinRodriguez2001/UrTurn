@@ -16,7 +16,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para mostrarte resultados cercanos y centrar el mapa."
+        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para mostrarte resultados cercanos y centrar el mapa.",
+        "bundleIdentifier": "com.mrjuantapia.urturn"
       }
     },
     "android": {
