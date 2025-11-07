@@ -41,7 +41,7 @@ export default function PendingRequestCard({
       </View>
 
       <Text style={styles.routeLabel} numberOfLines={2}>
-        {pickupLocation} -> {destination}
+        {pickupLocation} {"->"} {destination}
       </Text>
 
       <View style={styles.infoRow}>

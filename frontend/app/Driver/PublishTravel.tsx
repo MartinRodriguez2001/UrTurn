@@ -9,6 +9,7 @@ import { TravelCreateData } from "@/types/travel";
 import { Vehicle } from "@/types/vehicle";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { decodePolyline } from "@/utils/polyline";
+import { Feather } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
@@ -488,17 +489,16 @@ export default function PublishTravel() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backIcon}>←</Text>
-        </TouchableOpacity>
-
-        <View style={styles.titleContainer}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+          >
+            <Feather name="arrow-left" size={22} color="#121417" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Publicar viaje</Text>
+          <View style={styles.headerSpacer} />
         </View>
-      </View>
 
       <ScrollView
         style={styles.scrollContainer}
@@ -535,7 +535,7 @@ export default function PublishTravel() {
           {/* Date and Time Section */}
           <View style={styles.sectionContainer}>
             <TravelScheduleSection
-              title="🕒 Fecha y hora"
+              title="Fecha y hora"
               dateLabel="Fecha del viaje *"
               timeLabel="Hora de partida *"
               dateValue={formatDate(formData.startDate)}
@@ -550,7 +550,7 @@ export default function PublishTravel() {
           {/* Trip Details Section */}
           <View style={styles.sectionContainer}>
             <View style={styles.sectionCard}>
-              <Text style={styles.sectionTitle}>🚗 Detalles del viaje</Text>
+              <Text style={styles.sectionTitle}>Detalles del viaje</Text>
 
               <View style={styles.inputContainer}>
                 <Text style={styles.label}>Vehículo *</Text>
@@ -727,14 +727,11 @@ const styles = StyleSheet.create({
     color: "#61758A",
   },
   header: {
-    height: 59,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 4,
     paddingHorizontal: 16,
-    paddingTop: 11,
-    backgroundColor: "#FFFFFF",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
   },
   backButton: {
     width: 48,
@@ -754,11 +751,9 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
+    fontWeight: "700",
     fontSize: 18,
-    lineHeight: 23,
     color: "#121417",
-    textAlign: "center",
   },
   scrollContainer: {
     flex: 1,
@@ -851,6 +846,9 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: "#876363",
+  },
+  headerSpacer: {
+    width: 48,
   },
   dropdownIcon: {
     fontSize: 16,

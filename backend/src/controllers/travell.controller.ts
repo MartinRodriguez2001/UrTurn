@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth.js";
 import { TravelData, TravelService } from "../services/travel.service.js";
+import { ChatService } from "../services/chat.service.js";
 import type { Coordinate } from "../utils/route-assignment.js";
 
 const travelService = new TravelService();
+const chatService = new ChatService();
 
 export class TravelController {
 
@@ -157,15 +159,62 @@ export class TravelController {
         endTime = parsedEnd;
       }
 
+      const parseTravelDate = (value: string): Date => {
+        const trimmed = value.trim();
+
+        if (!trimmed) {
+          throw new Error("La fecha del viaje es inválida");
+        }
+
+        const dateOnlyMatch = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+        if (dateOnlyMatch) {
+          const [, yearStr, monthStr, dayStr] = dateOnlyMatch;
+          const year = Number(yearStr);
+          const month = Number(monthStr);
+          const day = Number(dayStr);
+
+          if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+            throw new Error("La fecha del viaje es inválida");
+          }
+
+          if (month < 1 || month > 12 || day < 1 || day > 31) {
+            throw new Error("La fecha del viaje es inválida");
+          }
+
+          const parsed = new Date(year, month - 1, day);
+          if (Number.isNaN(parsed.getTime())) {
+            throw new Error("La fecha del viaje es inválida");
+          }
+
+          parsed.setHours(0, 0, 0, 0);
+          return parsed;
+        }
+
+        const parsed = new Date(trimmed);
+        if (Number.isNaN(parsed.getTime())) {
+          throw new Error("La fecha del viaje es inválida");
+        }
+
+        parsed.setHours(0, 0, 0, 0);
+        return parsed;
+      };
+
       const rawTravelDate = pickString("travel_date", "travelDate");
-      const travelDate = rawTravelDate ? new Date(rawTravelDate) : new Date(startTime);
-      if (Number.isNaN(travelDate.getTime())) {
-        return res.status(400).json({
-          success: false,
-          message: "La fecha del viaje es inválida"
-        });
+      let travelDate: Date;
+
+      if (rawTravelDate) {
+        try {
+          travelDate = parseTravelDate(rawTravelDate);
+        } catch (error) {
+          return res.status(400).json({
+            success: false,
+            message: error instanceof Error ? error.message : "La fecha del viaje es inválida"
+          });
+        }
+      } else {
+        travelDate = new Date(startTime);
+        travelDate.setHours(0, 0, 0, 0);
       }
-      travelDate.setHours(0, 0, 0, 0);
 
       const resolveRouteWaypoints = (
         input: unknown
@@ -377,7 +426,12 @@ export class TravelController {
       }
 
       const travelId = parseInt(req.params.id || "");
-      const { pickupLocation, pickupDate, pickupTime } = req.body ?? {};
+      const {
+        pickupLocation,
+        pickupDate,
+        pickupTime,
+        dropoffLocation,
+      } = req.body ?? {};
 
       const parseCoordinate = (value: unknown): number | undefined => {
         if (value === undefined || value === null) {
@@ -393,6 +447,12 @@ export class TravelController {
       const pickupLongitude =
         parseCoordinate(req.body?.pickup_longitude) ??
         parseCoordinate(req.body?.pickupLongitude);
+      const dropoffLatitude =
+        parseCoordinate(req.body?.dropoff_latitude) ??
+        parseCoordinate(req.body?.dropoffLatitude);
+      const dropoffLongitude =
+        parseCoordinate(req.body?.dropoff_longitude) ??
+        parseCoordinate(req.body?.dropoffLongitude);
 
       if (pickupDate && typeof pickupDate !== "string") {
         return res.status(400).json({
@@ -415,6 +475,13 @@ export class TravelController {
         });
       }
 
+      if (!dropoffLocation?.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "La ubicación de destino es requerida"
+        });
+      }
+
       if (pickupLatitude === undefined || Math.abs(pickupLatitude) > 90) {
         return res.status(400).json({
           success: false,
@@ -426,6 +493,20 @@ export class TravelController {
         return res.status(400).json({
           success: false,
           message: "La longitud de recogida es inválida"
+        });
+      }
+
+      if (dropoffLatitude === undefined || Math.abs(dropoffLatitude) > 90) {
+        return res.status(400).json({
+          success: false,
+          message: "La latitud de destino es inválida"
+        });
+      }
+
+      if (dropoffLongitude === undefined || Math.abs(dropoffLongitude) > 180) {
+        return res.status(400).json({
+          success: false,
+          message: "La longitud de destino es inválida"
         });
       }
 
@@ -469,6 +550,9 @@ export class TravelController {
         pickupLocation,
         pickupLatitude,
         pickupLongitude,
+        dropoffLocation,
+        dropoffLatitude,
+        dropoffLongitude,
         parsedPickupDate,
         parsedPickupTime
       );
@@ -874,6 +958,98 @@ export class TravelController {
       res.status(400).json({
         success: false,
         message: error instanceof Error ? error.message : "Error al abandonar viaje"
+      });
+    }
+  }
+
+  // ✅ GET /travels/:id/messages - Obtener historial de chat del viaje
+  async getTravelMessages(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const travelId = Number(req.params.id);
+      if (!Number.isFinite(travelId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de viaje inválido"
+        });
+      }
+
+      const messages = await chatService.getMessages(travelId, userId);
+      return res.status(200).json({
+        success: true,
+        messages
+      });
+    } catch (error) {
+      console.error("Error in getTravelMessages:", error);
+      const message = error instanceof Error ? error.message : "Error al obtener mensajes";
+      const status = message.includes("no encontrado")
+        ? 404
+        : message.includes("autorizado")
+          ? 403
+          : 500;
+      return res.status(status).json({
+        success: false,
+        message
+      });
+    }
+  }
+
+  // ✅ POST /travels/:id/messages - Enviar mensaje del viaje
+  async sendTravelMessage(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const travelId = Number(req.params.id);
+      if (!Number.isFinite(travelId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de viaje inválido"
+        });
+      }
+
+      const body: unknown = req.body?.body ?? req.body?.message ?? req.body?.text;
+      if (typeof body !== "string" || body.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "El mensaje es requerido"
+        });
+      }
+
+      const message = await chatService.sendMessage({
+        travelId,
+        senderId: userId,
+        body
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: "Mensaje enviado",
+        data: message
+      });
+    } catch (error) {
+      console.error("Error in sendTravelMessage:", error);
+      const message = error instanceof Error ? error.message : "Error al enviar mensaje";
+      const status = message.includes("no encontrado")
+        ? 404
+        : message.includes("autorizado")
+          ? 403
+          : 500;
+      return res.status(status).json({
+        success: false,
+        message
       });
     }
   }

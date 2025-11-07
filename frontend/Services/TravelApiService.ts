@@ -12,6 +12,7 @@ import {
     TravelsResponse,
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
+import type { ChatMessagesPayload, ChatSendPayload } from "@/types/chat";
 
 class TravelApiService extends BaseApiService {
 
@@ -89,6 +90,9 @@ class TravelApiService extends BaseApiService {
     pickupLocation: string,
     pickupLatitude: number,
     pickupLongitude: number,
+    dropoffLocation: string,
+    dropoffLatitude: number,
+    dropoffLongitude: number,
     pickupDate?: Date,
     pickupTime?: Date
   ): Promise<ApiResponse<{
@@ -101,6 +105,9 @@ class TravelApiService extends BaseApiService {
         pickupLocation,
         pickupLatitude,
         pickupLongitude,
+        dropoffLocation,
+        dropoffLatitude,
+        dropoffLongitude,
         pickupDate: pickupDate ? pickupDate.toISOString() : undefined,
         pickupTime: pickupTime ? pickupTime.toISOString() : undefined
       })
@@ -152,6 +159,19 @@ class TravelApiService extends BaseApiService {
   }>> {
     return this.makeRequest(`/travels/${travelId}/passengers/${passengerId}`, {
       method: 'DELETE'
+    });
+  }
+
+  async getTravelMessages(travelId: number): Promise<ApiResponse<ChatMessagesPayload>> {
+    return this.makeRequest<ChatMessagesPayload>(`/travels/${travelId}/messages`, {
+      method: 'GET'
+    });
+  }
+
+  async sendTravelMessage(travelId: number, body: string): Promise<ApiResponse<ChatSendPayload>> {
+    return this.makeRequest<ChatSendPayload>(`/travels/${travelId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ body })
     });
   }
 

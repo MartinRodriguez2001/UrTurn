@@ -1,5 +1,6 @@
 import NextTravelCard from "@/components/driverComps/NextTravelCard";
 import PendingRequestCard from "@/components/driverComps/PendingRequestCard";
+import { useAuth } from "@/context/authContext";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import travelApiService from "@/Services/TravelApiService";
 import {
@@ -10,12 +11,12 @@ import {
   TravelPlannedStop,
   TravelStatus,
 } from "@/types/travel";
+import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  Modal,
   RefreshControl,
   SafeAreaView,
   ScrollView,
@@ -64,12 +65,15 @@ type PendingRequestItem = {
   pickupLatitude?: number | null;
   pickupLongitude?: number | null;
   destination: string;
+  dropoffLocation: string;
+  dropoffLatitude?: number | null;
+  dropoffLongitude?: number | null;
   confirmedPassengers: PassengerParam[];
 };
 
 export default function DriverHomePage() {
   const router = useRouter();
-  const [showModeModal, setShowModeModal] = useState(false);
+  const { user } = useAuth();
   const { canAccessDriverMode, loading, refreshStatus } = useDriverStatus();
   const [travels, setTravels] = useState<ProcessedTravel[]>([]);
   const [loadingTravels, setLoadingTravels] = useState(false);
@@ -209,9 +213,13 @@ export default function DriverHomePage() {
           "Origen por definir";
 
         const destination =
+          passenger.end_location_name ??
           travel.end_location_name ??
           travel.end_location ??
           "Destino por definir";
+
+        const dropoffLatitude = passenger.end_latitude ?? travel.end_latitude ?? null;
+        const dropoffLongitude = passenger.end_longitude ?? travel.end_longitude ?? null;
 
         return {
           travel,
@@ -221,6 +229,9 @@ export default function DriverHomePage() {
           pickupLatitude: passenger.start_latitude ?? null,
           pickupLongitude: passenger.start_longitude ?? null,
           destination,
+          dropoffLocation: destination,
+          dropoffLatitude,
+          dropoffLongitude,
           confirmedPassengers: mapConfirmedPassengers(travel),
         };
       });
@@ -248,11 +259,6 @@ export default function DriverHomePage() {
   if (!canAccessDriverMode) {
     return null;
   }
-
-  const handleModeChange = () => {
-    setShowModeModal(false);
-    router.replace("/Passenger/PassengerHomePage");
-  };
 
   const formatRouteLabel = (travel: ProcessedTravel) => {
     const origin =
@@ -307,6 +313,9 @@ export default function DriverHomePage() {
       pickupLatitude: request.pickupLatitude,
       pickupLongitude: request.pickupLongitude,
       destination: request.destination,
+  dropoffLocation: request.dropoffLocation,
+  dropoffLatitude: request.dropoffLatitude ?? null,
+  dropoffLongitude: request.dropoffLongitude ?? null,
       travelId: request.travel.id,
       startTime: request.travel.start_time,
       travel: request.travelPayload,
@@ -321,28 +330,22 @@ export default function DriverHomePage() {
     });
   };
 
+  const handleNavigateToPassangerHome = () => {
+    router.push("/Passenger/PassengerHomePage");
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.modeButton}
-          onPress={() => setShowModeModal(true)}
-        >
-          <Text style={styles.modeIcon}>🔄</Text>
-          <Text style={styles.modeText}>Pasajero</Text>
-        </TouchableOpacity>
-
         <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle}>Pagina Principal</Text>
+          <Text style={styles.headerTitle}>Página Principal</Text>
+          <Text style={styles.subTitle}>Hola, {user?.name ?? "Pasajero"}</Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.profileButton}
-          onPress={() => router.push("/Driver/DriverProfile")}
-        >
+        <TouchableOpacity style={styles.profileButton} onPress={() => router.push("/Driver/DriverProfile")}>
           <View style={styles.profileImage}>
-            <Text style={styles.profileInitial}>U</Text>
+            <Text style={styles.profileInitial}>{user?.name?.[0] ?? "U"}</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -358,6 +361,28 @@ export default function DriverHomePage() {
           />
         }
       >
+        <View style={styles.section}>
+          <TouchableOpacity
+            style={styles.switchCard}
+            onPress={handleNavigateToPassangerHome}
+          >
+            <View style={styles.switchCardContent}>
+              <View style={styles.switchIconContainer}>
+                <Feather name="users" size={24} color="#FFFFFF" />
+              </View>
+              <View style={styles.switchInfo}>
+                <Text style={styles.switchTitle}>Cambiar a Passenger</Text>
+                <Text style={styles.switchSubtitle}>
+                  Busca viajes y solicita que te lleven a tu destino.
+                </Text>
+              </View>
+              <View style={styles.switchArrow}>
+                <Text style={styles.switchArrowIcon}>➜</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+
         {/* Published Trips Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -389,7 +414,7 @@ export default function DriverHomePage() {
             />
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateIcon}>🚗</Text>
+              <Feather name="inbox" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
               <Text style={styles.emptyStateTitle}>
                 No tienes viajes programados
               </Text>
@@ -447,7 +472,7 @@ export default function DriverHomePage() {
             />
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Text style={styles.emptyStateIcon}>📭</Text>
+              <Feather name="inbox" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
               <Text style={styles.emptyStateTitle}>
                 No hay solicitudes pendientes
               </Text>
@@ -502,45 +527,6 @@ export default function DriverHomePage() {
         </TouchableOpacity>
       </View>
 
-      {/* Mode Change Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={showModeModal}
-        onRequestClose={() => setShowModeModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Cambiar Modo</Text>
-            </View>
-
-            <Text style={styles.modalMessage}>
-              ¿Estás seguro de que quieres cambiar al modo Pasajero?
-            </Text>
-
-            <Text style={styles.modalSubMessage}>
-              Podrás buscar viajes y solicitar que te lleven a tu destino.
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setShowModeModal(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.modalConfirmButton}
-                onPress={handleModeChange}
-              >
-                <Text style={styles.modalConfirmText}>Confirmar</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -551,13 +537,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   header: {
-    height: 59,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 11,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  headerSpacer: {
+    width: 48,
+    height: 48,
   },
   backButton: {
     width: 48,
@@ -572,35 +560,34 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 20,
   },
   headerTitle: {
     fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
-    fontSize: 18,
-    lineHeight: 23,
+    fontWeight: "700",
+    fontSize: 20,
     color: "#121417",
-    textAlign: "center",
   },
   profileButton: {
     width: 48,
     height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F0F2F5",
     alignItems: "center",
     justifyContent: "center",
   },
   profileImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#F99F7C",
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFE4D6",
     alignItems: "center",
     justifyContent: "center",
   },
   profileInitial: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#FFFFFF",
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "700",
+    fontSize: 18,
+    color: "#F97316",
   },
   scrollContainer: {
     flex: 1,
@@ -609,13 +596,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 20,
   },
+  switchCard: {
+    backgroundColor: "#F8F9FA",
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#E9ECEF",
+  },
+  switchCardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  switchIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F99F7C",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  switchIcon: {
+    fontSize: 24,
+    color: "#FFFFFF",
+  },
+  switchInfo: {
+    flex: 1,
+  },
+  switchTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 16,
+    color: "#121417",
+  },
+  switchSubtitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    color: "#61758A",
+    marginTop: 4,
+  },
+  switchArrow: {
+    marginLeft: 8,
+  },
+  switchArrowIcon: {
+    fontSize: 18,
+    color: "#61758A",
+    fontWeight: "bold",
+  },
   sectionTitle: {
     fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
-    fontSize: 22,
-    lineHeight: 28,
+    fontWeight: "700",
+    fontSize: 18,
     color: "#121417",
-    marginBottom: 16,
   },
   requestCard: {
     flexDirection: "row",
@@ -652,117 +684,6 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 16,
     lineHeight: 24,
-    color: "#FFFFFF",
-  },
-  // Mode button styles
-  modeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F8F9FA",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#E9ECEF",
-  },
-  modeIcon: {
-    fontSize: 14,
-    marginRight: 4,
-  },
-  modeText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "600",
-    fontSize: 12,
-    color: "#495057",
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  modalContainer: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 24,
-    width: "100%",
-    maxWidth: 320,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
-    fontSize: 20,
-    lineHeight: 25,
-    color: "#121417",
-  },
-  modalIcon: {
-    fontSize: 24,
-  },
-  modalMessage: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 16,
-    lineHeight: 24,
-    color: "#121417",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  modalSubMessage: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#61758A",
-    marginBottom: 24,
-    textAlign: "center",
-  },
-  modalButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  modalCancelButton: {
-    flex: 1,
-    backgroundColor: "#F8F9FA",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E9ECEF",
-  },
-  modalCancelText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "600",
-    fontSize: 16,
-    color: "#495057",
-  },
-  modalConfirmButton: {
-    flex: 1,
-    backgroundColor: "#F99F7C",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    alignItems: "center",
-  },
-  modalConfirmText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
-    fontSize: 16,
     color: "#FFFFFF",
   },
   loadingText: {
@@ -803,24 +724,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   emptyStateIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: 42,
+    marginBottom: 12,
   },
   emptyStateTitle: {
     fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
-    fontSize: 18,
+    fontWeight: "600",
+    fontSize: 16,
     color: "#121417",
-    marginBottom: 8,
-    textAlign: "center",
+    marginBottom: 4,
   },
   emptyStateMessage: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
     color: "#61758A",
     textAlign: "center",
-    marginBottom: 20,
-    lineHeight: 20,
   },
   emptyStateButton: {
     backgroundColor: "#F99F7C",
@@ -872,5 +790,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#61758A",
     textAlign: "center",
+  },
+  subTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    color: "#61758A",
+    marginTop: 4,
   },
 });

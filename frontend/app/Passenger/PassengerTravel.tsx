@@ -5,15 +5,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Image,
-    Linking,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -150,19 +150,48 @@ export default function PassengerTravel() {
     []
   );
 
-  const travelFromParams = useMemo(
+const travelFromParams = useMemo(
     () => parseJSONParam<TravelParam>(params.travel),
     [params.travel]
   );
 
-  const driverFromParams = useMemo(
+const driverFromParams = useMemo(
     () => parseJSONParam<DriverInfo>(params.driver),
     [params.driver]
   );
 
-  const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
-  const driver: DriverInfo = driverFromParams ?? DEFAULT_DRIVER;
-  const contactPhone = useMemo(() => driver.phone?.replace(/\s+/g, ""), [driver.phone]);
+const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
+const driver: DriverInfo = driverFromParams ?? DEFAULT_DRIVER;
+const travelId = useMemo(() => {
+  const rawId = travel?.id;
+  if (rawId === undefined || rawId === null) {
+    return undefined;
+  }
+  const parsed = typeof rawId === "string" ? Number(rawId) : rawId;
+  return Number.isFinite(parsed) ? Number(parsed) : undefined;
+}, [travel?.id]);
+
+const contactPhone = useMemo(() => driver.phone?.replace(/\s+/g, ""), [driver.phone]);
+
+const handleOpenChat = () => {
+  const paramsPayload: Record<string, string> = {
+    travel: JSON.stringify(travel),
+    driver: JSON.stringify(driver),
+  };
+
+  if (travelId !== undefined) {
+    paramsPayload.travelId = String(travelId);
+  }
+
+  router.push({ pathname: "/Passenger/PassengerChat", params: paramsPayload });
+};
+
+const handleCallDriver = () => {
+  if (!contactPhone) {
+    return;
+  }
+  Linking.openURL(`tel:${contactPhone}`);
+};
 
   const startCoordinate = useMemo(() => {
     const latitude = toNumber(travel.start_latitude);
@@ -323,7 +352,7 @@ export default function PassengerTravel() {
       value: travel.start_location_name ?? "Por confirmar",
     },
     {
-      icon: "navigation" as const,
+      icon: "flag" as const,
       label: "Destino",
       value: travel.end_location_name ?? "Por confirmar",
     },
@@ -344,17 +373,20 @@ export default function PassengerTravel() {
     },
   ];
 
-  const renderRouteMap = (interactive: boolean) => (
+  const mapRegionKey = `${mapRegion.latitude}-${mapRegion.longitude}-${mapRegion.latitudeDelta}-${mapRegion.longitudeDelta}`;
+
+  const renderRouteMap = (mode: "preview" | "fullscreen") => (
     <MapView
+      key={`${mode}-${mapRegionKey}`}
       style={styles.map}
       provider={PROVIDER_GOOGLE}
-      region={mapRegion}
       initialRegion={mapRegion}
-      scrollEnabled={interactive}
-      zoomEnabled={interactive}
-      rotateEnabled={interactive}
-      pitchEnabled={interactive}
-      pointerEvents={interactive ? "auto" : "none"}
+      showsCompass={mode === "fullscreen"}
+      toolbarEnabled={mode === "fullscreen"}
+      scrollEnabled
+      zoomEnabled
+      rotateEnabled={mode === "fullscreen"}
+      pitchEnabled={mode === "fullscreen"}
     >
       {polylineCoordinates.length >= 2 ? (
         <Polyline coordinates={polylineCoordinates} strokeColor="#4C6EF5" strokeWidth={4} />
@@ -393,17 +425,18 @@ export default function PassengerTravel() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity
-          activeOpacity={0.95}
-          style={styles.mapCard}
-          onPress={() => setIsMapExpanded(true)}
-        >
-          {renderRouteMap(false)}
-          <View style={styles.expandHint}>
+        <View style={styles.mapCard}>
+          {renderRouteMap("preview")}
+          <TouchableOpacity
+            style={styles.expandHint}
+            onPress={() => setIsMapExpanded(true)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
             <Feather name="maximize" size={16} color="#FFFFFF" />
             <Text style={styles.expandHintText}>Ver mapa completo</Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Detalles del viaje</Text>
@@ -436,19 +469,42 @@ export default function PassengerTravel() {
                 {driver.phone ? `Teléfono: ${driver.phone}` : "Teléfono no disponible"}
               </Text>
             </View>
-            <TouchableOpacity
-              style={[styles.contactButton, !contactPhone && styles.contactButtonDisabled]}
-              activeOpacity={contactPhone ? 0.85 : 1}
-              onPress={contactPhone ? () => Linking.openURL(`tel:${contactPhone}`) : undefined}
-              disabled={!contactPhone}
-            >
-              <Text
-                style={[styles.contactButtonText, !contactPhone && styles.contactButtonTextDisabled]}
+            <View style={styles.contactActions}>
+              <TouchableOpacity
+                style={styles.chatButton}
+                activeOpacity={0.85}
+                onPress={handleOpenChat}
               >
-                Contactar
-              </Text>
-            </TouchableOpacity>
+                <Feather name="message-circle" size={16} color="#1E3A8A" />
+                <Text style={styles.chatButtonText}>Chat</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.callButton,
+                  !contactPhone && styles.callButtonDisabled,
+                ]}
+                activeOpacity={contactPhone ? 0.85 : 1}
+                onPress={contactPhone ? handleCallDriver : undefined}
+                disabled={!contactPhone}
+              >
+                <Feather
+                  name="phone"
+                  size={16}
+                  color={contactPhone ? "#1E40AF" : "#94A3B8"}
+                />
+                <Text
+                  style={[
+                    styles.callButtonText,
+                    !contactPhone && styles.callButtonTextDisabled,
+                  ]}
+                >
+                  Llamar
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
+
         </View>
       </ScrollView>
 
@@ -460,7 +516,7 @@ export default function PassengerTravel() {
       >
         <View style={styles.fullscreenMapContainer}>
           <View style={styles.fullscreenMapWrapper}>
-            {renderRouteMap(true)}
+            {renderRouteMap("fullscreen")}
             <TouchableOpacity
               style={styles.closeMapButton}
               onPress={() => setIsMapExpanded(false)}
@@ -622,23 +678,49 @@ const styles = StyleSheet.create({
     color: "#61758A",
     marginTop: 2,
   },
-  contactButton: {
-    backgroundColor: "#FFECE3",
-    paddingHorizontal: 20,
+  contactActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  chatButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#E0EAFF",
+    paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 999,
   },
-  contactButtonDisabled: {
-    backgroundColor: "#F3F4F6",
-  },
-  contactButtonText: {
+  chatButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "600",
     fontSize: 14,
-    color: "#F97316",
+    color: "#1E3A8A",
   },
-  contactButtonTextDisabled: {
-    color: "#9CA3AF",
+  callButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    backgroundColor: "#FFFFFF",
+  },
+  callButtonDisabled: {
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+  },
+  callButtonText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 14,
+    color: "#1E40AF",
+  },
+  callButtonTextDisabled: {
+    color: "#94A3B8",
   },
   marker: {
     width: 32,

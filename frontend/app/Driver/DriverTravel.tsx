@@ -5,14 +5,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Image,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -65,6 +66,17 @@ const DEFAULT_REGION = {
   longitude: -70.55,
   latitudeDelta: 0.09,
   longitudeDelta: 0.09,
+};
+
+const STOP_TYPES_TO_IGNORE: ReadonlyArray<TravelPlannedStop["type"]> = ["start", "end"];
+const COORDINATE_EPSILON = 1e-5;
+
+const isSameCoordinate = (reference: TravelCoordinate | null, candidate: TravelCoordinate) => {
+  if (!reference) return false;
+  return (
+    Math.abs(reference.latitude - candidate.latitude) <= COORDINATE_EPSILON &&
+    Math.abs(reference.longitude - candidate.longitude) <= COORDINATE_EPSILON
+  );
 };
 
 const parseJSONParam = <T,>(raw?: string | string[]) => {
@@ -142,18 +154,26 @@ export default function DriverTravel() {
     []
   );
 
-  const travelFromParams = useMemo(
+const travelFromParams = useMemo(
     () => parseJSONParam<TravelParam>(params.travel),
     [params.travel]
   );
 
-  const passengersFromParams = useMemo(
+const passengersFromParams = useMemo(
     () => parseJSONParam<Passenger[]>(params.passengers),
     [params.passengers]
   );
 
-  const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
-  const passengers: Passenger[] = passengersFromParams ?? [];
+const travel: TravelParam = travelFromParams ?? DEFAULT_TRAVEL;
+const passengers: Passenger[] = passengersFromParams ?? [];
+const travelId = useMemo(() => {
+  const rawId = travel?.id;
+  if (rawId === undefined || rawId === null) {
+    return undefined;
+  }
+  const parsed = typeof rawId === "string" ? Number(rawId) : rawId;
+  return Number.isFinite(parsed) ? Number(parsed) : undefined;
+}, [travel?.id]);
 
   const startCoordinate = useMemo(() => {
     const latitude = toNumber(travel.start_latitude);
@@ -169,24 +189,71 @@ export default function DriverTravel() {
     return { latitude, longitude };
   }, [travel.end_latitude, travel.end_longitude]);
 
-  const stopCoordinates = useMemo<TravelCoordinate[]>(() => {
-    const plannedStops = Array.isArray(travel.planned_stops)
-      ? travel.planned_stops
-      : [];
+  const passengerStops = useMemo(
+    () => {
+      if (!Array.isArray(travel.planned_stops)) {
+        return [] as { coordinate: TravelCoordinate; label: string | null }[];
+      }
 
-    const normalizedStops = plannedStops
-      .map((stop) => {
-        const latitude = toNumber(stop.latitude);
-        const longitude = toNumber(stop.longitude);
-        if (latitude === null || longitude === null) {
-          return null;
-        }
-        return { latitude, longitude };
-      })
-      .filter(Boolean) as TravelCoordinate[];
+      return travel.planned_stops.reduce<{ coordinate: TravelCoordinate; label: string | null }[]>(
+        (accumulator, stop) => {
+          const latitude = toNumber(stop.latitude);
+          const longitude = toNumber(stop.longitude);
+          if (latitude === null || longitude === null) {
+            return accumulator;
+          }
 
-    return normalizedStops;
-  }, [travel.planned_stops]);
+          const coordinate = { latitude, longitude };
+          const stopType = stop.type;
+
+          const shouldIgnoreType =
+            typeof stopType === "string" &&
+            STOP_TYPES_TO_IGNORE.includes(stopType as TravelPlannedStop["type"]);
+
+          if (shouldIgnoreType) {
+            return accumulator;
+          }
+
+          if (isSameCoordinate(startCoordinate, coordinate) || isSameCoordinate(endCoordinate, coordinate)) {
+            return accumulator;
+          }
+
+          let label: string | null = null;
+
+          if (stop && typeof stop === "object") {
+            const s = stop as unknown as Record<string, unknown>;
+            const locationName = s["locationName"];
+            if (typeof locationName === "string" && locationName.trim().length) {
+              label = locationName;
+            } else {
+              const legacyLocationName = s["location_name"];
+              if (
+                typeof legacyLocationName === "string" &&
+                legacyLocationName.trim().length
+              ) {
+                label = legacyLocationName;
+              } else {
+                const fallbackName = s["name"];
+                if (typeof fallbackName === "string" && fallbackName.trim().length) {
+                  label = fallbackName;
+                }
+              }
+            }
+          }
+
+          accumulator.push({ coordinate, label });
+          return accumulator;
+        },
+        []
+      );
+    },
+    [endCoordinate, startCoordinate, travel.planned_stops]
+  );
+
+  const stopCoordinates = useMemo<TravelCoordinate[]>(
+    () => passengerStops.map((stop) => stop.coordinate),
+    [passengerStops]
+  );
 
   const routeCoordinates = useMemo<TravelCoordinate[]>(() => {
     const waypoints =
@@ -314,7 +381,7 @@ export default function DriverTravel() {
       value: travel.start_location_name ?? "Por confirmar",
     },
     {
-      icon: "navigation" as const,
+      icon: "flag" as const,
       label: "Destino",
       value: travel.end_location_name ?? "Por confirmar",
     },
@@ -335,17 +402,20 @@ export default function DriverTravel() {
     },
   ];
 
-  const renderRouteMap = (interactive: boolean) => (
+  const mapRegionKey = `${mapRegion.latitude}-${mapRegion.longitude}-${mapRegion.latitudeDelta}-${mapRegion.longitudeDelta}`;
+
+  const renderRouteMap = (mode: "preview" | "fullscreen") => (
     <MapView
+      key={`${mode}-${mapRegionKey}`}
       style={styles.map}
       provider={PROVIDER_GOOGLE}
-      region={mapRegion}
       initialRegion={mapRegion}
-      scrollEnabled={interactive}
-      zoomEnabled={interactive}
-      rotateEnabled={interactive}
-      pitchEnabled={interactive}
-      pointerEvents={interactive ? "auto" : "none"}
+      showsCompass={mode === "fullscreen"}
+      toolbarEnabled={mode === "fullscreen"}
+      scrollEnabled
+      zoomEnabled
+      rotateEnabled={mode === "fullscreen"}
+      pitchEnabled={mode === "fullscreen"}
     >
       {polylineCoordinates.length >= 2 ? (
         <Polyline coordinates={polylineCoordinates} strokeColor="#4C6EF5" strokeWidth={4} />
@@ -366,8 +436,56 @@ export default function DriverTravel() {
           </View>
         </Marker>
       ) : null}
+
+      {/* Passenger planned stops markers */}
+      {passengerStops.map((stop, idx) => {
+        const label = stop.label ?? `Parada pasajero ${idx + 1}`;
+        return (
+          <Marker
+            key={`passenger-stop-${idx}`}
+            coordinate={stop.coordinate}
+            title={label}
+          >
+            <View style={styles.stopMarker}>
+              <Text style={styles.stopMarkerText}>{String(idx + 1)}</Text>
+            </View>
+          </Marker>
+        );
+      })}
     </MapView>
   );
+
+  const handleStartTrip = () => {
+    const paramsPayload: Record<string, string> = {
+      travel: JSON.stringify(travel),
+      passengers: JSON.stringify(passengers),
+    };
+
+    router.push({
+      pathname: "/Driver/DriverOnTravel",
+      params: paramsPayload,
+    });
+  };
+
+  const handleOpenChat = () => {
+    const paramsPayload: Record<string, string> = {
+      travel: JSON.stringify(travel),
+      passengers: JSON.stringify(passengers),
+    };
+
+    if (travelId !== undefined) {
+      paramsPayload.travelId = String(travelId);
+    }
+
+    router.push({ pathname: "/Driver/DriverChat", params: paramsPayload });
+  };
+
+  const handleCallPassenger = (phone?: string | null) => {
+    if (!phone) {
+      return;
+    }
+    Linking.openURL(`tel:${phone}`);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -384,17 +502,18 @@ export default function DriverTravel() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <TouchableOpacity
-          activeOpacity={0.95}
-          style={styles.mapCard}
-          onPress={() => setIsMapExpanded(true)}
-        >
-          {renderRouteMap(false)}
-          <View style={styles.expandHint}>
+        <View style={styles.mapCard}>
+          {renderRouteMap("preview")}
+          <TouchableOpacity
+            style={styles.expandHint}
+            onPress={() => setIsMapExpanded(true)}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+          >
             <Feather name="maximize" size={16} color="#FFFFFF" />
             <Text style={styles.expandHintText}>Ver mapa completo</Text>
-          </View>
-        </TouchableOpacity>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Detalles del viaje</Text>
@@ -426,9 +545,26 @@ export default function DriverTravel() {
                 <Text style={styles.passengerName}>{passenger.name}</Text>
                 <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
               </View>
-              <TouchableOpacity style={styles.contactButton} activeOpacity={0.85}>
-                <Text style={styles.contactButtonText}>Contactar</Text>
-              </TouchableOpacity>
+              <View style={styles.contactActions}>
+                <TouchableOpacity
+                  style={styles.contactButton}
+                  activeOpacity={0.85}
+                  onPress={handleOpenChat}
+                >
+                  <Feather name="message-circle" size={16} color="#F97316" />
+                  <Text style={styles.contactButtonText}>Chat</Text>
+                </TouchableOpacity>
+                {passenger.phone ? (
+                  <TouchableOpacity
+                    style={styles.callButton}
+                    activeOpacity={0.85}
+                    onPress={() => handleCallPassenger(passenger.phone)}
+                  >
+                    <Feather name="phone" size={16} color="#1E40AF" />
+                    <Text style={styles.callButtonText}>Llamar</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
             </View>
           ))}
           {!passengers.length ? (
@@ -447,7 +583,7 @@ export default function DriverTravel() {
       >
         <View style={styles.fullscreenMapContainer}>
           <View style={styles.fullscreenMapWrapper}>
-            {renderRouteMap(true)}
+            {renderRouteMap("fullscreen")}
             <TouchableOpacity
               style={styles.closeMapButton}
               onPress={() => setIsMapExpanded(false)}
@@ -463,7 +599,7 @@ export default function DriverTravel() {
         <TouchableOpacity
           style={styles.primaryButton}
           activeOpacity={0.9}
-          onPress={() => router.push("/Driver/DriverOnTravel")}
+          onPress={handleStartTrip}
         >
           <Text style={styles.primaryButtonText}>Empezar viaje</Text>
         </TouchableOpacity>
@@ -619,17 +755,42 @@ const styles = StyleSheet.create({
     color: "#61758A",
     marginTop: 2,
   },
+  contactActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   contactButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: "#FFECE3",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 999,
   },
   contactButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "600",
     fontSize: 14,
     color: "#F97316",
+  },
+  callButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    backgroundColor: "#FFFFFF",
+  },
+  callButtonText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 14,
+    color: "#1E40AF",
   },
   emptyStateText: {
     fontFamily: "Plus Jakarta Sans",
@@ -670,6 +831,22 @@ const styles = StyleSheet.create({
   },
   markerDestination: {
     backgroundColor: "#F97316",
+  },
+  stopMarker: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#10B981",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+  stopMarkerText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "700",
+    fontSize: 14,
+    color: "#FFFFFF",
   },
   fullscreenMapContainer: {
     flex: 1,

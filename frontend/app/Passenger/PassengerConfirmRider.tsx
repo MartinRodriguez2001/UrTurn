@@ -1,3 +1,4 @@
+import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import {
@@ -23,11 +24,12 @@ export default function PassengerConfirmRider() {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity 
-                    style={styles.backButton}
+                <TouchableOpacity
                     onPress={() => router.back()}
+                    style={styles.backButton}
+                    accessibilityRole="button"
                 >
-                    <Text style={styles.backIcon}>←</Text>
+                    <Feather name="arrow-left" size={22} color="#121417" />
                 </TouchableOpacity>
                 
                 <View style={styles.titleContainer}>

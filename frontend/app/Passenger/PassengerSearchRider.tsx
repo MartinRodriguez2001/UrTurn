@@ -5,6 +5,7 @@ import TravelRouteSection from "@/components/travel/TravelRouteSection";
 import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
 import travelApiService from "@/Services/TravelApiService";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
+import { Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import React, { useMemo, useState } from "react";
@@ -221,16 +222,15 @@ export default function PassengerSearchRider() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backIcon}>←</Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backButton}
+          accessibilityRole="button"
+        >
+          <Feather name="arrow-left" size={22} color="#121417" />
         </TouchableOpacity>
-
-        <View style={styles.titleContainer}>
-          <Text style={styles.headerTitle}>Buscar un viaje</Text>
-          <Text style={styles.headerSubtitle}>Ingresa ruta, fecha y hora para ver opciones disponibles</Text>
-        </View>
-
-        <View style={styles.placeholder} />
+        <Text style={styles.headerTitle}>Buscar viaje</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
       <ScrollView
@@ -346,19 +346,16 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 4,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F2F5",
-    gap: 12,
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#F5F0F0",
+    width: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "center",
+    borderRadius: 24,
   },
   backIcon: {
     fontSize: 20,
@@ -381,6 +378,9 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
     height: 40,
+  },
+  headerSpacer: {
+    width: 48,
   },
   scrollContainer: {
     flex: 1,

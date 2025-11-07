@@ -1,6 +1,6 @@
-import travelApiService from '@/Services/TravelApiService';
+﻿import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
     Alert,
     SafeAreaView,
@@ -24,7 +24,6 @@ interface Review {
 export default function PassengerDriverProfile() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const [isRequesting, setIsRequesting] = useState(false);
 
     const getParamValue = (value: string | string[] | undefined) =>
         Array.isArray(value) ? value[0] : value;
@@ -36,11 +35,29 @@ export default function PassengerDriverProfile() {
         getParamValue(params.pickupLatitude) ?? getParamValue(params.originLat);
     const pickupLongitudeParam =
         getParamValue(params.pickupLongitude) ?? getParamValue(params.originLng);
+    const destinationLatParam = getParamValue(params.destinationLat);
+    const destinationLngParam = getParamValue(params.destinationLng);
+    const dropoffLocation =
+        getParamValue(params.dropoffLocation) ?? getParamValue(params.destination) ?? '';
+    const dropoffLatitudeParam =
+        getParamValue(params.dropoffLatitude) ?? destinationLatParam;
+    const dropoffLongitudeParam =
+        getParamValue(params.dropoffLongitude) ?? destinationLngParam;
     const travelIdParam = getParamValue(params.travelId);
     const travelId = travelIdParam ? Number(travelIdParam) : NaN;
+    const priceValueParam = getParamValue(params.priceValue);
+    const driverPhone = getParamValue(params.driverPhone) ?? '';
+    const driverRatingParam = getParamValue(params.driverRating);
+    const spacesAvailableParam = getParamValue(params.spacesAvailable);
+    const startTimeParam = getParamValue(params.startTime);
+    const additionalMinutesParam = getParamValue(params.additionalMinutes);
+    const additionalDistanceParam = getParamValue(params.additionalDistanceKm);
+    const routeWaypointsParam = getParamValue(params.routeWaypoints);
 
     const pickupLatitude = pickupLatitudeParam ? Number(pickupLatitudeParam) : NaN;
     const pickupLongitude = pickupLongitudeParam ? Number(pickupLongitudeParam) : NaN;
+    const dropoffLatitude = dropoffLatitudeParam ? Number(dropoffLatitudeParam) : NaN;
+    const dropoffLongitude = dropoffLongitudeParam ? Number(dropoffLongitudeParam) : NaN;
 
     const pickupDateDate = useMemo(() => {
         if (!pickupDateValue) {
@@ -73,7 +90,7 @@ export default function PassengerDriverProfile() {
         return parsed;
     }, [pickupTimeValue, pickupDateDate]);
 
-    const handleRequestRide = async () => {
+    const handleRequestRide = () => {
         if (Number.isNaN(travelId)) {
             Alert.alert('Información incompleta', 'No se pudo determinar el viaje a solicitar.');
             return;
@@ -92,6 +109,11 @@ export default function PassengerDriverProfile() {
             return;
         }
 
+        if (!dropoffLocation.trim()) {
+            Alert.alert('Selecciona un destino', 'Debes elegir una ubicación de destino antes de solicitar.');
+            return;
+        }
+
         if (!Number.isFinite(pickupLatitude) || Math.abs(pickupLatitude) > 90) {
             Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de recogida. Selecciona una ubicación válida.');
             return;
@@ -102,32 +124,41 @@ export default function PassengerDriverProfile() {
             return;
         }
 
-        try {
-            setIsRequesting(true);
-            const response = await travelApiService.requestToJoinTravel(
-                travelId,
-                pickupLocation,
-                pickupLatitude,
-                pickupLongitude,
-                pickupDateDate,
-                pickupTimeDate
-            );
-
-            if (response.success) {
-                Alert.alert('Solicitud enviada', response.message ?? 'Tu solicitud fue enviada correctamente.');
-                router.push("/Passenger/PassengerConfirmRider");
-            } else {
-                Alert.alert('No se pudo enviar', response.message ?? 'Intenta nuevamente en unos minutos.');
-            }
-        } catch (error) {
-            console.error('Error al solicitar viaje:', error);
-            Alert.alert(
-                'Error',
-                'No pudimos enviar tu solicitud en este momento. Verifica tu conexión e inténtalo nuevamente.'
-            );
-        } finally {
-            setIsRequesting(false);
+        if (!Number.isFinite(dropoffLatitude) || Math.abs(dropoffLatitude) > 90) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de destino. Selecciona una ubicación válida.');
+            return;
         }
+
+        if (!Number.isFinite(dropoffLongitude) || Math.abs(dropoffLongitude) > 180) {
+            Alert.alert('Coordenadas inválidas', 'No se pudieron obtener las coordenadas de destino. Selecciona una ubicación válida.');
+            return;
+        }
+
+        router.push({
+            pathname: "/Passenger/PassengerConfirmation",
+            params: {
+                travelId: travelId.toString(),
+                pickupLocation,
+                pickupLatitude: pickupLatitude.toString(),
+                pickupLongitude: pickupLongitude.toString(),
+                dropoffLocation,
+                dropoffLatitude: dropoffLatitude.toString(),
+                dropoffLongitude: dropoffLongitude.toString(),
+                pickupDate: pickupDateDate.toISOString(),
+                pickupTime: pickupTimeDate.toISOString(),
+                price,
+                priceValue: priceValueParam ?? '',
+                driverName,
+                driverPhone,
+                driverRating: driverRatingParam ?? '',
+                spacesAvailable: spacesAvailableParam ?? '',
+                startTime: startTimeParam ?? '',
+                vehicle: vehicleType,
+                additionalMinutes: additionalMinutesParam ?? '',
+                additionalDistanceKm: additionalDistanceParam ?? '',
+                routeWaypoints: routeWaypointsParam ?? '',
+            },
+        });
     };
     
     // Get driver info from params or use default
@@ -209,11 +240,12 @@ export default function PassengerDriverProfile() {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity 
-                    style={styles.backButton}
+                <TouchableOpacity
                     onPress={() => router.back()}
+                    style={styles.backButton}
+                    accessibilityRole="button"
                 >
-                    <Text style={styles.backIcon}>←</Text>
+                    <Feather name="arrow-left" size={22} color="#121417" />
                 </TouchableOpacity>
                 
                 <View style={styles.titleContainer}>
@@ -326,12 +358,11 @@ export default function PassengerDriverProfile() {
             {/* Action Buttons */}
             <View style={styles.actionButtonsContainer}>
                 <TouchableOpacity
-                    style={[styles.requestButton, isRequesting ? styles.requestButtonDisabled : null]}
+                    style={styles.requestButton}
                     onPress={handleRequestRide}
-                    disabled={isRequesting}
                 >
                     <Text style={styles.requestButtonText}>
-                        {isRequesting ? 'Solicitando...' : 'Solicitar viaje'}
+                        Revisar detalles
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.messageButton}>
@@ -652,9 +683,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         paddingHorizontal: 20,
-    },
-    requestButtonDisabled: {
-        opacity: 0.6,
     },
     requestButtonText: {
         fontFamily: 'Plus Jakarta Sans',

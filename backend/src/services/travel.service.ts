@@ -316,11 +316,18 @@ export class TravelService {
     const normalizedStartDate = new Date(startTime);
     normalizedStartDate.setHours(0, 0, 0, 0);
 
-    if (normalizedTravelDate.getTime() !== normalizedStartDate.getTime()) {
+    const maxDifferenceMs = 30 * 24 * 60 * 60 * 1000;
+    if (
+      Math.abs(
+        normalizedTravelDate.getTime() - normalizedStartDate.getTime()
+      ) > maxDifferenceMs
+    ) {
       throw new Error(
-        "La fecha del viaje debe coincidir con la fecha de inicio del viaje"
+        "La fecha del viaje no puede estar a más de 30 días de la fecha de inicio"
       );
     }
+
+    travelData.travel_date = normalizedTravelDate;
   }
 
   private async validateNoOverlappingTravels(
@@ -1077,6 +1084,9 @@ export class TravelService {
               start_location_name: req.start_location_name,
               start_latitude: req.start_latitude,
               start_longitude: req.start_longitude,
+              end_location_name: req.end_location_name,
+              end_latitude: req.end_latitude,
+              end_longitude: req.end_longitude,
               status: "pending",
             })),
 
@@ -1091,6 +1101,9 @@ export class TravelService {
               start_location_name: req.start_location_name,
               start_latitude: req.start_latitude,
               start_longitude: req.start_longitude,
+              end_location_name: req.end_location_name,
+              end_latitude: req.end_latitude,
+              end_longitude: req.end_longitude,
               status: "accepted",
             })),
         },
@@ -1242,6 +1255,9 @@ export class TravelService {
     pickupLocation: string,
     pickupLatitude: number,
     pickupLongitude: number,
+    dropoffLocation: string,
+    dropoffLatitude: number,
+    dropoffLongitude: number,
     pickupDate?: Date,
     pickupTime?: Date
   ) {
@@ -1256,6 +1272,9 @@ export class TravelService {
         pickupLongitude,
         pickupDate: pickupDate ? pickupDate.toISOString() : null,
         pickupTime: pickupTime ? pickupTime.toISOString() : null,
+        dropoffLocation,
+        dropoffLatitude,
+        dropoffLongitude,
       });
 
       if (!pickupLocation?.trim()) {
@@ -1266,6 +1285,16 @@ export class TravelService {
       }
       if (!Number.isFinite(pickupLongitude) || Math.abs(pickupLongitude) > 180) {
         throw new Error("La longitud de recogida es inválida");
+      }
+
+      if (!dropoffLocation?.trim()) {
+        throw new Error("La ubicación de destino es requerida");
+      }
+      if (!Number.isFinite(dropoffLatitude) || Math.abs(dropoffLatitude) > 90) {
+        throw new Error("La latitud de destino es inválida");
+      }
+      if (!Number.isFinite(dropoffLongitude) || Math.abs(dropoffLongitude) > 180) {
+        throw new Error("La longitud de destino es inválida");
       }
 
       // Verificar que el viaje existe y está disponible
@@ -1340,6 +1369,9 @@ export class TravelService {
       console.log("📅 Fechas normalizadas:", {
         pickup_date: normalizedPickupDate ? normalizedPickupDate.toISOString() : null,
         pickup_time: normalizedPickupTime ? normalizedPickupTime.toISOString() : null,
+        dropoff_location: dropoffLocation,
+        dropoff_latitude: dropoffLatitude,
+        dropoff_longitude: dropoffLongitude,
       });
 
       console.log("💾 Creando solicitud en la base de datos...");
@@ -1352,9 +1384,9 @@ export class TravelService {
           start_location_name: pickupLocation.trim(),
           start_latitude: pickupLatitude,
           start_longitude: pickupLongitude,
-          end_location_name: travel.end_location_name,
-          end_latitude: travel.end_latitude,
-          end_longitude: travel.end_longitude,
+          end_location_name: dropoffLocation.trim(),
+          end_latitude: dropoffLatitude,
+          end_longitude: dropoffLongitude,
           pickup_date: normalizedPickupDate ?? null,
           pickup_time: normalizedPickupTime ?? null,
           status: "pendiente",

@@ -1,5 +1,6 @@
 import travelApiService from "@/Services/TravelApiService";
 import type { TravelMatchAppliedConfig, TravelMatchResult } from "@/types/travel";
+import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -201,16 +202,29 @@ export default function PassengerRiderOffers() {
               name: match.driver.name,
               vehicle: vehicleLabel,
               price: priceLabel,
+              priceValue: match.price.toString(),
+              driverId: match.driver.id.toString(),
+              driverPhone: match.driver.phone_number ?? "",
+              driverRating:
+                match.driver.rating !== null
+                  ? match.driver.rating.toString()
+                  : "",
               travelId: match.travelId.toString(),
+              spacesAvailable: match.spacesAvailable.toString(),
+              startTime: match.startTime,
               pickupDate: pickupDateParam ?? "",
               pickupTime: pickupTimeParam ?? "",
               pickupLocation: pickupLocationParam,
               requestId: requestIdParam,
               pickupLatitude: pickupLatitude?.toString() ?? "",
               pickupLongitude: pickupLongitude?.toString() ?? "",
+              dropoffLocation: destinationNameParam,
+              dropoffLatitude: dropoffLatitude?.toString() ?? "",
+              dropoffLongitude: dropoffLongitude?.toString() ?? "",
               additionalMinutes: match.summary.additionalMinutes.toString(),
               additionalDistanceKm:
                 match.summary.additionalDistanceKm.toString(),
+              routeWaypoints: JSON.stringify(match.originalRoute ?? []),
             },
           })
         }
@@ -243,16 +257,15 @@ export default function PassengerRiderOffers() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backIcon}>{"<"}</Text>
-        </TouchableOpacity>
+        <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+          >
+            <Feather name="arrow-left" size={22} color="#121417" />
+          </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.headerTitle}>Conductores disponibles</Text>
-          <Text style={styles.headerSubtitle}>
-            {originNameParam && destinationNameParam
-              ? `${originNameParam} → ${destinationNameParam}`
-              : pickupLocationParam}
-          </Text>
         </View>
         <View style={styles.placeholder} />
       </View>
@@ -319,12 +332,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#F5F0F0",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   backIcon: {
     fontSize: 20,
