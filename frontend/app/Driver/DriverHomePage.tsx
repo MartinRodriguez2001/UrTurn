@@ -739,6 +739,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#61758A",
     textAlign: "center",
+    marginBottom: 16,
   },
   emptyStateButton: {
     backgroundColor: "#F99F7C",

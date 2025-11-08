@@ -24,7 +24,7 @@ const router = useRouter()
           <Text style={styles.navLabel}>Publicar</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem} onPress={() => {}}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/Driver/Driver_Historial") }>
           <Feather name="clock" size={24} color="black" />
           <Text style={styles.navLabel}>Historial</Text>
         </TouchableOpacity>
