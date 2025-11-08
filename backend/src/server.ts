@@ -25,18 +25,6 @@ const io = new Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, Sock
       'http://localhost:8081',
       'http://localhost:8082',
       'http://localhost:19006',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:8081',
-      'http://127.0.0.1:8082',
-      'http://127.0.0.1:19006',
-      // Network IP for mobile devices
-      'http://192.168.0.9:8081',
-      'http://192.168.0.9:8082',
-      'http://192.168.0.9:3000',
-      // Allow expo mobile apps
-      'exp://192.168.0.9:8081',
-      'exp://192.168.0.9:8082'
     ],
     credentials: true
   }
