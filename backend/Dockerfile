@@ -3,14 +3,14 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files from backend directory
+COPY backend/package.json backend/package-lock.json ./
 
 # Install all dependencies (including dev dependencies for build)
 RUN npm ci
 
-# Copy source code
-COPY . .
+# Copy source code from backend directory
+COPY backend/ .
 
 # Generate Prisma Client
 RUN npx prisma generate
@@ -23,8 +23,8 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json ./
+# Copy package files from backend directory
+COPY backend/package.json backend/package-lock.json ./
 
 # Install only production dependencies
 RUN npm ci --omit=dev
