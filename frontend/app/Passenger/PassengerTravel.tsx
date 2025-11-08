@@ -17,11 +17,20 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
+type VehicleInfo = {
+  brand?: string | null;
+  model?: string | null;
+  year?: number | string | null;
+  licencePlate?: string | null;
+};
+
 type DriverInfo = {
   id: string | number;
   name: string;
   avatar?: string | null;
   phone?: string | null;
+  rating?: number | null;
+  vehicle?: VehicleInfo | null;
 };
 
 type TravelParam = {
@@ -65,6 +74,8 @@ const DEFAULT_DRIVER: DriverInfo = {
   name: "Conductor",
   avatar: null,
   phone: null,
+  rating: null,
+  vehicle: null,
 };
 
 const DEFAULT_REGION = {

@@ -104,6 +104,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ travelId, title = 'Chat del viaje
         keyExtractor={(item) => String(item.id)}
         style={styles.messageList}
         contentContainerStyle={styles.messageListContent}
+        nestedScrollEnabled
         showsVerticalScrollIndicator={false}
         renderItem={({ item }) => {
           const sentAt = new Date(item.sentAt);

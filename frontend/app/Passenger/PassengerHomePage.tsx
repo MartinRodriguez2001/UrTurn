@@ -84,6 +84,8 @@ export default function PassengerHomePage() {
     route_waypoints?: TravelCoordinate[] | null;
     routeWaypoints?: TravelCoordinate[] | null;
     planned_stops?: TravelPlannedStop[] | null;
+    vehicle?: ProcessedTravel["vehicle"] | null;
+    driver_rating?: number | null;
   };
 
   type PassengerParam = {
@@ -92,6 +94,52 @@ export default function PassengerHomePage() {
     role?: string;
     avatar?: string | null;
     phone?: string | null;
+  };
+
+  type VehiclePayload = {
+    brand?: string | null;
+    model?: string | null;
+    year?: number | string | null;
+    licencePlate?: string | null;
+  };
+
+  type DriverPayload = {
+    id: number;
+    name: string;
+    avatar: string | null;
+    phone: string | null;
+    rating?: number | null;
+    vehicle?: VehiclePayload | null;
+  };
+
+  const mapVehicle = (vehicle?: ProcessedTravel["vehicle"] | null): VehiclePayload | null => {
+    if (!vehicle) return null;
+    return {
+      brand: vehicle.brand ?? null,
+      model: vehicle.model ?? null,
+      year: vehicle.year ?? null,
+      licencePlate:
+        vehicle.licence_plate ??
+        vehicle.license_plate ??
+        vehicle.plate ??
+        vehicle.patente ??
+        null,
+    };
+  };
+
+  const buildDriverPayload = (travel?: ProcessedTravel | null): DriverPayload | null => {
+    if (!travel?.driver_id) {
+      return null;
+    }
+
+    return {
+      id: travel.driver_id.id,
+      name: travel.driver_id.name,
+      avatar: travel.driver_id.profile_picture ?? null,
+      phone: travel.driver_id.phone_number ?? null,
+      rating: travel.driver_rating ?? null,
+      vehicle: mapVehicle(travel.vehicle ?? null),
+    };
   };
 
   useEffect(() => {
@@ -197,6 +245,8 @@ export default function PassengerHomePage() {
       route_waypoints: waypoints ?? null,
       routeWaypoints: waypoints ?? null,
       planned_stops: travel.planned_stops ?? null,
+      vehicle: travel.vehicle ?? null,
+      driver_rating: travel.driver_rating ?? null,
     };
   };
 
@@ -217,14 +267,7 @@ export default function PassengerHomePage() {
     if (!payload) return;
 
     const passengersPayload = mapConfirmedPassengers(item.travel);
-    const driver = item.travel?.driver_id
-      ? {
-          id: item.travel.driver_id.id,
-          name: item.travel.driver_id.name,
-          avatar: item.travel.driver_id.profile_picture ?? null,
-          phone: item.travel.driver_id.phone_number ?? null,
-        }
-      : null;
+    const driver = buildDriverPayload(item.travel);
 
     router.push({
       pathname: "/Passenger/PassengerTravel",
