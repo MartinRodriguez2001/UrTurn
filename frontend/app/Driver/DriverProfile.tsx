@@ -1,5 +1,6 @@
 import { userApi } from "@/Services/UserApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
+import travelApiService from "@/Services/TravelApiService";
 import { UserProfile } from "@/types/user";
 import { Vehicle } from "@/types/vehicle";
 import { Feather } from "@expo/vector-icons";
@@ -37,6 +38,9 @@ export default function DriverProfile() {
     IsDriver: true,
     active: false,
   });
+  const [ratingCounts, setRatingCounts] = useState<Record<number, number>>({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
+  const [totalReviews, setTotalReviews] = useState<number>(0);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
 
   async function handleValidateVehicle(vehicleId: number) {
     try {
@@ -65,13 +69,15 @@ export default function DriverProfile() {
 
    const getProfileData = async () => {
     try {
-      const [response, responseVehicles] = await Promise.all([
+      const [response, responseVehicles, responseTravels] = await Promise.all([
         userApi.getProfile(),
-        VehicleApiService.getUserVehicles()
+        VehicleApiService.getUserVehicles(),
+        travelApiService.getDriverTravels(),
       ]);
       
       console.log("👤 Perfil del usuario:", response);
       console.log("🚗 Vehículos respuesta:", responseVehicles);
+      console.log("🧭 Viajes (driver) respuesta:", responseTravels);
       
       if (response.success && response.data) {
         setUserProfile({
@@ -101,6 +107,46 @@ export default function DriverProfile() {
         console.log("⚠️ No se pudieron cargar vehículos");
         setVehicles([]);
       }
+
+      // Process driver travels to compute ratings
+      try {
+        const travels: any[] = (responseTravels as any)?.travels ?? (responseTravels as any)?.data?.travels ?? [];
+        const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        let total = 0;
+        let sum = 0;
+        if (Array.isArray(travels)) {
+          for (const t of travels) {
+            const rating = t?.driver_rating ?? t?.rating ?? null;
+            if (rating !== null && rating !== undefined) {
+              const star = Math.round(Number(rating));
+              if (!Number.isNaN(star) && star >= 1 && star <= 5) {
+                counts[star] = (counts[star] || 0) + 1;
+                total++;
+                sum += Number(rating);
+              }
+            }
+            // also handle nested travel.reviews arrays if present
+            const reviews = t?.reviews ?? t?.travel?.reviews ?? [];
+            if (Array.isArray(reviews) && reviews.length > 0) {
+              for (const r of reviews) {
+                const star = Number(r.rating ?? r.stars ?? r.starts ?? NaN);
+                if (!Number.isNaN(star) && star >= 1 && star <= 5) {
+                  counts[star] = (counts[star] || 0) + 1;
+                  total++;
+                  sum += Number(star);
+                }
+              }
+            }
+          }
+        }
+
+        setRatingCounts(counts);
+        setTotalReviews(total);
+        setAverageRating(total > 0 ? sum / total : null);
+      } catch (err) {
+        console.log("⚠️ No se pudieron procesar las reseñas de viajes:", err);
+      }
+
     } catch (error) {
       console.error("❌ Error al cargar datos del perfil:", error);
       setVehicles([]);
@@ -242,6 +288,33 @@ export default function DriverProfile() {
               No hay vehículos registrados
             </Text>
           )}
+        </View>
+
+        {/* Reviews Section */}
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.descriptionHeader}>Reseñas</Text>
+
+          <View style={styles.ratingOverview}>
+            <View style={styles.ratingSummary}>
+              <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '—'}</Text>
+              <View style={styles.ratingStars}>
+                <Text style={styles.star}>⭐</Text>
+              </View>
+              <Text style={styles.ratingCount}>{totalReviews} reviews</Text>
+            </View>
+
+            <View style={styles.ratingBreakdown}>
+              {[5, 4, 3, 2, 1].map((star) => (
+                <View key={star} style={styles.ratingBar}>
+                  <Text style={styles.ratingLabel}>{star}</Text>
+                  <View style={styles.barContainer}>
+                    <View style={[styles.bar, { width: totalReviews ? `${Math.round((ratingCounts[star] || 0) / totalReviews * 100)}%` : '0%' }]} />
+                  </View>
+                  <Text style={styles.ratingPercentage}>{totalReviews ? `${Math.round((ratingCounts[star] || 0) / totalReviews * 100)}%` : '0%'}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
         </View>
 
         <View style={styles.descriptionContainer}>
@@ -565,5 +638,72 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans-SemiBold",
     fontSize: 12,
     color: "#FFFFFF",
+  },
+  // Rating / Reviews styles
+  ratingOverview: {
+    flexDirection: 'row',
+    marginBottom: 32,
+    gap: 32,
+  },
+  ratingSummary: {
+    alignItems: 'center',
+    width: 98,
+  },
+  ratingNumber: {
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontWeight: '800',
+    fontSize: 36,
+    lineHeight: 45,
+    color: '#121417',
+    marginBottom: 8,
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    gap: 2,
+  },
+  star: {
+    fontSize: 18,
+  },
+  ratingCount: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#121417',
+  },
+  ratingBreakdown: {
+    flex: 1,
+    gap: 12,
+  },
+  ratingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ratingLabel: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#121417',
+    width: 20,
+  },
+  barContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#DBE0E5',
+    borderRadius: 4,
+  },
+  bar: {
+    height: '100%',
+    backgroundColor: '#121417',
+    borderRadius: 4,
+  },
+  ratingPercentage: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#61758A',
+    width: 40,
+    textAlign: 'right',
   },
 });
