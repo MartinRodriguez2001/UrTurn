@@ -1,69 +1,108 @@
-import { View, Text, StyleSheet } from "react-native";
-
+import {
+  StyleProp,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from "react-native";
 
 export interface NextTravelCardProps {
-    Route: string
-    Date: string
-    Time: string
+  Route: string;
+  Date: string;
+  Time: string;
+  onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
 }
-export default function NextTravelCard({Route, Date, Time}: NextTravelCardProps) {
+
+export default function NextTravelCard({
+  Route,
+  Date,
+  Time,
+  onPress,
+  style,
+}: NextTravelCardProps) {
   return (
-    <View style={styles.tripCard}>
-      <View style={styles.tripInfo}>
-        <Text style={styles.tripLabel}>Próximo</Text>
-        <Text style={styles.tripDestination}>
-          {Route}
-        </Text>
-        <Text style={styles.tripTime}>{Date}, {Time}</Text>
+    <TouchableOpacity
+      style={[styles.card, style]}
+      activeOpacity={onPress ? 0.85 : 1}
+      onPress={onPress}
+      disabled={!onPress}
+    >
+      <Text style={styles.badgeText}>Programado</Text>
+      <Text style={styles.routeText} numberOfLines={2}>
+        {Route}
+      </Text>
+
+      <View style={styles.infoRow}>
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoLabel}>Fecha</Text>
+          <Text style={styles.infoValue}>{Date}</Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.infoBlock}>
+          <Text style={styles.infoLabel}>Hora</Text>
+          <Text style={styles.infoValue}>{Time}</Text>
+        </View>
       </View>
-      <View style={styles.tripImageContainer}>
-        <View style={styles.tripImagePlaceholder} />
-      </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-    tripCard: {
-        flexDirection: 'row',
-        backgroundColor: '#F8F9FA',
-        borderRadius: 12,
-        padding: 16,
-        marginBottom: 16,
-    },
-    tripInfo: {
-        flex: 1,
-        paddingRight: 16,
-    },
-    tripLabel: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 14,
-        lineHeight: 21,
-        color: '#876363',
-        marginBottom: 4,
-    },
-    tripDestination: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontWeight: '600',
-        fontSize: 16,
-        lineHeight: 20,
-        color: '#121417',
-        marginBottom: 4,
-    },
-    tripTime: {
-        fontFamily: 'Plus Jakarta Sans',
-        fontSize: 14,
-        lineHeight: 21,
-        color: '#876363',
-    },
-    tripImageContainer: {
-        width: 130,
-        height: 90,
-    },
-    tripImagePlaceholder: {
-        width: '100%',
-        height: '100%',
-        backgroundColor: '#E5E7EB',
-        borderRadius: 8,
-    },
-})
+  card: {
+    flexShrink: 0,
+    minWidth: 240,
+    borderRadius: 16,
+    backgroundColor: "#FDF8F5",
+    padding: 16,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: "#FCE0D3",
+  },
+  badgeText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#F97316",
+    backgroundColor: "#FFECE3",
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 999,
+    alignSelf: "flex-start",
+  },
+  routeText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#121417",
+  },
+  infoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  infoBlock: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#9CA3AF",
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#121417",
+  },
+  divider: {
+    width: 1,
+    height: "100%",
+    backgroundColor: "#FCE0D3",
+  },
+});

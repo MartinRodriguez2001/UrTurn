@@ -8,10 +8,17 @@
     "scheme": "urturn",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "extra": {
+      "eas": {
+        "projectId": "5d52b67a-cba3-4d11-aece-b85039609ca1"
+      }
+    },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.mrjuantapia.urturn",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para mostrarte resultados cercanos y centrar el mapa."
+        "NSLocationWhenInUseUsageDescription": "Necesitamos tu ubicación para mostrarte resultados cercanos y centrar el mapa.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -45,11 +52,13 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "owner": "mrjuantapia"
   }
 }

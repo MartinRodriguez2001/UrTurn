@@ -1,5 +1,6 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Slot, useRouter } from 'expo-router';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function PassengerLayout() {
     const router = useRouter()
@@ -12,23 +13,23 @@ export default function PassengerLayout() {
 
       {/* Bottom Navigation Bar */}
       <View style={styles.bottomNavigation}>
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/Passenger/PassengerHomePage")}>
-          <Text style={styles.navIcon}>🏠</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace("/Passenger/PassengerHomePage")}>
+          <Feather name="home" size={24} color="black" />
           <Text style={styles.navLabel}>Inicio</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem} onPress={() => router.push("/Passenger/PassengerSearchRider")}>
-          <Text style={styles.navIcon}>🔍</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace("/Passenger/PassengerSearchRider")}>
+          <Feather name="search" size={24} color="black" />
           <Text style={styles.navLabel}>Buscar</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>🎒</Text>
-          <Text style={styles.navLabel}>Mis Viajes</Text>
+          <Feather name="clock" size={24} color="black" />
+          <Text style={styles.navLabel}>Historial</Text>
         </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem}>
-          <Text style={styles.navIcon}>👤</Text>
+          <Feather name="user" size={24} color="black" />
           <Text style={styles.navLabel}>Perfil</Text>
         </TouchableOpacity>
       </View>
@@ -46,9 +47,8 @@ const styles = StyleSheet.create({
   },
   bottomNavigation: {
     flexDirection: 'row',
-    height: 75,
+    height: 90,
     backgroundColor: '#FFFFFF',
-    paddingTop: 9,
     paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
