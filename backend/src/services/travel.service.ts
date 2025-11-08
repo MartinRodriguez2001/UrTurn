@@ -15,8 +15,10 @@ import {
   simplifyRouteWaypoints,
   summarizeAssignmentCandidate,
 } from "../utils/route-assignment.js";
+import NotificationService from "./notification.service.js";
 
 const prisma = new PrismaClient();
+const notificationService = new NotificationService();
 
 export interface TravelData {
   start_location_name: string;
@@ -1428,6 +1430,44 @@ export class TravelService {
       });
       console.log("=== DEBUG: Fin de la solicitud ===\n");
 
+      const driverUserId = travel.userId;
+      const passengerName = request.passenger?.name ?? "Un pasajero";
+      const travelSummary =
+        travel.start_location_name && travel.end_location_name
+          ? `${travel.start_location_name} -> ${travel.end_location_name}`
+          : travel.start_location_name ??
+            travel.end_location_name ??
+            "tu viaje";
+
+      setImmediate(async () => {
+        try {
+          await notificationService.sendTravelNotification({
+            travelId,
+            title: "Nueva solicitud de viaje",
+            body: `${passengerName} quiere unirse a tu viaje ${travelSummary}.`,
+            targetUserIds: [driverUserId],
+            notificationType: "travel_request",
+            data: {
+              requestId: request.id,
+              requestStatus: request.status,
+              passengerId: request.passengerId,
+              passengerName: request.passenger?.name,
+              pickupLocation: request.start_location_name,
+              dropoffLocation: request.end_location_name,
+              direction: "incoming",
+            },
+          });
+          console.log(
+            `[TravelService] Notificación enviada al conductor ${driverUserId} por solicitud ${request.id}`
+          );
+        } catch (notificationError) {
+          console.error(
+            "[TravelService] Error al notificar nueva solicitud:",
+            notificationError
+          );
+        }
+      });
+
       return {
         success: true,
         request: {
@@ -1530,7 +1570,16 @@ export class TravelService {
       const request = await prisma.travelRequest.findUnique({
         where: { id: requestId },
         include: {
-          travel: true,
+          travel: {
+            include: {
+              driver_id: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
           passenger: true,
         },
       });
@@ -1726,6 +1775,41 @@ export class TravelService {
           requestId,
           totalStops: plannedStops.length,
           totalWaypoints: recalculatedRoute.length,
+        });
+
+        const travelSummary =
+          request.travel.start_location_name && request.travel.end_location_name
+            ? `${request.travel.start_location_name} -> ${request.travel.end_location_name}`
+            : request.travel.start_location_name ??
+              request.travel.end_location_name ??
+              "tu viaje";
+        const driverName = request.travel.driver_id?.name ?? "Tu conductor";
+
+        setImmediate(async () => {
+          try {
+            await notificationService.sendTravelNotification({
+              travelId,
+              title: "Solicitud aceptada",
+              body: `${driverName} aceptó tu solicitud para ${travelSummary}.`,
+              targetUserIds: [request.passengerId],
+              notificationType: "travel_request",
+              data: {
+                requestId,
+                requestStatus: "aceptada",
+                driverId,
+                driverName,
+                direction: "outgoing",
+              },
+            });
+            console.log(
+              `[TravelService] Notificación enviada al pasajero ${request.passengerId} por aceptación ${requestId}`
+            );
+          } catch (notificationError) {
+            console.error(
+              "[TravelService] Error al notificar aceptación de solicitud:",
+              notificationError
+            );
+          }
         });
       }
 
