@@ -25,18 +25,18 @@ app.use(cors({
     'http://localhost:8081',  // Expo Dev Tools
     'http://localhost:8082',  // Frontend React Native
     'http://localhost:19006', // Expo Web
-    'http://192.168.1.18:3000',
-    'http://192.168.1.18:5173',
-    'http://192.168.1.18:8081',
-    'http://192.168.1.18:8082',
-    'http://192.168.1.18:19006',
+    'http://192.168.100.104:3000',
+    'http://192.168.100.104:5173',
+    'http://192.168.100.104:8081',
+    'http://192.168.100.104:8082',
+    'http://192.168.100.104:19006',
     // Network IP for mobile devices
-    'http://192.168.1.18:8081',  // Expo on network IP
-    'http://192.168.1.18:8082',  // Frontend on network IP
-    'http://192.168.1.18:3000',  // Direct API access
+    'http://192.168.100.104:8081',  // Expo on network IP
+    'http://192.168.100.104:8082',  // Frontend on network IP
+    'http://192.168.100.104:3000',  // Direct API access
     // Allow expo mobile apps
-    'exp://192.168.1.18:8081',
-    'exp://192.168.1.18:8082'
+    'exp://192.168.100.104:8081',
+    'exp://192.168.100.104:8082'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
