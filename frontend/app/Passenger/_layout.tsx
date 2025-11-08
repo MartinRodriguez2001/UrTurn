@@ -17,6 +17,11 @@ export default function PassengerLayout() {
           <Feather name="home" size={24} color="black" />
           <Text style={styles.navLabel}>Inicio</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace("/Passenger/PassengerTravels")}>
+          <Feather name="map" size={24} color="black" />
+          <Text style={styles.navLabel}>Viajes</Text>
+        </TouchableOpacity>
         
         <TouchableOpacity style={styles.navItem} onPress={() => router.replace("/Passenger/PassengerSearchRider")}>
           <Feather name="search" size={24} color="black" />

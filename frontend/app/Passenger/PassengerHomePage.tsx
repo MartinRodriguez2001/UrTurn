@@ -1,20 +1,16 @@
-﻿import NextTravelCard from "@/components/driverComps/NextTravelCard";
-import PendingRequestCard from "@/components/driverComps/PendingRequestCard";
-import { useAuth } from "@/context/authContext";
+﻿import { useAuth } from "@/context/authContext";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import travelApiService from "@/Services/TravelApiService";
 import {
   PassengerConfirmedTravel,
-  PassengerRequestedTravel,
   ProcessedTravel,
-  RequestStatus,
   TravelCoordinate,
   TravelPassenger,
   TravelPlannedStop,
 } from "@/types/travel";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   RefreshControl,
@@ -26,29 +22,6 @@ import {
   View,
 } from "react-native";
 
-type TravelPayload = {
-  id?: number;
-  start_location_name?: string | null;
-  start_latitude?: number | string | null;
-  start_longitude?: number | string | null;
-  end_location_name?: string | null;
-  end_latitude?: number | string | null;
-  end_longitude?: number | string | null;
-  start_time?: string | Date;
-  price?: number | string | null;
-  route_waypoints?: TravelCoordinate[] | null;
-  routeWaypoints?: TravelCoordinate[] | null;
-  planned_stops?: TravelPlannedStop[] | null;
-};
-
-type PassengerParam = {
-  id: number | string;
-  name: string;
-  role?: string;
-  avatar?: string | null;
-  phone?: string | null;
-};
-
 export default function PassengerHomePage() {
   const router = useRouter();
   const { user } = useAuth();
@@ -59,11 +32,67 @@ export default function PassengerHomePage() {
     refreshStatus,
   } = useDriverStatus();
 
-  const [confirmedTravels, setConfirmedTravels] = useState<PassengerConfirmedTravel[]>([]);
-  const [requestedTravels, setRequestedTravels] = useState<PassengerRequestedTravel[]>([]);
-  const [loadingTravels, setLoadingTravels] = useState(false);
-  const [travelsError, setTravelsError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [scheduledTravels, setScheduledTravels] = useState<PassengerConfirmedTravel[]>([]);
+  const [loadingScheduledTravels, setLoadingScheduledTravels] = useState(false);
   const refreshStatusRef = useRef(refreshStatus);
+  const featuredEvents = [
+    {
+      id: "Islazo",
+      tag: "Buses Islazo",
+      title: "Islazo",
+      date: "Mar 11",
+      time: "11:00",
+      description: "🌴Islazo Uandes 2025🌴 ⚠️Vuelve lo que todos estaban esperando⚠️",
+    },
+    {
+      id: "Gala Uandes",
+      tag: "Buses Gala",
+      title: "Gran Gala Uandes",
+      date: "Vie 17",
+      time: "22:00",
+      description: "✨Lo mas grande del semestre vuelve, Gran Gala Uandes en Bosque Luz✨",
+    },
+    {
+      id: "Evento 3",
+      tag: "Buses Evento3",
+      title: "Evento 3",
+      date: "Lun 25",
+      time: "11:00",
+      description: "Prepárate y comparte viaje con tus compañeros.",
+    },
+    {
+      id: "hackathon",
+      tag: "Tecnología",
+      title: "Hackathon 24h",
+      date: "Sab 30",
+      time: "08:00",
+      description: "Coordina tu transporte desde temprano.",
+    },
+  ];
+
+  type TravelPayload = {
+    id?: number;
+    start_location_name?: string | null;
+    start_latitude?: number | string | null;
+    start_longitude?: number | string | null;
+    end_location_name?: string | null;
+    end_latitude?: number | string | null;
+    end_longitude?: number | string | null;
+    start_time?: string | Date;
+    price?: number | string | null;
+    route_waypoints?: TravelCoordinate[] | null;
+    routeWaypoints?: TravelCoordinate[] | null;
+    planned_stops?: TravelPlannedStop[] | null;
+  };
+
+  type PassengerParam = {
+    id: number | string;
+    name: string;
+    role?: string;
+    avatar?: string | null;
+    phone?: string | null;
+  };
 
   useEffect(() => {
     refreshStatusRef.current = refreshStatus;
@@ -82,57 +111,66 @@ export default function PassengerHomePage() {
 
   const fetchPassengerTravels = useCallback(async () => {
     try {
-      setLoadingTravels(true);
-      setTravelsError(null);
+      setLoadingScheduledTravels(true);
       const response = await travelApiService.getPassengerTravels();
       if (response.success && response.data) {
-        setRequestedTravels(response.data.requested ?? []);
-        setConfirmedTravels(response.data.confirmed ?? []);
+        const confirmedTravels = (response.data.confirmed ?? [])
+          .filter((item: PassengerConfirmedTravel) => Boolean(item.travel))
+          .sort((a, b) => {
+            const dateA = new Date(a.travel?.start_time ?? 0).getTime();
+            const dateB = new Date(b.travel?.start_time ?? 0).getTime();
+            return dateA - dateB;
+          });
+        setScheduledTravels(confirmedTravels);
       } else {
-        setRequestedTravels([]);
-        setConfirmedTravels([]);
-        setTravelsError(response.message ?? "No pudimos obtener tus viajes");
+        setScheduledTravels([]);
       }
     } catch (error) {
-      setTravelsError("No pudimos actualizar tus viajes");
-      setRequestedTravels([]);
-      setConfirmedTravels([]);
+      setScheduledTravels([]);
     } finally {
-      setLoadingTravels(false);
+      setLoadingScheduledTravels(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-
-      const refreshData = async () => {
-        await triggerStatusRefresh();
-        if (!isActive) return;
-        await fetchPassengerTravels();
-      };
-
-      refreshData();
-
-      return () => {
-        isActive = false;
-      };
+      triggerStatusRefresh();
+      fetchPassengerTravels();
     }, [fetchPassengerTravels, triggerStatusRefresh])
   );
+
+  const handleDriverAction = () => {
+    if (loading) return;
+
+    if (canAccessDriverMode) {
+      router.push("/Driver/DriverHomePage");
+    } else {
+      router.push("/Passenger/DriverRegister");
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await Promise.all([triggerStatusRefresh(), fetchPassengerTravels()]);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const formatRouteLabel = (travel?: ProcessedTravel | null) => {
     if (!travel) return "Ruta pendiente";
     const origin = travel.start_location_name ?? travel.start_location ?? "Origen por definir";
     const destination =
       travel.end_location_name ?? travel.end_location ?? "Destino por definir";
-    return `${origin} -> ${destination}`;
+    return `${origin} → ${destination}`;
   };
 
   const formatTravelDate = (travel?: ProcessedTravel | null) => {
     if (!travel?.start_time) return "Fecha pendiente";
     const date = new Date(travel.start_time);
     if (Number.isNaN(date.getTime())) return "Fecha pendiente";
-    return date.toLocaleDateString("es-CL");
+    return date.toLocaleDateString("es-CL", { weekday: "short", day: "2-digit" });
   };
 
   const formatTravelTime = (travel?: ProcessedTravel | null) => {
@@ -141,29 +179,6 @@ export default function PassengerHomePage() {
     if (Number.isNaN(date.getTime())) return "--:--";
     return date.toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
   };
-
-  const getDestinationLabel = (travel?: ProcessedTravel | null) => {
-    if (!travel) return "Destino por definir";
-    return travel.end_location_name ?? travel.end_location ?? "Destino por definir";
-  };
-
-  const scheduledTravels = useMemo(() => {
-    return confirmedTravels
-      .filter((item) => item.travel)
-      .sort((a, b) => {
-        const dateA = new Date(a.travel?.start_time ?? 0).getTime();
-        const dateB = new Date(b.travel?.start_time ?? 0).getTime();
-        return dateA - dateB;
-      });
-  }, [confirmedTravels]);
-
-  const pendingRequests = useMemo(
-    () =>
-      requestedTravels.filter(
-        (item) => item.travel && item.status === RequestStatus.PENDIENTE
-      ),
-    [requestedTravels]
-  );
 
   const buildTravelPayload = (travel?: ProcessedTravel | null): TravelPayload | null => {
     if (!travel) return null;
@@ -186,8 +201,7 @@ export default function PassengerHomePage() {
   };
 
   const mapConfirmedPassengers = (travel?: ProcessedTravel | null): PassengerParam[] => {
-    const confirmedPassengers: TravelPassenger[] =
-      travel?.passengers?.confirmed ?? [];
+    const confirmedPassengers: TravelPassenger[] = travel?.passengers?.confirmed ?? [];
 
     return confirmedPassengers.map((passenger) => ({
       id: passenger.id,
@@ -222,46 +236,6 @@ export default function PassengerHomePage() {
     });
   };
 
-  const handlePendingTravelPress = (item: PassengerRequestedTravel) => {
-    if (!item.travel) return;
-
-    const payload = buildTravelPayload(item.travel);
-    if (!payload) return;
-
-    const passengersPayload = mapConfirmedPassengers(item.travel);
-    const driver = item.travel.driver_id
-      ? {
-          id: item.travel.driver_id.id,
-          name: item.travel.driver_id.name,
-          avatar: item.travel.driver_id.profile_picture ?? null,
-          phone: item.travel.driver_id.phone_number ?? null,
-        }
-      : null;
-
-    router.push({
-      pathname: "/Passenger/PassengerTravel",
-      params: {
-        travel: JSON.stringify(payload),
-        passengers: JSON.stringify(passengersPayload),
-        ...(driver ? { driver: JSON.stringify(driver) } : {}),
-      },
-    });
-  };
-
-  const handleDriverAction = () => {
-    if (loading) return;
-
-    if (canAccessDriverMode) {
-      router.push("/Driver/DriverHomePage");
-    } else {
-      router.push("/Passenger/DriverRegister");
-    }
-  };
-
-  const handleRefresh = async () => {
-    await Promise.all([triggerStatusRefresh(), fetchPassengerTravels()]);
-  };
-
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -276,7 +250,7 @@ export default function PassengerHomePage() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={loadingTravels}
+            refreshing={refreshing}
             onRefresh={handleRefresh}
             tintColor="#F99F7C"
           />
@@ -319,91 +293,119 @@ export default function PassengerHomePage() {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Viajes programados</Text>
-            {scheduledTravels.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{scheduledTravels.length}</Text>
-              </View>
-            )}
+            <Text style={styles.sectionTitle}>Estatus de viajes</Text>
+            <Text style={styles.sectionHint}>
+              {scheduledTravels.length > 0
+                ? `${scheduledTravels.length} programados`
+                : "Sin viajes programados"}
+            </Text>
           </View>
-          {loadingTravels ? (
+          {loadingScheduledTravels ? (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#F99F7C" />
-              <Text style={styles.loadingText}>Cargando viajes...</Text>
+              <ActivityIndicator size="small" color="#F97316" />
+              <Text style={styles.loadingText}>Cargando próximos viajes...</Text>
             </View>
           ) : scheduledTravels.length > 0 ? (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalTravelList}
+              contentContainerStyle={styles.travelCarousel}
             >
               {scheduledTravels.map((item) => (
-                <NextTravelCard
+                <TouchableOpacity
                   key={item.id}
-                  Route={formatRouteLabel(item.travel)}
-                  Date={formatTravelDate(item.travel)}
-                  Time={formatTravelTime(item.travel)}
+                  style={styles.travelCard}
                   onPress={() => handleScheduledTravelPress(item)}
-                  style={styles.scheduledCard}
-                />
+                >
+                  <Text style={styles.travelCardRoute} numberOfLines={2}>
+                    {formatRouteLabel(item.travel)}
+                  </Text>
+                  <View style={styles.travelCardMetaRow}>
+                    <View style={styles.travelCardMeta}>
+                      <Feather name="calendar" size={14} color="#94A3B8" />
+                      <Text style={styles.travelCardMetaText}>
+                        {formatTravelDate(item.travel)}
+                      </Text>
+                    </View>
+                    <View style={styles.travelCardMeta}>
+                      <Feather name="clock" size={14} color="#94A3B8" />
+                      <Text style={styles.travelCardMetaText}>
+                        {formatTravelTime(item.travel)}
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={styles.travelCardDriver}>
+                    <Feather name="user" size={14} color="#F97316" />
+                    <Text style={styles.travelCardDriverText}>
+                      {item.travel?.driver_id?.name ?? "Conductor por confirmar"}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
           ) : (
-            <View style={styles.emptyStateContainer}>
-              <Feather name="frown" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
-              <Text style={styles.emptyStateTitle}>Sin viajes confirmados</Text>
-              <Text style={styles.emptyStateMessage}>
-                Aún no tienes viajes confirmados con conductores. Solicita un viaje y aparecerá aquí.
+            <View style={styles.travelEmpty}>
+              <Feather name="compass" size={36} color="#CBD5F5" />
+              <Text style={styles.travelEmptyTitle}>No tienes viajes programados</Text>
+              <Text style={styles.travelEmptyMessage}>
+                Encuentra un viaje y aparecerá aquí para que puedas acceder rápidamente.
               </Text>
+              <TouchableOpacity
+                style={styles.travelEmptyButton}
+                onPress={() => router.push("/Passenger/PassengerSearchRider")}
+              >
+                <Text style={styles.travelEmptyButtonText}>Buscar viajes</Text>
+              </TouchableOpacity>
             </View>
           )}
+        </View>
+
+        
+        <View style={styles.section}>
+          <View style={styles.adsCard}>
+            <View style={styles.adsPlaceholder}>
+              <Feather name="image" size={32} color="#CBD5F5" />
+              <Text style={styles.adsPlaceholderText}>Espacio reservado para anuncios</Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Viajes solicitados</Text>
-            {pendingRequests.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{pendingRequests.length}</Text>
-              </View>
-            )}
+            <Text style={styles.sectionTitle}>Eventos</Text>
+            <Text style={styles.sectionHint}>Desliza para ver más</Text>
           </View>
-          {loadingTravels ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#F99F7C" />
-              <Text style={styles.loadingText}>Cargando solicitudes...</Text>
-            </View>
-          ) : pendingRequests.length > 0 ? (
+          <View style={styles.eventsCard}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.horizontalTravelList}
+              contentContainerStyle={styles.eventsCarousel}
             >
-              {pendingRequests.map((item) => (
-                <PendingRequestCard
-                  key={item.id}
-                  passengerName={item.travel?.driver_id?.name ?? "Conductor"}
-                  pickupLocation={item.start_location_name ?? "Origen por definir"}
-                  destination={getDestinationLabel(item.travel)}
-                  dateLabel={formatTravelDate(item.travel)}
-                  timeLabel={formatTravelTime(item.travel)}
-                  onPress={item.travel ? () => handlePendingTravelPress(item) : undefined}
-                  style={styles.scheduledCard}
-                />
+              {featuredEvents.map((event) => (
+                <TouchableOpacity
+                  key={event.id}
+                  style={styles.eventItem}
+                  onPress={() => router.push("/Passenger/PassengerSearchRider")}
+                >
+                  <View style={styles.eventTag}>
+                    <Text style={styles.eventTagText}>{event.tag}</Text>
+                  </View>
+                  <Text style={styles.eventItemTitle}>{event.title}</Text>
+                  <Text style={styles.eventItemSchedule}>
+                    {event.date} · {event.time} hrs
+                  </Text>
+                  <Text style={styles.eventItemDescription}>{event.description}</Text>
+                  <View style={styles.eventItemAction}>
+                    <Text style={styles.eventItemActionText}>Ir al evento</Text>
+                    <Feather name="arrow-right" size={16} color="#F97316" />
+                  </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
-          ) : (
-            <View style={styles.emptyStateContainer}>
-              <Feather name="inbox" size={48} color="#CED4DA" style={styles.emptyStateIcon} />
-              <Text style={styles.emptyStateTitle}>No tienes solicitudes pendientes</Text>
-              <Text style={styles.emptyStateMessage}>
-                Cuando envíes una solicitud a un conductor, podrás ver su estado aquí.
-              </Text>
-            </View>
-          )}
+          </View>
         </View>
 
-        {travelsError ? <Text style={styles.errorText}>{travelsError}</Text> : null}
+        
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -478,6 +480,217 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "700",
+    fontSize: 18,
+    color: "#121417",
+  },
+  sectionHint: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#94A3B8",
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 16,
+  },
+  loadingText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    color: "#64748B",
+  },
+  travelCarousel: {
+    paddingVertical: 4,
+    gap: 12,
+  },
+  travelCard: {
+    width: 220,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    marginRight: 12,
+    gap: 12,
+  },
+  travelCardRoute: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 15,
+    color: "#0F172A",
+  },
+  travelCardMetaRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 8,
+  },
+  travelCardMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  travelCardMetaText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#64748B",
+  },
+  travelCardDriver: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  travelCardDriverText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    color: "#F97316",
+    flexShrink: 1,
+  },
+  travelEmpty: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 20,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    gap: 8,
+  },
+  travelEmptyTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 15,
+    color: "#0F172A",
+  },
+  travelEmptyMessage: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    color: "#475569",
+    textAlign: "center",
+  },
+  travelEmptyButton: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "#F97316",
+  },
+  travelEmptyButtonText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 13,
+    color: "#FFFFFF",
+  },
+  adsCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    gap: 12,
+  },
+  adsBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#E0E7FF",
+  },
+  adsBadgeText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4338CA",
+  },
+  adsPlaceholder: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#CBD5F5",
+    backgroundColor: "#EDF2FF",
+    paddingVertical: 34,
+    alignItems: "center",
+    gap: 8,
+  },
+  adsPlaceholderText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    color: "#475569",
+  },
+  adsNote: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    color: "#475569",
+  },
+  eventsCard: {
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 12,
+    paddingLeft: 16,
+  },
+  eventsCarousel: {
+    paddingRight: 16,
+    gap: 12,
+  },
+  eventItem: {
+    width: 220,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FEE4D6",
+    backgroundColor: "#FFF7F3",
+    padding: 16,
+    marginRight: 12,
+    gap: 6,
+  },
+  eventTag: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: "#FFECE5",
+  },
+  eventTagText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#EA580C",
+  },
+  eventItemTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "700",
+    fontSize: 16,
+    color: "#0F172A",
+  },
+  eventItemSchedule: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    color: "#475569",
+  },
+  eventItemDescription: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    color: "#475569",
+  },
+  eventItemAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  eventItemActionText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 13,
+    color: "#F97316",
+  },
   driverCard: {
     backgroundColor: "#F8F9FA",
     borderRadius: 12,
@@ -524,79 +737,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#61758A",
     fontWeight: "bold",
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "700",
-    fontSize: 18,
-    color: "#121417",
-  },
-  badge: {
-    backgroundColor: "#FFE0D3",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 999,
-  },
-  badgeText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "700",
-    fontSize: 12,
-    color: "#F97316",
-  },
-  loadingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    gap: 12,
-  },
-  loadingText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 14,
-    color: "#61758A",
-  },
-  horizontalTravelList: {
-    paddingVertical: 8,
-    gap: 12,
-  },
-  scheduledCard: {
-    width: 280,
-    marginRight: 12,
-  },
-  emptyStateContainer: {
-    alignItems: "center",
-    paddingVertical: 32,
-    paddingHorizontal: 16,
-  },
-  emptyStateIcon: {
-    fontSize: 42,
-    marginBottom: 12,
-  },
-  emptyStateTitle: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "600",
-    fontSize: 16,
-    color: "#121417",
-    marginBottom: 4,
-  },
-  emptyStateMessage: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 14,
-    color: "#61758A",
-    textAlign: "center",
-  },
-  errorText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 14,
-    color: "#B91C1C",
-    textAlign: "center",
-    marginTop: 8,
   },
   bottomSpacer: {
     height: 120,
