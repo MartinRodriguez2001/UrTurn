@@ -278,15 +278,21 @@ class PushNotificationUtils {
     title: string,
     body: string,
     travelId: number,
-    updateType: string = 'travel_update'
+    updateType: string = 'travel_update',
+    extraData?: Partial<PushNotificationData>
   ): ExpoPushMessage {
+    const mergedData = extraData ?? {};
+    const resolvedType = (mergedData.type as PushNotificationData['type']) ?? (updateType as PushNotificationData['type']);
+    const resolvedTravelId = mergedData.travelId ?? travelId;
+
     return {
       to: token,
       title,
       body,
       data: {
-        type: updateType,
-        travelId,
+        ...mergedData,
+        type: resolvedType,
+        travelId: resolvedTravelId,
       },
       sound: 'default',
       badge: 1,

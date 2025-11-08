@@ -22,6 +22,7 @@ export interface SendTravelNotificationParams {
   targetUserIds?: number[];
   excludeUserIds?: number[];
   notificationType?: string;
+  data?: Partial<PushNotificationData>;
 }
 
 export interface NotificationPreferences {
@@ -243,6 +244,15 @@ export class NotificationService {
         };
       }
 
+      const requestedType = (params.data?.type as PushNotificationData['type']) 
+        ?? (params.notificationType as PushNotificationData['type']) 
+        ?? 'travel_update';
+      const notificationData: PushNotificationData = {
+        ...(params.data || {}),
+        type: requestedType,
+        travelId: params.data?.travelId ?? params.travelId,
+      };
+
       // Crear mensajes
       const messages = eligibleUsers.map(user => 
         pushNotificationUtils.createTravelUpdateMessage(
@@ -250,7 +260,8 @@ export class NotificationService {
           params.title,
           params.body,
           params.travelId,
-          params.notificationType || 'travel_update'
+          notificationData.type,
+          notificationData
         )
       );
 
@@ -260,13 +271,10 @@ export class NotificationService {
       // Guardar historial
       await this.saveNotificationHistory(
         eligibleUsers.map(user => user.id),
-        params.notificationType || 'travel_update',
+        notificationData.type,
         params.title,
         params.body,
-        {
-          type: (params.notificationType as 'chat_message' | 'travel_update' | 'travel_request') || 'travel_update',
-          travelId: params.travelId,
-        }
+        notificationData
       );
 
       console.log(`Notificación de viaje enviada: ${result.successful}/${result.totalSent} exitosas`);
