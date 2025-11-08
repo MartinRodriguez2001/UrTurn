@@ -1,3 +1,4 @@
+import travelApiService from "@/Services/TravelApiService";
 import type { TravelCoordinate, TravelPlannedStop } from "@/types/travel";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { decodePolyline } from "@/utils/polyline";
@@ -675,6 +676,7 @@ export default function DriverOnTravel() {
   const [mapHeadingState, setMapHeadingState] = useState<number>(0);
   const lastMapHeadingRef = useRef<number | null>(null);
   const HEADING_SMOOTHING = 0.15;
+  const [isCompleting, setIsCompleting] = useState(false);
   const headingRotation = mapHeadingState + "deg";
   const nextStopSubtitleText = nextStop
     ? "Siguiente: " + nextStop.label
@@ -1016,13 +1018,46 @@ export default function DriverOnTravel() {
                 <Text style={styles.secondaryButtonText}>Reportar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.primaryButton}
-                activeOpacity={0.9}
-                onPress={() => {}}
-              >
-                <Text style={styles.primaryButtonText}>Terminar viaje</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.primaryButton}
+                  activeOpacity={0.9}
+                  onPress={async () => {
+                    // Evitar doble envío
+                    if (isCompleting) return;
+
+                    if (!travelId) {
+                      // Si no hay travelId, simplemente retrocedemos
+                      router.back();
+                      return;
+                    }
+
+                    try {
+                      setIsCompleting(true);
+                      const response = await travelApiService.completeTravel(travelId);
+                      // Asumimos que la API responde con success=true
+                      if (response && response.success && response.travel) {
+                        // Redirigir a la pantalla de viaje finalizado
+                        // Usamos cast a any porque los tipos de rutas generadas aún no incluyen la nueva pantalla.
+                        router.push(`/Driver/Driver_Travel_ended?travelId=${travelId}` as any);
+                      } else {
+                        // Manejo mínimo de error: retroceder o mostrar mensaje
+                        console.warn("No se pudo completar el viaje", response);
+                        router.back();
+                      }
+                    } catch (error) {
+                      console.error("Error al completar viaje:", error);
+                      router.back();
+                    } finally {
+                      setIsCompleting(false);
+                    }
+                  }}
+                >
+                  {isCompleting ? (
+                    <ActivityIndicator color="#ffffff" />
+                  ) : (
+                    <Text style={styles.primaryButtonText}>Terminar viaje</Text>
+                  )}
+                </TouchableOpacity>
             </View>
           </>
         ) : null}
