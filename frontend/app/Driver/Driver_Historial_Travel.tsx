@@ -5,15 +5,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Image,
-  Linking,
-  Modal,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Image,
+    Linking,
+    Modal,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -567,7 +567,7 @@ const travelId = useMemo(() => {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pasajeros confirmados</Text>
+          <Text style={styles.sectionTitle}>Pasajeros</Text>
           {passengers.map((passenger) => (
             <View key={passenger.id} style={styles.passengerRow}>
               {passenger.avatar ? (
@@ -630,18 +630,6 @@ const travelId = useMemo(() => {
           </View>
         </View>
       </Modal>
-
-      <View style={styles.footer}>
-        {!isTravelFinished && (
-          <TouchableOpacity
-            style={styles.primaryButton}
-            activeOpacity={0.9}
-            onPress={handleStartTrip}
-          >
-            <Text style={styles.primaryButtonText}>Empezar viaje</Text>
-          </TouchableOpacity>
-        )}
-      </View>
     </SafeAreaView>
   );
 }
