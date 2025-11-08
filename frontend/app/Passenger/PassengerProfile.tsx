@@ -1,17 +1,21 @@
 import travelApiService from "@/Services/TravelApiService";
 import { userApi } from "@/Services/UserApiService";
 import { UserProfile } from "@/types/user";
+import { useAuth } from "@/context/authContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function PassengerProfile() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [tripsCount, setTripsCount] = useState(0);
   const [ratingCounts, setRatingCounts] = useState<Record<number, number>>({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
+  const [processingLogout, setProcessingLogout] = useState(false);
+  const [processingDelete, setProcessingDelete] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -111,6 +115,74 @@ export default function PassengerProfile() {
     );
   }
 
+  const executeLogout = async () => {
+    try {
+      setProcessingLogout(true);
+      await logout();
+      router.replace("/");
+    } catch (error) {
+      console.error("❌ Error al cerrar sesión:", error);
+      Alert.alert("Error", "No se pudo cerrar sesión. Intenta nuevamente.");
+    } finally {
+      setProcessingLogout(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (processingLogout || processingDelete) {
+      return;
+    }
+
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Deseas cerrar sesión para ingresar con otra cuenta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Cerrar sesión", style: "destructive", onPress: executeLogout },
+      ]
+    );
+  };
+
+  const deleteAccount = async () => {
+    if (!userProfile?.id) {
+      Alert.alert("Error", "No se pudo obtener la información de tu cuenta.");
+      return;
+    }
+
+    try {
+      setProcessingDelete(true);
+      const response = await userApi.deleteUser(userProfile.id);
+      if (!response.success) {
+        throw new Error(response.message || "No se pudo eliminar la cuenta.");
+      }
+      await logout();
+      router.replace("/");
+    } catch (error) {
+      console.error("❌ Error al eliminar la cuenta:", error);
+      Alert.alert(
+        "Error",
+        error instanceof Error ? error.message : "No se pudo eliminar la cuenta. Intenta nuevamente."
+      );
+    } finally {
+      setProcessingDelete(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (processingDelete || processingLogout) {
+      return;
+    }
+
+    Alert.alert(
+      "Eliminar cuenta",
+      "Esta acción eliminará toda tu información y no se puede deshacer.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Eliminar", style: "destructive", onPress: deleteAccount },
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -172,6 +244,40 @@ export default function PassengerProfile() {
           </View>
         </View>
 
+        <View style={styles.accountActions}>
+          <TouchableOpacity
+            style={[
+              styles.accountButton,
+              styles.logoutButton,
+              (processingLogout || processingDelete) && styles.disabledButton,
+            ]}
+            onPress={handleLogout}
+            disabled={processingLogout || processingDelete}
+          >
+            {processingLogout ? (
+              <ActivityIndicator size="small" color="#F99F7C" />
+            ) : (
+              <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.accountButton,
+              styles.deleteButton,
+              (processingDelete || processingLogout) && styles.disabledButton,
+            ]}
+            onPress={handleDeleteAccount}
+            disabled={processingDelete || processingLogout}
+          >
+            {processingDelete ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </SafeAreaView>
@@ -218,4 +324,11 @@ const styles = StyleSheet.create({
   barContainer: { flex: 1, height: 8, backgroundColor: "#DBE0E5", borderRadius: 4 },
   bar: { height: "100%", backgroundColor: "#F99F7C", borderRadius: 4 },
   ratingPercentage: { fontFamily: "PlusJakartaSans-Regular", fontSize: 14, lineHeight: 21, color: "#61758A", width: 40, textAlign: "right" },
+  accountActions: { paddingHorizontal: 16, paddingVertical: 8, gap: 12 },
+  accountButton: { borderRadius: 16, paddingVertical: 14, alignItems: "center", borderWidth: 1 },
+  logoutButton: { backgroundColor: "#FFF7F2", borderColor: "#F99F7C" },
+  logoutButtonText: { fontFamily: "PlusJakartaSans-SemiBold", fontSize: 16, color: "#F99F7C" },
+  deleteButton: { backgroundColor: "#E53935", borderColor: "#E53935" },
+  deleteButtonText: { fontFamily: "PlusJakartaSans-SemiBold", fontSize: 16, color: "#FFFFFF" },
+  disabledButton: { opacity: 0.6 },
 });
