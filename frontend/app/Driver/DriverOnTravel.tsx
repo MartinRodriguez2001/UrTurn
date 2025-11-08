@@ -1,3 +1,4 @@
+import travelApiService from "@/Services/TravelApiService";
 import type { TravelCoordinate, TravelPlannedStop } from "@/types/travel";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { decodePolyline } from "@/utils/polyline";
@@ -5,7 +6,6 @@ import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import travelApiService from "@/Services/TravelApiService";
 import {
   ActivityIndicator,
   Platform,
