@@ -3,6 +3,7 @@ import notificationService, {
     type NotificationPermissionStatus,
     type PushNotificationData
 } from '@/Services/NotificationService';
+import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import React, {
     createContext,
@@ -67,6 +68,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   // Referencias
   const appState = useRef(AppState.currentState);
   const notificationListenersRef = useRef<(() => void) | null>(null);
+  const pendingNavigationRef = useRef<PushNotificationData | null>(null);
   const initializationAttempted = useRef(false);
 
   /**
@@ -213,6 +215,7 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       setPreferences(defaultPreferences);
       setError(null);
       initializationAttempted.current = false;
+      pendingNavigationRef.current = null;
       
       // Limpiar listeners
       if (notificationListenersRef.current) {
@@ -252,6 +255,51 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
   }, [preferences.quietHoursEnabled, preferences.quietHoursStart, preferences.quietHoursEnd]);
 
   /**
+   * Navega a la pantalla correspondiente según la notificación
+   */
+  const navigateToNotificationTarget = useCallback((data?: PushNotificationData | null): boolean => {
+    if (!data) {
+      return false;
+    }
+
+    if (data.type === 'chat_message' && data.travelId) {
+      const targetRole = data.targetRole === 'driver' ? 'driver' : 'passenger';
+      const pathname = targetRole === 'driver' ? '/Driver/DriverChat' : '/Passenger/PassengerChat';
+
+      try {
+        router.push({
+          pathname,
+          params: {
+            travelId: String(data.travelId),
+          },
+        });
+        return true;
+      } catch (error) {
+        console.error('Error al navegar desde notificación:', error);
+      }
+    }
+
+    return false;
+  }, []);
+
+  const requestNavigationFromNotification = useCallback((data?: PushNotificationData | null): boolean => {
+    if (!data) {
+      return false;
+    }
+
+    if (!isAuthenticated) {
+      pendingNavigationRef.current = data;
+      return false;
+    }
+
+    const handled = navigateToNotificationTarget(data);
+    if (handled) {
+      pendingNavigationRef.current = null;
+    }
+    return handled;
+  }, [isAuthenticated, navigateToNotificationTarget]);
+
+  /**
    * Maneja las notificaciones recibidas
    */
   const handleNotificationReceived = useCallback((notification: Notifications.Notification) => {
@@ -274,18 +322,8 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     console.log('Usuario tocó notificación:', response);
     
     const data = response.notification.request.content.data as PushNotificationData;
-    
-    // Aquí podrías navegar a la pantalla específica según el tipo de notificación
-    if (data?.type === 'chat_message' && data.travelId) {
-      // Navegar al chat del viaje
-      console.log('Navegando al chat del viaje:', data.travelId);
-      // TODO: Implementar navegación cuando se integre con el router
-    } else if (data?.type === 'travel_update' && data.travelId) {
-      // Navegar a los detalles del viaje
-      console.log('Navegando a detalles del viaje:', data.travelId);
-      // TODO: Implementar navegación cuando se integre con el router
-    }
-  }, []);
+    requestNavigationFromNotification(data);
+  }, [requestNavigationFromNotification]);
 
   /**
    * Configura los listeners de notificaciones
@@ -315,6 +353,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [isAuthenticated, user, initialize, reset]);
 
+  useEffect(() => {
+    if (isAuthenticated && pendingNavigationRef.current) {
+      navigateToNotificationTarget(pendingNavigationRef.current);
+      pendingNavigationRef.current = null;
+    }
+  }, [isAuthenticated, navigateToNotificationTarget]);
+
   /**
    * Configurar listeners de notificaciones cuando se inicializa
    */
@@ -330,6 +375,32 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       }
     };
   }, [isInitialized, setupNotificationListeners]);
+
+  useEffect(() => {
+    if (!isInitialized) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const checkInitialNotification = async () => {
+      try {
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
+        if (lastResponse && isMounted) {
+          const data = lastResponse.notification.request.content.data as PushNotificationData;
+          requestNavigationFromNotification(data);
+        }
+      } catch (error) {
+        console.error('Error al procesar notificación inicial:', error);
+      }
+    };
+
+    checkInitialNotification();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isInitialized, requestNavigationFromNotification]);
 
   /**
    * Monitorear cambios en el estado de la app

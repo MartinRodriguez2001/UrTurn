@@ -54,7 +54,7 @@ interface NotificationHookState {
 }
 
 export const useNotifications = (): NotificationHookState & NotificationHookActions => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { isConnected } = useChat();
   const {
     isInitialized,
@@ -125,13 +125,14 @@ export const useNotifications = (): NotificationHookState & NotificationHookActi
         senderId: params.senderId,
         senderName: params.senderName,
         message: params.message,
+        targetRole: user?.IsDriver ? 'driver' : 'passenger',
       },
       sound: true,
       badge: 1,
     };
 
     return await showLocalNotification(payload);
-  }, [preferences.chatMessages, isConnected, showLocalNotification]);
+  }, [preferences.chatMessages, isConnected, showLocalNotification, user?.IsDriver]);
 
   /**
    * Muestra una notificación de viaje
