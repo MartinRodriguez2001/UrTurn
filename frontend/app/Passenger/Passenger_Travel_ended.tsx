@@ -5,156 +5,130 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
-interface Passenger {
+interface Driver {
   id: number;
   name: string;
   profile_picture?: string | null;
 }
 
-interface PassengerReview {
-  passengerId: number;
-  rating: number;
-  comment: string;
-}
-
-export default function Driver_Travel_ended() {
+export default function Passenger_Travel_ended() {
   const router = useRouter();
   const params = useLocalSearchParams<{ travelId?: string }>();
   const travelId = params.travelId ? parseInt(params.travelId) : null;
 
-  const [passengers, setPassengers] = useState<Passenger[]>([]);
+  const [driver, setDriver] = useState<Driver | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [reviews, setReviews] = useState<Record<number, PassengerReview>>({});
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
   const [currentStep, setCurrentStep] = useState<'review' | 'completed'>('review');
 
   useEffect(() => {
     if (travelId) {
-      loadPassengers();
+      loadDriver();
     } else {
       setLoading(false);
     }
   }, [travelId]);
 
-  const loadPassengers = async () => {
+  const loadDriver = async () => {
     if (!travelId) return;
 
     try {
       setLoading(true);
-      let confirmedPassengers: Passenger[] = [];
+      let driverInfo: any = null;
 
-      // Intento primario: endpoint directo (requiere soporte backend)
+      // Intento primario: endpoint directo (si está implementado en backend)
       try {
         const response = await travelApiService.getTravelById(travelId);
         if (response.success && response.travel) {
-          confirmedPassengers = (response.travel.passengers?.confirmed || []) as Passenger[];
+          driverInfo = (response.travel as any).driver_id;
         }
       } catch (err) {
-        // Ignorar y probar fallback
+        // Ignorar y usar fallback
       }
 
-      // Fallback: obtener todos los viajes del conductor y buscar el que coincide
-      if (!confirmedPassengers.length) {
+      // Fallback: buscar en listas de viajes del pasajero
+      if (!driverInfo) {
         try {
-          const driverTravels = await travelApiService.getDriverTravels();
-          if (driverTravels.success && driverTravels.travels) {
-            const match = driverTravels.travels.find(t => t.id === travelId);
+          const passengerTravels = await travelApiService.getPassengerTravels();
+          if (passengerTravels.success && passengerTravels.data) {
+            const allTravels: any[] = [
+              ...(passengerTravels.data.confirmed || []).map(t => t.travel).filter(Boolean),
+              ...(passengerTravels.data.requested || []).map(t => t.travel).filter(Boolean),
+            ];
+            const match = allTravels.find(t => t && t.id === travelId);
             if (match) {
-              confirmedPassengers = (match.passengers?.confirmed || []) as Passenger[];
+              driverInfo = match.driver_id;
             }
           }
         } catch (err) {
-          // Silenciar; se manejará más abajo si continua vacío
+          // Silenciar
         }
       }
 
-      setPassengers(confirmedPassengers);
-
-      const initialReviews: Record<number, PassengerReview> = {};
-      confirmedPassengers.forEach((p) => {
-        initialReviews[p.id] = { passengerId: p.id, rating: 5, comment: '' };
-      });
-      setReviews(initialReviews);
+      if (driverInfo) {
+        setDriver({
+          id: driverInfo.id,
+          name: driverInfo.name,
+          profile_picture: driverInfo.profile_picture,
+        });
+      }
     } catch (error) {
-      console.error('Error loading passengers:', error);
-      Alert.alert('Error', 'No se pudieron cargar los pasajeros del viaje');
+      console.error('Error loading driver:', error);
+      Alert.alert('Error', 'No se pudo cargar la información del conductor');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRatingChange = (passengerId: number, rating: number) => {
-    setReviews((prev) => ({
-      ...prev,
-      [passengerId]: {
-        ...prev[passengerId],
-        rating,
-      },
-    }));
-  };
-
-  const handleCommentChange = (passengerId: number, comment: string) => {
-    setReviews((prev) => ({
-      ...prev,
-      [passengerId]: {
-        ...prev[passengerId],
-        comment,
-      },
-    }));
-  };
-
-  const handleSubmitReviews = async () => {
-    if (!travelId) {
-      router.push('/Driver/DriverHomePage' as any);
+  const handleSubmitReview = async () => {
+    if (!travelId || !driver) {
+      router.push('/Passenger/PassengerHomePage' as any);
       return;
     }
 
     try {
       setSubmitting(true);
 
-      // Enviar cada reseña al backend
-      const reviewPromises = Object.values(reviews).map((review) =>
-        reviewApiService.createReview({
-          user_target_id: review.passengerId,
-          travel_id: travelId,
-          starts: review.rating,
-          review: review.comment || 'Sin comentarios',
-        })
-      );
-
-      await Promise.all(reviewPromises);
+      await reviewApiService.createReview({
+        user_target_id: driver.id,
+        travel_id: travelId,
+        starts: rating,
+        review: comment || 'Sin comentarios',
+      });
       
       setCurrentStep('completed');
     } catch (error) {
-      console.error('Error submitting reviews:', error);
-      Alert.alert('Error', 'No se pudieron enviar las reseñas. Intenta de nuevo.');
+      console.error('Error submitting review:', error);
+      Alert.alert('Error', 'No se pudo enviar la reseña. Intenta de nuevo.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleSkipReviews = () => {
+  const handleSkipReview = () => {
     Alert.alert(
-      'Omitir reseñas',
-      '¿Estás seguro de que quieres omitir las reseñas? Esto ayuda a mejorar la experiencia de la comunidad.',
+      'Omitir reseña',
+      '¿Estás seguro de que quieres omitir la reseña? Esto ayuda a mejorar la experiencia de la comunidad.',
       [
         { text: 'Cancelar', style: 'cancel' },
         { 
           text: 'Omitir', 
           style: 'destructive',
-          onPress: () => router.push('/Driver/DriverHomePage' as any)
+          onPress: () => router.push('/Passenger/PassengerHomePage' as any)
         },
       ]
     );
@@ -175,12 +149,12 @@ export default function Driver_Travel_ended() {
           <Feather name="check-circle" size={64} color="#059669" />
           <Text style={styles.title}>¡Gracias por tu opinión!</Text>
           <Text style={styles.completedSubtitle}>
-            Tus reseñas ayudan a mejorar la experiencia de la comunidad
+            Tu reseña ayuda a mejorar la experiencia de la comunidad
           </Text>
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push('/Driver/DriverHomePage' as any)}
+            onPress={() => router.push('/Passenger/PassengerHomePage' as any)}
           >
             <Text style={styles.buttonText}>Volver al inicio</Text>
           </TouchableOpacity>
@@ -189,17 +163,17 @@ export default function Driver_Travel_ended() {
     );
   }
 
-  if (passengers.length === 0) {
+  if (!driver) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.card}>
           <Feather name="flag" size={48} color="#065F46" />
           <Text style={styles.title}>Viaje finalizado</Text>
-          <Text style={styles.subtitle}>No hubo pasajeros en este viaje</Text>
+          <Text style={styles.subtitle}>No se pudo cargar la información del conductor</Text>
 
           <TouchableOpacity
             style={styles.button}
-            onPress={() => router.push('/Driver/DriverHomePage' as any)}
+            onPress={() => router.push('/Passenger/PassengerHomePage' as any)}
           >
             <Text style={styles.buttonText}>Volver al inicio</Text>
           </TouchableOpacity>
@@ -219,56 +193,54 @@ export default function Driver_Travel_ended() {
           <Feather name="flag" size={40} color="#065F46" />
           <Text style={styles.title}>Viaje finalizado</Text>
           <Text style={styles.subtitle}>
-            ¿Cómo fue tu experiencia con los pasajeros?
+            ¿Cómo fue tu experiencia con el conductor?
           </Text>
         </View>
 
-        {passengers.map((passenger) => (
-          <View key={passenger.id} style={styles.passengerCard}>
-            <View style={styles.passengerHeader}>
-              {passenger.profile_picture ? (
-                <Image
-                  source={{ uri: passenger.profile_picture }}
-                  style={styles.profilePicture}
-                />
-              ) : (
-                <View style={styles.profilePlaceholder}>
-                  <Feather name="user" size={24} color="#64748B" />
-                </View>
-              )}
-              <Text style={styles.passengerName}>{passenger.name}</Text>
-            </View>
-
-            <View style={styles.ratingSection}>
-              <Text style={styles.ratingLabel}>Calificación</Text>
-              <StarRating
-                rating={reviews[passenger.id]?.rating || 0}
-                onRatingChange={(rating) => handleRatingChange(passenger.id, rating)}
-                size={36}
-                color="#FFA500"
+        <View style={styles.driverCard}>
+          <View style={styles.driverHeader}>
+            {driver.profile_picture ? (
+              <Image
+                source={{ uri: driver.profile_picture }}
+                style={styles.profilePicture}
               />
-            </View>
-
-            <View style={styles.commentSection}>
-              <Text style={styles.commentLabel}>Comentario (opcional)</Text>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Escribe tu experiencia con este pasajero..."
-                placeholderTextColor="#94A3B8"
-                multiline
-                numberOfLines={3}
-                value={reviews[passenger.id]?.comment || ''}
-                onChangeText={(text) => handleCommentChange(passenger.id, text)}
-                maxLength={250}
-              />
-            </View>
+            ) : (
+              <View style={styles.profilePlaceholder}>
+                <Feather name="user" size={24} color="#64748B" />
+              </View>
+            )}
+            <Text style={styles.driverName}>{driver.name}</Text>
           </View>
-        ))}
+
+          <View style={styles.ratingSection}>
+            <Text style={styles.ratingLabel}>Calificación</Text>
+            <StarRating
+              rating={rating}
+              onRatingChange={setRating}
+              size={40}
+              color="#FFA500"
+            />
+          </View>
+
+          <View style={styles.commentSection}>
+            <Text style={styles.commentLabel}>Comentario (opcional)</Text>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Escribe tu experiencia con el conductor..."
+              placeholderTextColor="#94A3B8"
+              multiline
+              numberOfLines={4}
+              value={comment}
+              onChangeText={setComment}
+              maxLength={250}
+            />
+          </View>
+        </View>
 
         <View style={styles.actionsContainer}>
           <TouchableOpacity
             style={styles.skipButton}
-            onPress={handleSkipReviews}
+            onPress={handleSkipReview}
             disabled={submitting}
           >
             <Text style={styles.skipButtonText}>Omitir</Text>
@@ -276,13 +248,13 @@ export default function Driver_Travel_ended() {
 
           <TouchableOpacity
             style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-            onPress={handleSubmitReviews}
+            onPress={handleSubmitReview}
             disabled={submitting}
           >
             {submitting ? (
               <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={styles.submitButtonText}>Enviar reseñas</Text>
+              <Text style={styles.submitButtonText}>Enviar reseña</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -319,41 +291,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  passengerCard: {
+  driverCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
     padding: 20,
     marginBottom: 16,
-    gap: 16,
+    gap: 20,
   },
-  passengerHeader: {
+  driverHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
   profilePicture: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
   },
   profilePlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#E2E8F0',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  passengerName: {
-    fontSize: 18,
-    fontWeight: '600',
+  driverName: {
+    fontSize: 20,
+    fontWeight: '700',
     color: '#1E293B',
   },
   ratingSection: {
-    gap: 8,
+    gap: 12,
+    alignItems: 'center',
   },
   ratingLabel: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
     color: '#475569',
   },
@@ -371,7 +344,7 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 14,
     color: '#1E293B',
-    minHeight: 80,
+    minHeight: 100,
     textAlignVertical: 'top',
     borderWidth: 1,
     borderColor: '#E2E8F0',

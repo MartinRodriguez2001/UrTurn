@@ -1,3 +1,5 @@
+import ChatPanel from "@/components/common/ChatPanel";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useMemo } from "react";
 import {
     Image,
@@ -7,8 +9,6 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-import ChatPanel from "@/components/common/ChatPanel";
 
 const imgDepth3Frame0 =
   "http://localhost:3845/assets/3ab3b593cae411b8b40712ecfd81d32371f70de9.png";
@@ -25,7 +25,8 @@ const imgVector2 =
 const imgDepth4Frame1 =
   "http://localhost:3845/assets/629cc3192dacb040da73496cb8c1c028c2e2e4ea.svg";
 
-export default function DriverOnTravel() {
+export default function PassengerOnTravel() {
+  const router = useRouter();
   const params = useLocalSearchParams<{ travelId?: string }>();
   const travelId = useMemo(() => {
     if (!params.travelId) {
@@ -91,8 +92,18 @@ export default function DriverOnTravel() {
       </ScrollView>
 
       <View style={styles.footerContainer}>
-        <TouchableOpacity style={styles.finishButton} activeOpacity={0.8}>
-          <Text style={styles.finishButtonText}>Terminar viaje</Text>
+        <TouchableOpacity
+          style={styles.finishButton}
+          activeOpacity={0.85}
+          onPress={() => {
+            if (travelId !== undefined) {
+              router.push(`/Passenger/Passenger_Travel_ended?travelId=${travelId}` as any);
+            } else {
+              router.push('/Passenger/Passenger_Travel_ended' as any);
+            }
+          }}
+        >
+          <Text style={styles.finishButtonText}>Calificar viaje</Text>
         </TouchableOpacity>
       </View>
     </View>

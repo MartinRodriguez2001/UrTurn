@@ -1,4 +1,5 @@
 import { ApiResponse } from "@/api";
+import type { ChatMessagesPayload, ChatSendPayload } from "@/types/chat";
 import {
     PassengerConfirmedTravel,
     PassengerRequestedTravel,
@@ -12,7 +13,6 @@ import {
     TravelsResponse,
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
-import type { ChatMessagesPayload, ChatSendPayload } from "@/types/chat";
 
 class TravelApiService extends BaseApiService {
 
@@ -59,6 +59,13 @@ class TravelApiService extends BaseApiService {
       method: 'GET'
     });
   }
+
+    //  3.5 Obtener un viaje específico por ID
+    async getTravelById(travelId: number): Promise<ApiResponse<TravelResponse>> {
+      return this.makeRequest<TravelResponse>(`/travels/${travelId}`, {
+        method: 'GET'
+      });
+    }
 
   //  4. Obtener viajes del pasajero
   async getPassengerTravels(): Promise<
