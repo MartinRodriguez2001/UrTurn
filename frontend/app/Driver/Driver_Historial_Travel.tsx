@@ -5,15 +5,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Image,
-    Linking,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -582,24 +582,6 @@ const travelId = useMemo(() => {
                 <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
               </View>
               <View style={styles.contactActions}>
-                <TouchableOpacity
-                  style={styles.contactButton}
-                  activeOpacity={0.85}
-                  onPress={handleOpenChat}
-                >
-                  <Feather name="message-circle" size={16} color="#F97316" />
-                  <Text style={styles.contactButtonText}>Chat</Text>
-                </TouchableOpacity>
-                {passenger.phone ? (
-                  <TouchableOpacity
-                    style={styles.callButton}
-                    activeOpacity={0.85}
-                    onPress={() => handleCallPassenger(passenger.phone)}
-                  >
-                    <Feather name="phone" size={16} color="#1E40AF" />
-                    <Text style={styles.callButtonText}>Llamar</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
             </View>
           ))}
