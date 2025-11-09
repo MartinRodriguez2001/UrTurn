@@ -8,15 +8,15 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function DriverProfile() {
@@ -328,7 +328,7 @@ export default function DriverProfile() {
 
           {/* Indicador de conductor */}
           <View style={styles.driverBadge}>
-            {/* ua */}
+            <Feather name="shield" size={16} color="#2E7D32" />
             <Text style={styles.driverBadgeText}>Conductor Verificado</Text>
           </View>
         </View>
@@ -337,12 +337,18 @@ export default function DriverProfile() {
         <View style={styles.separator} />
 
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Acerca de</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="user" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Acerca de</Text>
+          </View>
           <Text style={styles.descriptionText}>{userProfile.description}</Text>
         </View>
 
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Vehículos</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="truck" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Vehículos</Text>
+          </View>
           {vehicles && vehicles.length > 0 ? (
             vehicles.map((vehicle, index) => (
               <View key={vehicle.id || index} style={styles.vehicleCard}>
@@ -355,12 +361,14 @@ export default function DriverProfile() {
                   </Text>
                   {vehicle.validation ? (
                     <View style={styles.validatedBadge}>
-                      <Text style={styles.validatedText}>✓ Verificado</Text>
+                      <Feather name="check-circle" size={12} color="#2E7D32" />
+                      <Text style={styles.validatedText}>Verificado</Text>
                     </View>
                   ) : (
                     <View style={styles.pendingContainer}>
                         <View style={styles.pendingBadge}>
-                          <Text style={styles.pendingText}>⏳ Pendiente de verificación</Text>
+                          <Feather name="clock" size={12} color="#F57C00" />
+                          <Text style={styles.pendingText}>Pendiente de verificación</Text>
                         </View>
                         
                         {/* ✅ Botón para validar con loading */}
@@ -375,7 +383,10 @@ export default function DriverProfile() {
                           {validatingVehicle === vehicle.id ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                           ) : (
-                            <Text style={styles.validateButtonText}>Validar ahora</Text>
+                            <View style={styles.validateButtonContent}>
+                              <Feather name="check" size={12} color="#FFFFFF" />
+                              <Text style={styles.validateButtonText}>Validar ahora</Text>
+                            </View>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -392,13 +403,16 @@ export default function DriverProfile() {
 
         {/* Reviews Section */}
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Reseñas</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="message-circle" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Reseñas</Text>
+          </View>
 
           <View style={styles.ratingOverview}>
             <View style={styles.ratingSummary}>
               <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '—'}</Text>
               <View style={styles.ratingStars}>
-                <Text style={styles.star}>⭐</Text>
+                <Feather name="star" size={20} color="#F59E0B" />
               </View>
               <Text style={styles.ratingCount}>{totalReviews} reviews</Text>
             </View>
@@ -418,7 +432,10 @@ export default function DriverProfile() {
         </View>
 
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Editar perfil</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="edit-3" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Editar perfil</Text>
+          </View>
         </View>
 
         <View style={styles.accountActions}>
@@ -434,7 +451,10 @@ export default function DriverProfile() {
             {processingLogout ? (
               <ActivityIndicator size="small" color="#F99F7C" />
             ) : (
-              <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+              <View style={styles.buttonContent}>
+                <Feather name="log-out" size={18} color="#F99F7C" />
+                <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+              </View>
             )}
           </TouchableOpacity>
 
@@ -450,7 +470,10 @@ export default function DriverProfile() {
             {processingDelete ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
-              <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
+              <View style={styles.buttonContent}>
+                <Feather name="trash-2" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
+              </View>
             )}
           </TouchableOpacity>
         </View>
@@ -595,6 +618,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#4CAF50",
+    gap: 6,
   },
   driverBadgeIcon: {
     fontSize: 16,
@@ -667,11 +691,18 @@ const styles = StyleSheet.create({
     margin: 16,
     gap: 8,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
   descriptionHeader: {
     fontSize: 22,
     fontFamily: "PlusJakartaSans-Bold",
     fontStyle: "normal",
     lineHeight: 26,
+    color: "#121417",
   },
   descriptionText: {
     fontFamily: "PlusJakartaSans-Regular",
@@ -712,6 +743,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: "#4CAF50",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   validatedText: {
     fontFamily: "PlusJakartaSans-SemiBold",
@@ -726,6 +760,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: "#FF9800",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   pendingText: {
     fontFamily: "PlusJakartaSans-SemiBold",
@@ -765,6 +802,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  validateButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   validateButtonDisabled: {
     opacity: 0.6,
   },
@@ -795,9 +837,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 8,
     gap: 2,
-  },
-  star: {
-    fontSize: 18,
   },
   ratingCount: {
     fontFamily: 'PlusJakartaSans-Regular',
@@ -850,6 +889,11 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: "center",
     borderWidth: 1,
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
   },
   logoutButton: {
     backgroundColor: "#FFF7F2",

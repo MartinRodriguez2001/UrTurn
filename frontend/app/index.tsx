@@ -59,7 +59,7 @@ export default function LogInScreen() {
         setEmail('');
         setPassword('');
         setRememberMe(false);
-        router.replace("/ChooseModeScreen");
+        router.replace("/Passenger/PassengerHomePage");
       } else {
         console.log('❌ Error en login:', result.message);
         Alert.alert('Error de Autenticación', result.message || 'Credenciales inválidas');
