@@ -23,12 +23,12 @@ export default function PassengerLayout() {
           <Text style={styles.navLabel}>Buscar</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace({ pathname: "/Passenger/Passenger_Historial" })}>
           <Feather name="clock" size={24} color="black" />
           <Text style={styles.navLabel}>Historial</Text>
         </TouchableOpacity>
         
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => router.replace({ pathname: "/Passenger/PassengerProfile" })}>
           <Feather name="user" size={24} color="black" />
           <Text style={styles.navLabel}>Perfil</Text>
         </TouchableOpacity>

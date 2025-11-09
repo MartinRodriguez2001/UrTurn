@@ -197,7 +197,7 @@ export default function PassengerRiderOffers() {
         style={styles.driverCard}
         onPress={() =>
           router.push({
-            pathname: "/Passenger/PassengerDriverProfile",
+            pathname: "/Passenger/PassengerDriverProfileAccept",
             params: {
               name: match.driver.name,
               vehicle: vehicleLabel,

@@ -11,6 +11,7 @@ import {
   TravelCoordinate,
   TravelPassenger,
   TravelPlannedStop,
+  TravelStatus,
 } from "@/types/travel";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
@@ -150,6 +151,15 @@ export default function PassengerHomePage() {
   const scheduledTravels = useMemo(() => {
     return confirmedTravels
       .filter((item) => item.travel)
+      // exclude travels that have already finished (have end_time or status finalizado)
+      .filter((item) => {
+        const t = item.travel as ProcessedTravel | undefined | null;
+        if (!t) return false;
+        // consider finished if end_time exists or status is FINALIZADO
+        const hasEnd = Boolean((t as any)?.end_time);
+        const isFinished = t.status === TravelStatus.FINALIZADO;
+        return !hasEnd && !isFinished;
+      })
       .sort((a, b) => {
         const dateA = new Date(a.travel?.start_time ?? 0).getTime();
         const dateB = new Date(b.travel?.start_time ?? 0).getTime();

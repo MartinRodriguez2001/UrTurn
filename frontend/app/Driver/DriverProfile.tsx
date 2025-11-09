@@ -1,29 +1,33 @@
+import travelApiService from "@/Services/TravelApiService";
 import { userApi } from "@/Services/UserApiService";
 import VehicleApiService from "@/Services/VehicleApiService";
+import { useAuth } from "@/context/authContext";
 import { UserProfile } from "@/types/user";
 import { Vehicle } from "@/types/vehicle";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function DriverProfile() {
   const router = useRouter();
+  const { logout } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [validatingVehicle, setValidatingVehicle] = useState<number | null>(
     null
   );
-  const [loading, setLoading] = useState(false);
+  const [processingLogout, setProcessingLogout] = useState(false);
+  const [processingDelete, setProcessingDelete] = useState(false);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
@@ -37,6 +41,9 @@ export default function DriverProfile() {
     IsDriver: true,
     active: false,
   });
+  const [ratingCounts, setRatingCounts] = useState<Record<number, number>>({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
+  const [totalReviews, setTotalReviews] = useState<number>(0);
+  const [averageRating, setAverageRating] = useState<number | null>(null);
 
   async function handleValidateVehicle(vehicleId: number) {
     try {
@@ -65,13 +72,15 @@ export default function DriverProfile() {
 
    const getProfileData = async () => {
     try {
-      const [response, responseVehicles] = await Promise.all([
+      const [response, responseVehicles, responseTravels] = await Promise.all([
         userApi.getProfile(),
-        VehicleApiService.getUserVehicles()
+        VehicleApiService.getUserVehicles(),
+        travelApiService.getDriverTravels(),
       ]);
       
       console.log("👤 Perfil del usuario:", response);
       console.log("🚗 Vehículos respuesta:", responseVehicles);
+      console.log("🧭 Viajes (driver) respuesta:", responseTravels);
       
       if (response.success && response.data) {
         setUserProfile({
@@ -101,6 +110,46 @@ export default function DriverProfile() {
         console.log("⚠️ No se pudieron cargar vehículos");
         setVehicles([]);
       }
+
+      // Process driver travels to compute ratings
+      try {
+        const travels: any[] = (responseTravels as any)?.travels ?? (responseTravels as any)?.data?.travels ?? [];
+        const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+        let total = 0;
+        let sum = 0;
+        if (Array.isArray(travels)) {
+          for (const t of travels) {
+            const rating = t?.driver_rating ?? t?.rating ?? null;
+            if (rating !== null && rating !== undefined) {
+              const star = Math.round(Number(rating));
+              if (!Number.isNaN(star) && star >= 1 && star <= 5) {
+                counts[star] = (counts[star] || 0) + 1;
+                total++;
+                sum += Number(rating);
+              }
+            }
+            // also handle nested travel.reviews arrays if present
+            const reviews = t?.reviews ?? t?.travel?.reviews ?? [];
+            if (Array.isArray(reviews) && reviews.length > 0) {
+              for (const r of reviews) {
+                const star = Number(r.rating ?? r.stars ?? r.starts ?? NaN);
+                if (!Number.isNaN(star) && star >= 1 && star <= 5) {
+                  counts[star] = (counts[star] || 0) + 1;
+                  total++;
+                  sum += Number(star);
+                }
+              }
+            }
+          }
+        }
+
+        setRatingCounts(counts);
+        setTotalReviews(total);
+        setAverageRating(total > 0 ? sum / total : null);
+      } catch (err) {
+        console.log("⚠️ No se pudieron procesar las reseñas de viajes:", err);
+      }
+
     } catch (error) {
       console.error("❌ Error al cargar datos del perfil:", error);
       setVehicles([]);
@@ -122,6 +171,103 @@ export default function DriverProfile() {
 
   const handleChangeProfilePhoto = () => {
     console.log("Cambiar foto de perfil");
+  };
+
+  const executeLogout = async () => {
+    try {
+      setProcessingLogout(true);
+      await logout();
+      router.replace("/");
+    } catch (error) {
+      console.error("❌ Error al cerrar sesión:", error);
+      Alert.alert("Error", "No se pudo cerrar sesión. Intenta nuevamente.");
+    } finally {
+      setProcessingLogout(false);
+    }
+  };
+
+  const handleLogout = () => {
+    if (processingLogout || processingDelete) {
+      return;
+    }
+
+    Alert.alert(
+      "Cerrar sesión",
+      "¿Quieres cerrar sesión para ingresar con otra cuenta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Cerrar sesión",
+          style: "destructive",
+          onPress: executeLogout,
+        },
+      ]
+    );
+  };
+
+  const deleteAccount = async () => {
+    if (!userProfile?.id) {
+      Alert.alert("Error", "No se pudo obtener la información de la cuenta.");
+      return;
+    }
+
+    try {
+      setProcessingDelete(true);
+
+      if (userProfile.IsDriver && vehicles.length > 0) {
+        for (const vehicle of vehicles) {
+          if (!vehicle?.id) continue;
+          const deleteVehicleRes = await VehicleApiService.deleteVehicle(
+            vehicle.id
+          );
+          if (!deleteVehicleRes.success) {
+            throw new Error(
+              deleteVehicleRes.message ||
+                "No se pudo eliminar un vehículo asociado."
+            );
+          }
+        }
+      }
+
+      const response = await userApi.deleteUser(userProfile.id);
+      if (!response.success) {
+        throw new Error(
+          response.message || "No se pudo eliminar la cuenta. Inténtalo luego."
+        );
+      }
+
+      await logout();
+      router.replace("/");
+    } catch (error) {
+      console.error("❌ Error al eliminar la cuenta:", error);
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "Ocurrió un error al eliminar la cuenta. Intenta nuevamente."
+      );
+    } finally {
+      setProcessingDelete(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    if (processingDelete || processingLogout) {
+      return;
+    }
+
+    Alert.alert(
+      "Eliminar cuenta",
+      "Esto eliminará tu cuenta, tus vehículos registrados y toda tu información. Esta acción no se puede deshacer.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Eliminar",
+          style: "destructive",
+          onPress: deleteAccount,
+        },
+      ]
+    );
   };
 
   return (
@@ -244,8 +390,69 @@ export default function DriverProfile() {
           )}
         </View>
 
+        {/* Reviews Section */}
+        <View style={styles.descriptionContainer}>
+          <Text style={styles.descriptionHeader}>Reseñas</Text>
+
+          <View style={styles.ratingOverview}>
+            <View style={styles.ratingSummary}>
+              <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '—'}</Text>
+              <View style={styles.ratingStars}>
+                <Text style={styles.star}>⭐</Text>
+              </View>
+              <Text style={styles.ratingCount}>{totalReviews} reviews</Text>
+            </View>
+
+            <View style={styles.ratingBreakdown}>
+              {[5, 4, 3, 2, 1].map((star) => (
+                <View key={star} style={styles.ratingBar}>
+                  <Text style={styles.ratingLabel}>{star}</Text>
+                  <View style={styles.barContainer}>
+                    <View style={[styles.bar, { width: totalReviews ? `${Math.round((ratingCounts[star] || 0) / totalReviews * 100)}%` : '0%' }]} />
+                  </View>
+                  <Text style={styles.ratingPercentage}>{totalReviews ? `${Math.round((ratingCounts[star] || 0) / totalReviews * 100)}%` : '0%'}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        </View>
+
         <View style={styles.descriptionContainer}>
           <Text style={styles.descriptionHeader}>Editar perfil</Text>
+        </View>
+
+        <View style={styles.accountActions}>
+          <TouchableOpacity
+            style={[
+              styles.accountButton,
+              styles.logoutButton,
+              (processingLogout || processingDelete) && styles.disabledButton,
+            ]}
+            onPress={handleLogout}
+            disabled={processingLogout || processingDelete}
+          >
+            {processingLogout ? (
+              <ActivityIndicator size="small" color="#F99F7C" />
+            ) : (
+              <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.accountButton,
+              styles.deleteButton,
+              (processingDelete || processingLogout) && styles.disabledButton,
+            ]}
+            onPress={handleDeleteAccount}
+            disabled={processingDelete || processingLogout}
+          >
+            {processingDelete ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
+            )}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -565,5 +772,104 @@ const styles = StyleSheet.create({
     fontFamily: "PlusJakartaSans-SemiBold",
     fontSize: 12,
     color: "#FFFFFF",
+  },
+  // Rating / Reviews styles
+  ratingOverview: {
+    flexDirection: 'row',
+    marginBottom: 32,
+    gap: 32,
+  },
+  ratingSummary: {
+    alignItems: 'center',
+    width: 98,
+  },
+  ratingNumber: {
+    fontFamily: 'PlusJakartaSans-Bold',
+    fontWeight: '800',
+    fontSize: 36,
+    lineHeight: 45,
+    color: '#121417',
+    marginBottom: 8,
+  },
+  ratingStars: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    gap: 2,
+  },
+  star: {
+    fontSize: 18,
+  },
+  ratingCount: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#121417',
+  },
+  ratingBreakdown: {
+    flex: 1,
+    gap: 12,
+  },
+  ratingBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ratingLabel: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#121417',
+    width: 20,
+  },
+  barContainer: {
+    flex: 1,
+    height: 8,
+    backgroundColor: '#DBE0E5',
+    borderRadius: 4,
+  },
+  bar: {
+    height: '100%',
+    backgroundColor: '#121417',
+    borderRadius: 4,
+  },
+  ratingPercentage: {
+    fontFamily: 'PlusJakartaSans-Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#61758A',
+    width: 40,
+    textAlign: 'right',
+  },
+  accountActions: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 12,
+  },
+  accountButton: {
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: "center",
+    borderWidth: 1,
+  },
+  logoutButton: {
+    backgroundColor: "#FFF7F2",
+    borderColor: "#F99F7C",
+  },
+  logoutButtonText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 16,
+    color: "#F99F7C",
+  },
+  deleteButton: {
+    backgroundColor: "#E53935",
+    borderColor: "#E53935",
+  },
+  deleteButtonText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 16,
+    color: "#FFFFFF",
+  },
+  disabledButton: {
+    opacity: 0.6,
   },
 });
