@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -29,6 +30,7 @@ export default function DriverProfile() {
   const [processingLogout, setProcessingLogout] = useState(false);
   const [processingDelete, setProcessingDelete] = useState(false);
   const [tripsCount, setTripsCount] = useState(0);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
@@ -282,7 +284,12 @@ export default function DriverProfile() {
           <Feather name="arrow-left" size={22} color="#121417" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Perfil</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity 
+          style={styles.settingsButton}
+          onPress={() => setSettingsModalVisible(true)}
+        >
+          <Feather name="settings" size={22} color="#121417" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -440,48 +447,193 @@ export default function DriverProfile() {
           </View>
         </View>
 
-        <View style={styles.accountActions}>
-          <TouchableOpacity
-            style={[
-              styles.accountButton,
-              styles.logoutButton,
-              (processingLogout || processingDelete) && styles.disabledButton,
-            ]}
-            onPress={handleLogout}
-            disabled={processingLogout || processingDelete}
-          >
-            {processingLogout ? (
-              <ActivityIndicator size="small" color="#F99F7C" />
-            ) : (
-              <View style={styles.buttonContent}>
-                <Feather name="log-out" size={18} color="#F99F7C" />
-                <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.accountButton,
-              styles.deleteButton,
-              (processingDelete || processingLogout) && styles.disabledButton,
-            ]}
-            onPress={handleDeleteAccount}
-            disabled={processingDelete || processingLogout}
-          >
-            {processingDelete ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <View style={styles.buttonContent}>
-                <Feather name="trash-2" size={18} color="#FFFFFF" />
-                <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Modal de Configuración */}
+      <Modal
+        visible={settingsModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSettingsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setSettingsModalVisible(false)}
+            >
+              <Feather name="x" size={24} color="#121417" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Configuración</Text>
+            <View style={styles.modalSpacer} />
+          </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Sección General */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>General</Text>
+              
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="user" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Editar perfil</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="bell" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Notificaciones</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="shield" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Privacidad</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sección Conductor */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Conductor</Text>
+              
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="truck" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Gestionar vehículos</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="map" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Historial de viajes</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="dollar-sign" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Ganancias</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sección Ayuda */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Ayuda y soporte</Text>
+              
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="help-circle" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Centro de ayuda</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="message-circle" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Contactar soporte</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="file-text" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Términos y condiciones</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="lock" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Política de privacidad</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sección Sesión */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Sesión</Text>
+              
+              <TouchableOpacity 
+                style={[styles.modalOption, (processingLogout || processingDelete) && styles.disabledOption]}
+                onPress={handleLogout}
+                disabled={processingLogout || processingDelete}
+              >
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    {processingLogout ? (
+                      <ActivityIndicator size="small" color="#F99F7C" />
+                    ) : (
+                      <Feather name="log-out" size={20} color="#F99F7C" />
+                    )}
+                  </View>
+                  <Text style={[styles.modalOptionText, { color: '#F99F7C' }]}>
+                    Cerrar sesión
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#F99F7C" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.modalOption, (processingDelete || processingLogout) && styles.disabledOption]}
+                onPress={handleDeleteAccount}
+                disabled={processingDelete || processingLogout}
+              >
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    {processingDelete ? (
+                      <ActivityIndicator size="small" color="#E53935" />
+                    ) : (
+                      <Feather name="trash-2" size={20} color="#E53935" />
+                    )}
+                  </View>
+                  <Text style={[styles.modalOptionText, { color: '#E53935' }]}>
+                    Eliminar cuenta
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#E53935" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBottomSpacer} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -514,6 +666,13 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 48,
+  },
+  settingsButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
   },
   scrollContainer: {
     flex: 1,
@@ -881,47 +1040,94 @@ const styles = StyleSheet.create({
     width: 40,
     textAlign: 'right',
   },
-  accountActions: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 12,
-  },
-  accountButton: {
-    borderRadius: 16,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-  },
-  buttonContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  logoutButton: {
-    backgroundColor: "#FFF7F2",
-    borderColor: "#F99F7C",
-  },
-  logoutButtonText: {
-    fontFamily: "PlusJakartaSans-SemiBold",
-    fontSize: 16,
-    color: "#F99F7C",
-  },
-  deleteButton: {
-    backgroundColor: "#E53935",
-    borderColor: "#E53935",
-  },
-  deleteButtonText: {
-    fontFamily: "PlusJakartaSans-SemiBold",
-    fontSize: 16,
-    color: "#FFFFFF",
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
   userStats: { 
     fontFamily: "PlusJakartaSans-Regular", 
     fontSize: 14, 
     color: "#61758A", 
-    marginTop: 4 },
+    marginTop: 4 
+  },
+
+  // Estilos para la Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    height: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E9ECEF",
+    backgroundColor: "#FFFFFF",
+  },
+  modalCloseButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 18,
+    lineHeight: 23,
+    color: "#121417",
+    textAlign: "center",
+  },
+  modalSpacer: {
+    width: 48,
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalSection: {
+    paddingTop: 24,
+    paddingHorizontal: 16,
+  },
+  modalSectionTitle: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#61758A",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  modalOptionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  settingsItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFF7F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  modalOptionText: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#121417",
+  },
+  disabledOption: {
+    opacity: 0.6,
+  },
+  modalBottomSpacer: {
+    height: 40,
+  },
 
 });
