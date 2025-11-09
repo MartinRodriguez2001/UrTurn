@@ -279,6 +279,12 @@ export default function PassengerHomePage() {
           <Text style={styles.headerTitle}>Página Principal</Text>
           <Text style={styles.subTitle}>Hola, {user?.name ?? "Pasajero"}</Text>
         </View>
+
+        <TouchableOpacity style={styles.profileButton} onPress={() => router.push("/Passenger/PassengerProfile")}>
+          <View style={styles.profileImage}>
+            <Text style={styles.profileInitial}>{user?.name?.[0] ?? "U"}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <ScrollView

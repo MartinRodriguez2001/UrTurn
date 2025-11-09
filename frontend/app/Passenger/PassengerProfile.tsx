@@ -1,7 +1,7 @@
+import { useAuth } from "@/context/authContext";
 import travelApiService from "@/Services/TravelApiService";
 import { userApi } from "@/Services/UserApiService";
 import { UserProfile } from "@/types/user";
-import { useAuth } from "@/context/authContext";
 import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
@@ -207,7 +207,9 @@ export default function PassengerProfile() {
 
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{userProfile?.name}</Text>
-            <Text style={styles.userRole}>Pasajero</Text>
+            <Text style={styles.userEmail}>
+              {userProfile?.institutional_email}
+            </Text>
             <Text style={styles.userStats}>{tripsCount} viajes</Text>
           </View>
         </View>
@@ -305,6 +307,7 @@ const styles = StyleSheet.create({
   profileInitials: { fontSize: 36, fontFamily: "PlusJakartaSans-Bold", color: "#FFFFFF" },
   userInfo: { alignItems: "center", marginBottom: 16 },
   userName: { fontFamily: "PlusJakartaSans-Bold", fontSize: 24, lineHeight: 30, color: "#121417", marginBottom: 4, textAlign: "center" },
+  userEmail: {fontFamily: "PlusJakartaSans-Regular", fontSize: 16, lineHeight: 24, color: "#61758A", marginBottom: 2, },
   userRole: { fontFamily: "PlusJakartaSans-Regular", fontSize: 16, color: "#61758A" },
   userStats: { fontFamily: "PlusJakartaSans-Regular", fontSize: 14, color: "#61758A", marginTop: 4 },
   separator: { height: 8, backgroundColor: "#F8F9FA" },

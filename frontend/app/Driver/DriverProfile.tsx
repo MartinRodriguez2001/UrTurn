@@ -28,6 +28,7 @@ export default function DriverProfile() {
   );
   const [processingLogout, setProcessingLogout] = useState(false);
   const [processingDelete, setProcessingDelete] = useState(false);
+  const [tripsCount, setTripsCount] = useState(0);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
@@ -324,6 +325,7 @@ export default function DriverProfile() {
             <Text style={styles.userEmail}>
               {userProfile.institutional_email}
             </Text>
+            <Text style={styles.userStats}>{tripsCount} viajes</Text>
           </View>
 
           {/* Indicador de conductor */}
@@ -916,4 +918,10 @@ const styles = StyleSheet.create({
   disabledButton: {
     opacity: 0.6,
   },
+  userStats: { 
+    fontFamily: "PlusJakartaSans-Regular", 
+    fontSize: 14, 
+    color: "#61758A", 
+    marginTop: 4 },
+
 });

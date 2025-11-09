@@ -200,63 +200,50 @@ export default function PassengerDriverProfile() {
                     setDriverProfile(userRes.data);
                 }
 
-                // try fetching travels by driver id (if backend supports /travels/driver/:id)
-                const travelsRes = await travelApiService.getTravelsByDriverId(id).catch(() => null);
-                const travels: any[] = (travelsRes && (travelsRes as any).travels) || (travelsRes && (travelsRes as any).data && (travelsRes as any).data.travels) || [];
-
-                const gatheredReviews: Review[] = [];
-                const counts: Record<number, number> = {5:0,4:0,3:0,2:0,1:0};
-                let total = 0;
-                let sum = 0;
-
-                for (const t of travels) {
-                    // reviews could appear under different keys
-                    const reviewsArr = t?.reviews || t?.travel?.reviews || t?.passenger_reviews || [];
-                    if (Array.isArray(reviewsArr)) {
-                        for (const r of reviewsArr) {
-                            const rating = Number(r.rating ?? r.stars ?? r.starts ?? r.value ?? NaN);
-                            if (!Number.isNaN(rating) && rating >=1 && rating <=5) {
-                                counts[Math.round(rating)] = (counts[Math.round(rating)] || 0) + 1;
-                                total++;
-                                sum += Number(rating);
-                            }
-                            gatheredReviews.push({
-                                id: String(r.id ?? Math.random()),
-                                userName: r.user?.name ?? r.userName ?? r.author ?? 'Usuario',
-                                userAvatar: r.user?.profile_picture ?? r.userAvatar ?? '👤',
-                                rating: Math.round(rating) || 0,
-                                comment: r.comment ?? r.body ?? r.text ?? '',
-                                date: r.created_at ? new Date(r.created_at).toLocaleDateString('es-CL') : (r.date ?? ''),
-                                likes: r.likes ?? 0,
-                            });
-                        }
-                    }
-
-                    // also use driver_rating as a numeric rating without comment
-                    if (t?.driver_rating !== undefined && t?.driver_rating !== null) {
-                        const dr = Number(t.driver_rating);
-                        if (!Number.isNaN(dr) && dr >=1 && dr <=5) {
-                            counts[Math.round(dr)] = (counts[Math.round(dr)] || 0) + 1;
-                            total++;
-                            sum += dr;
-                        }
-                    }
-                }
-
-                setDriverReviews(gatheredReviews);
-                setRatingCounts(counts);
-                setTotalReviewsCount(total);
-                // count only finished travels: those with end_time or status === FINALIZADO
-                try {
-                    const finishedCount = Array.isArray(travels)
-                        ? travels.filter((t: any) => !!t?.end_time || t?.status === TravelStatus.FINALIZADO).length
-                        : 0;
-                    setDriverTravelsCount(finishedCount);
-                } catch (e) {
-                    // fallback to total travels if anything goes wrong
-                    setDriverTravelsCount(travels.length || 0);
-                }
-                setAverageRating(total > 0 ? sum / total : (driverRatingParam ? Number(driverRatingParam) : null));
+                                // Prefer the reviews API which returns reviews received by the user.
+                                try {
+                                    const userReviewsRes = await (await import('@/Services/ReviewApiService')).default.getUserReviews(id).catch(() => null);
+                                    if (userReviewsRes && (userReviewsRes as any).data && (userReviewsRes as any).data.received) {
+                                        const reviewsArr = (userReviewsRes as any).data.received as any[];
+                                        const gathered: Review[] = [];
+                                        const counts: Record<number, number> = {5:0,4:0,3:0,2:0,1:0};
+                                        let total = 0;
+                                        let sum = 0;
+                                        for (const r of reviewsArr) {
+                                            const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+                                            if (!Number.isNaN(rating) && rating >=1 && rating <=5) {
+                                                counts[Math.round(rating)] = (counts[Math.round(rating)] || 0) + 1;
+                                                total++;
+                                                sum += Number(rating);
+                                            }
+                                            gathered.push({
+                                                id: String(r.id ?? Math.random()),
+                                                userName: r.reviewer?.name ?? 'Usuario',
+                                                userAvatar: r.reviewer?.profile_picture ?? '👤',
+                                                rating: Math.round(rating) || 0,
+                                                comment: r.review ?? r.comment ?? r.body ?? '',
+                                                date: r.created_at ? new Date(r.created_at).toISOString().slice(0,10) : (r.date ?? ''),
+                                                likes: r.likes ?? 0,
+                                            });
+                                        }
+                                        setDriverReviews(gathered);
+                                        setRatingCounts(counts);
+                                        setTotalReviewsCount(total);
+                                        setAverageRating(total > 0 ? sum / total : (driverRatingParam ? Number(driverRatingParam) : null));
+                                    } else {
+                                        setDriverReviews([]);
+                                        setRatingCounts({5:0,4:0,3:0,2:0,1:0});
+                                        setTotalReviewsCount(0);
+                                    }
+                                } catch (e) {
+                                    console.error('Error fetching user reviews', e);
+                                    setDriverReviews([]);
+                                    setRatingCounts({5:0,4:0,3:0,2:0,1:0});
+                                    setTotalReviewsCount(0);
+                                }
+                // We don't have access to the driver's travel list here (unless viewing own profile).
+                // Leave driverTravelsCount as 0 when not available.
+                setDriverTravelsCount(0);
             } catch (err) {
                 console.error('Error loading driver profile/reviews', err);
             } finally {
@@ -284,7 +271,7 @@ export default function PassengerDriverProfile() {
                     </View>
                     <View style={styles.reviewUserDetails}>
                         <Text style={styles.reviewUserName}>{review.userName}</Text>
-                        <Text style={styles.reviewDate}>{review.date}</Text>
+                        <Text style={styles.reviewDate}>{review.date ? String(review.date).slice(0,10) : ''}</Text>
                     </View>
                 </View>
             </View>

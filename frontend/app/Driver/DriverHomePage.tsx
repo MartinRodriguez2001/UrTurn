@@ -340,7 +340,7 @@ export default function DriverHomePage() {
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <Text style={styles.headerTitle}>Página Principal</Text>
-          <Text style={styles.subTitle}>Hola, {user?.name ?? "Pasajero"}</Text>
+          <Text style={styles.subTitle}>Hola, {user?.name ?? "Conductor"}</Text>
         </View>
 
         <TouchableOpacity style={styles.profileButton} onPress={() => router.push("/Driver/DriverProfile")}>
