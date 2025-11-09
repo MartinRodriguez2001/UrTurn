@@ -30,6 +30,19 @@ router.post(
   travelController.createTravel.bind(travelController)
 );
 
+// POST /api/travels/requests - Registrar solicitud sin viaje asignado
+router.post(
+  "/requests",
+  authenticateToken,
+  travelController.createOpenTravelRequest.bind(travelController)
+);
+
+router.post(
+  "/matching",
+  authenticateToken,
+  travelController.findMatchingTravels.bind(travelController)
+);
+
 // GET /api/travels/driver - Obtener viajes del conductor autenticado
 router.get(
   "/driver",
@@ -42,6 +55,20 @@ router.get(
   "/:id/requests",
   authenticateToken,
   travelController.getTravelRequests.bind(travelController)
+);
+
+// GET /api/travels/:id/messages - Obtener historial de chat del viaje
+router.get(
+  "/:id/messages",
+  authenticateToken,
+  travelController.getTravelMessages.bind(travelController)
+);
+
+// POST /api/travels/:id/messages - Enviar mensaje del viaje
+router.post(
+  "/:id/messages",
+  authenticateToken,
+  travelController.sendTravelMessage.bind(travelController)
 );
 
 // PUT /api/travels/:id/complete - Finalizar un viaje

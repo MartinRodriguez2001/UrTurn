@@ -1,7 +1,8 @@
-import { fetchCarMakes, fetchCarModels } from "@/app/utils/carsGet";
 import { useDriverStatus } from "@/hooks/useDriverStatus";
 import VehicleApiService from "@/Services/VehicleApiService";
 import { VehicleFormData } from "@/types/vehicle";
+import { fetchCarMakes, fetchCarModels } from "@/utils/carsGet";
+import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -284,10 +285,11 @@ export default function DriverRegister() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.backIcon}>←</Text>
+            onPress={() => router.back()}
+            style={styles.backButton}
+            accessibilityRole="button"
+          >
+            <Feather name="arrow-left" size={22} color="#121417" />
         </TouchableOpacity>
         <View style={styles.titleContainer}>
           <Text style={styles.headerTitle}>Registro de Conductor</Text>

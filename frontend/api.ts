@@ -1,11 +1,15 @@
 import { Platform } from 'react-native';
 import { ApiResponse, AuthData, RegisterData } from "./types/api";
 
-const API_BASE_URL = __DEV__ 
-  ? Platform.OS === 'android' 
-    ? 'http://10.0.2.2:3000/api'  // Para Android Emulator
-    : 'http://localhost:3000/api' // Para iOS Simulator
-  : 'https://tu-servidor-produccion.com/api';
+const ENV_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.trim();
+
+const API_BASE_URL =
+  (ENV_BASE_URL && ENV_BASE_URL.length > 0 ? ENV_BASE_URL : undefined) ??
+  (__DEV__
+    ? Platform.OS === "android"
+      ? "http://10.0.2.2:3000/api" // Para Android Emulator
+      : "http://localhost:3000/api" // Para iOS Simulator
+    : "https://tu-servidor-produccion.com/api");
 
 class ApiService {
   private baseURL = API_BASE_URL;

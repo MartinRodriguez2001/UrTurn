@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
     Image,
     ScrollView,
@@ -7,6 +7,8 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
+import { useLocalSearchParams } from "expo-router";
+import ChatPanel from "@/components/common/ChatPanel";
 
 const imgDepth3Frame0 =
   "http://localhost:3845/assets/3ab3b593cae411b8b40712ecfd81d32371f70de9.png";
@@ -24,6 +26,15 @@ const imgDepth4Frame1 =
   "http://localhost:3845/assets/629cc3192dacb040da73496cb8c1c028c2e2e4ea.svg";
 
 export default function DriverOnTravel() {
+  const params = useLocalSearchParams<{ travelId?: string }>();
+  const travelId = useMemo(() => {
+    if (!params.travelId) {
+      return undefined;
+    }
+    const parsed = Number(params.travelId);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }, [params.travelId]);
+
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -75,6 +86,8 @@ export default function DriverOnTravel() {
             <Text style={styles.reportButtonText}>Reportar</Text>
           </TouchableOpacity>
         </View>
+
+        <ChatPanel travelId={travelId} title="Conversación con el conductor" />
       </ScrollView>
 
       <View style={styles.footerContainer}>

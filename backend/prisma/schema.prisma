@@ -48,6 +48,16 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
   
+  // Campos para notificaciones
+  expo_push_token String?
+  notifications_enabled Boolean @default(true)
+  chat_notifications_enabled Boolean @default(true)
+  travel_notifications_enabled Boolean @default(true)
+  quiet_hours_enabled Boolean @default(false)
+  quiet_hours_start String? // Formato "HH:mm"
+  quiet_hours_end String?   // Formato "HH:mm"
+  last_active_at DateTime @default(now())
+  
   // Relaciones existentes
   travel Travel[]
   vehicles Vehicle[]
@@ -58,16 +68,35 @@ model User {
   // Relaciones para reviews
   reviewsGiven Review[] @relation("ReviewerToTarget")    // Reviews que este usuario ha dado
   reviewsReceived Review[] @relation("TargetToReviewer") // Reviews que este usuario ha recibido
+  
+  // Relación para mensajes de viaje
+  travelMessages TravelMessage[]
+  
+  // Relación para notificaciones
+  notificationHistory NotificationHistory[]
 }
 
 model Travel {
   id Int @id @default(autoincrement())
-  start_location String
-  end_location String
+
+  // Ubicación de inicio
+  start_location_name String?           // Nombre legible: "Campus Universidad"
+  start_latitude Float
+  start_longitude Float
+
+  // Ubicación de destino
+  end_location_name String?             // Nombre legible: "Metro Los Leones"
+  end_latitude Float
+  end_longitude Float
+
+  route_waypoints Json?
+  planned_stops Json?
+
   capacity Int
   price Float
+  travel_date DateTime
   start_time DateTime
-  end_time DateTime
+  end_time DateTime? 
   spaces_available Int
   status TravelStatus @default(pendiente)
 
@@ -78,6 +107,7 @@ model Travel {
   requests TravelRequest[]
   confirmations Confirmation[]
   reports Report[]
+  conversation TravelConversation?
 
   userId Int
   driver_id User @relation(fields: [userId], references: [id])
@@ -119,9 +149,21 @@ model Review {
 model TravelRequest {
   id Int @id @default(autoincrement())
 
-  travelId Int
-  travel Travel @relation(fields: [travelId], references: [id])
-  location String
+  travelId Int?
+  travel   Travel? @relation(fields: [travelId], references: [id])
+  
+  // Ubicación de inicio
+  start_location_name String?           // Nombre legible: "Campus Universidad"
+  start_latitude Float
+  start_longitude Float
+
+  // Ubicación de destino
+  end_location_name String?             // Nombre legible: "Metro Los Leones"
+  end_latitude Float
+  end_longitude Float
+  
+  pickup_date DateTime?
+  pickup_time DateTime?
   status RequestStatus @default(pendiente)
 
 
@@ -156,4 +198,41 @@ model Report {
   date DateTime @default(now())
 }
 
+model TravelConversation{
+  id Int @id @default(autoincrement())
+  travelId Int @unique
+  travel Travel @relation(fields: [travelId], references: [id])
+  messages TravelMessage[]
+  created_at DateTime @default(now())
+}
 
+model TravelMessage {
+  id Int @id @default(autoincrement())
+  converasationId Int
+  conversation TravelConversation @relation(fields: [converasationId], references: [id])
+  senderId Int
+  sender User @relation(fields: [senderId], references: [id])
+  body String
+  sentAt DateTime @default(now())
+}
+
+model NotificationHistory {
+  id Int @id @default(autoincrement())
+  userId Int
+  user User @relation(fields: [userId], references: [id])
+  
+  type String // 'chat_message', 'travel_update', 'travel_request'
+  title String
+  body String
+  data Json? // Datos adicionales (travelId, senderId, etc.)
+  
+  sent Boolean @default(false)
+  sent_at DateTime?
+  error_message String?
+  
+  expo_push_receipt_id String?
+  expo_push_status String? // 'ok', 'error'
+  
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
