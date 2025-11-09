@@ -570,13 +570,28 @@ const travelId = useMemo(() => {
           <Text style={styles.sectionTitle}>Pasajeros</Text>
           {passengers.map((passenger) => (
             <View key={passenger.id} style={styles.passengerRow}>
-              {passenger.avatar ? (
-                <Image source={{ uri: passenger.avatar }} style={styles.passengerAvatar} />
-              ) : (
-                <View style={styles.passengerFallbackAvatar}>
-                  <Text style={styles.passengerInitials}>{getInitials(passenger.name)}</Text>
-                </View>
-              )}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() =>
+                  router.push({
+                    pathname: "/Driver/DriverPassengerProfile",
+                    params: {
+                      passengerId: String((passenger as any)?.id ?? ""),
+                      name: passenger.name ?? "",
+                      profile_picture: passenger.avatar ?? "",
+                      phone: passenger.phone ?? "",
+                    },
+                  })
+                }
+              >
+                {passenger.avatar ? (
+                  <Image source={{ uri: passenger.avatar }} style={styles.passengerAvatar} />
+                ) : (
+                  <View style={styles.passengerFallbackAvatar}>
+                    <Text style={styles.passengerInitials}>{getInitials(passenger.name)}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <View style={styles.passengerInfo}>
                 <Text style={styles.passengerName}>{passenger.name}</Text>
                 <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>

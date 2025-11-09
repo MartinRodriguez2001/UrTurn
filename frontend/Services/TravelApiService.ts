@@ -1,18 +1,18 @@
 import { ApiResponse } from "@/api";
+import type { ChatMessagesPayload, ChatSendPayload } from "@/types/chat";
 import {
-    PassengerConfirmedTravel,
-    PassengerRequestedTravel,
-    TravelCreateData,
-    TravelFilters,
-    TravelMatchRequestPayload,
-    TravelMatchResponse,
-    TravelRequestCreatePayload,
-    TravelRequestRecord,
-    TravelResponse,
-    TravelsResponse,
+  PassengerConfirmedTravel,
+  PassengerRequestedTravel,
+  TravelCreateData,
+  TravelFilters,
+  TravelMatchRequestPayload,
+  TravelMatchResponse,
+  TravelRequestCreatePayload,
+  TravelRequestRecord,
+  TravelResponse,
+  TravelsResponse,
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
-import type { ChatMessagesPayload, ChatSendPayload } from "@/types/chat";
 
 class TravelApiService extends BaseApiService {
 
@@ -60,6 +60,37 @@ class TravelApiService extends BaseApiService {
     });
   }
 
+  // Obtener viajes de un conductor por su id (si el backend soporta esta ruta)
+  async getTravelsByDriverId(driverId: number): Promise<ApiResponse<TravelsResponse>> {
+    // Try the most specific route first, then fall back to common query patterns
+    const triedEndpoints: string[] = [];
+
+    const endpointsToTry = [
+      `/travels/driver/${driverId}`,
+      `/travels?driver_id=${driverId}`,
+      `/travels?driverId=${driverId}`,
+      `/travels?driver=${driverId}`,
+      `/travels?user_id=${driverId}`,
+    ];
+
+    let lastError: Error | null = null;
+
+    for (const ep of endpointsToTry) {
+      triedEndpoints.push(ep);
+      try {
+        return await this.makeRequest<TravelsResponse>(ep, { method: 'GET' });
+      } catch (err: any) {
+        // remember the last error and try next
+        lastError = err instanceof Error ? err : new Error(String(err));
+        // continue to next endpoint
+      }
+    }
+
+    // If none worked, throw a clear error including tried endpoints
+    const message = lastError ? `${lastError.message} (tried: ${triedEndpoints.join(',')})` : `No se pudo obtener viajes del conductor (tried: ${triedEndpoints.join(',')})`;
+    throw new Error(message);
+  }
+
   //  4. Obtener viajes del pasajero
   async getPassengerTravels(): Promise<
     ApiResponse<{
@@ -72,6 +103,34 @@ class TravelApiService extends BaseApiService {
     return this.makeRequest('/travels/passenger', {
       method: 'GET'
     });
+  }
+  
+  // Obtener viajes de un pasajero por su id (si el backend soporta esta ruta)
+  async getTravelsByPassengerId(passengerId: number): Promise<ApiResponse<TravelsResponse>> {
+    const triedEndpoints: string[] = [];
+
+    const endpointsToTry = [
+      `/travels/passenger/${passengerId}`,
+      `/travels?passenger_id=${passengerId}`,
+      `/travels?passengerId=${passengerId}`,
+      `/travels?passenger=${passengerId}`,
+      `/travels?usuarioId=${passengerId}`,
+    ];
+
+    let lastError: Error | null = null;
+
+    for (const ep of endpointsToTry) {
+      triedEndpoints.push(ep);
+      try {
+        return await this.makeRequest<TravelsResponse>(ep, { method: 'GET' });
+      } catch (err: any) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        // continue to next endpoint
+      }
+    }
+
+    const message = lastError ? `${lastError.message} (tried: ${triedEndpoints.join(',')})` : `No se pudo obtener viajes del pasajero (tried: ${triedEndpoints.join(',')})`;
+    throw new Error(message);
   }
 
   //  4.5 Registrar solicitud sin viaje asignado

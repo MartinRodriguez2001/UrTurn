@@ -531,13 +531,26 @@ export default function Passenger_Historial_Travel() {
           <Text style={styles.sectionTitle}>Conductor</Text>
           {driver ? (
             <View key={driver.id ?? "driver"} style={styles.passengerRow}>
-              {driver.profile_picture ? (
-                <Image source={{ uri: driver.profile_picture }} style={styles.passengerAvatar} />
-              ) : (
-                <View style={styles.passengerFallbackAvatar}>
-                  <Text style={styles.passengerInitials}>{getInitials(driver.name ?? "-")}</Text>
-                </View>
-              )}
+              <TouchableOpacity
+                onPress={() =>
+                  router.push({
+                    pathname: "/Passenger/PassengerDriverProfile",
+                    params: {
+                      driverId: String((driver as any)?.id ?? (driver as any)?.user_id ?? (driver as any)?.driver_id ?? ""),
+                      name: (driver as any)?.name ?? "",
+                    },
+                  })
+                }
+                activeOpacity={0.85}
+              >
+                {driver.profile_picture ? (
+                  <Image source={{ uri: driver.profile_picture }} style={styles.passengerAvatar} />
+                ) : (
+                  <View style={styles.passengerFallbackAvatar}>
+                    <Text style={styles.passengerInitials}>{getInitials(driver.name ?? "-")}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
               <View style={styles.passengerInfo}>
                 <Text style={styles.passengerName}>{driver.name ?? "Conductor"}</Text>
                 <Text style={styles.passengerRole}>{(driver as any)?.role ?? "Conductor"}</Text>

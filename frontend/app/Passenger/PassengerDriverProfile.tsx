@@ -1,8 +1,12 @@
-﻿import { Feather } from "@expo/vector-icons";
+import travelApiService from '@/Services/TravelApiService';
+import { userApi } from '@/Services/UserApiService';
+import { TravelStatus } from '@/types/travel';
+import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
+    Image,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -90,6 +94,16 @@ export default function PassengerDriverProfile() {
         return parsed;
     }, [pickupTimeValue, pickupDateDate]);
 
+    const getInitials = (name?: string) => {
+        if (!name) return 'P';
+        return name
+            .split(' ')
+            .map((w) => w.charAt(0))
+            .join('')
+            .toUpperCase()
+            .slice(0,2);
+    };
+
     const handleRequestRide = () => {
         if (Number.isNaN(travelId)) {
             Alert.alert('Información incompleta', 'No se pudo determinar el viaje a solicitar.');
@@ -162,39 +176,97 @@ export default function PassengerDriverProfile() {
     };
     
     // Get driver info from params or use default
-    const driverName = params.name as string || 'Victor Lazcano';
-    const vehicleType = params.vehicle as string || 'Porsche';
-    const price = params.price as string || '300 CLP';
+    const driverName = params.name as string || 'Conductor';
+    const vehicleType = params.vehicle as string || 'Vehículo';
+    const price = params.price as string || '';
 
-    const reviews: Review[] = [
-        {
-            id: '1',
-            userName: 'Sofía',
-            userAvatar: '👩',
-            rating: 5,
-            comment: 'Victor fue muy amable y el viaje fue muy cómodo. Definitivamente volvería a viajar con él.',
-            date: 'Hace 2 semanas',
-            likes: 2
-        },
-        {
-            id: '2',
-            userName: 'Mateo',
-            userAvatar: '👨',
-            rating: 1,
-            comment: 'Terrible, me tuvo esperando 1 hora, llegue tarde a mi prueba.',
-            date: 'Hace 1 mes',
-            likes: 1
-        },
-        {
-            id: '3',
-            userName: 'Isabella',
-            userAvatar: '👩',
-            rating: 4,
-            comment: 'Victor es un gran conductor y muy amable. El viaje fue muy agradable y llegué a tiempo.',
-            date: 'Hace 2 meses',
-            likes: 3
-        }
-    ];
+    const [driverProfile, setDriverProfile] = useState<any | null>(null);
+    const [driverReviews, setDriverReviews] = useState<Review[]>([]);
+    const [ratingCounts, setRatingCounts] = useState<Record<number, number>>({5:0,4:0,3:0,2:0,1:0});
+    const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
+    const [driverTravelsCount, setDriverTravelsCount] = useState<number>(0);
+    const [averageRating, setAverageRating] = useState<number | null>(driverRatingParam ? Number(driverRatingParam) : null);
+    const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
+
+    useEffect(() => {
+        (async () => {
+            const driverIdParam = getParamValue(params.driverId ?? params.driver) ?? getParamValue(params.driverId ?? params.driverId);
+            const id = driverIdParam ? Number(driverIdParam) : NaN;
+            if (Number.isNaN(id)) return;
+            try {
+                setReviewsLoading(true);
+                // fetch user profile if available
+                const userRes = await userApi.getUserById(id);
+                if (userRes?.success && userRes.data) {
+                    setDriverProfile(userRes.data);
+                }
+
+                // try fetching travels by driver id (if backend supports /travels/driver/:id)
+                const travelsRes = await travelApiService.getTravelsByDriverId(id).catch(() => null);
+                const travels: any[] = (travelsRes && (travelsRes as any).travels) || (travelsRes && (travelsRes as any).data && (travelsRes as any).data.travels) || [];
+
+                const gatheredReviews: Review[] = [];
+                const counts: Record<number, number> = {5:0,4:0,3:0,2:0,1:0};
+                let total = 0;
+                let sum = 0;
+
+                for (const t of travels) {
+                    // reviews could appear under different keys
+                    const reviewsArr = t?.reviews || t?.travel?.reviews || t?.passenger_reviews || [];
+                    if (Array.isArray(reviewsArr)) {
+                        for (const r of reviewsArr) {
+                            const rating = Number(r.rating ?? r.stars ?? r.starts ?? r.value ?? NaN);
+                            if (!Number.isNaN(rating) && rating >=1 && rating <=5) {
+                                counts[Math.round(rating)] = (counts[Math.round(rating)] || 0) + 1;
+                                total++;
+                                sum += Number(rating);
+                            }
+                            gatheredReviews.push({
+                                id: String(r.id ?? Math.random()),
+                                userName: r.user?.name ?? r.userName ?? r.author ?? 'Usuario',
+                                userAvatar: r.user?.profile_picture ?? r.userAvatar ?? '👤',
+                                rating: Math.round(rating) || 0,
+                                comment: r.comment ?? r.body ?? r.text ?? '',
+                                date: r.created_at ? new Date(r.created_at).toLocaleDateString('es-CL') : (r.date ?? ''),
+                                likes: r.likes ?? 0,
+                            });
+                        }
+                    }
+
+                    // also use driver_rating as a numeric rating without comment
+                    if (t?.driver_rating !== undefined && t?.driver_rating !== null) {
+                        const dr = Number(t.driver_rating);
+                        if (!Number.isNaN(dr) && dr >=1 && dr <=5) {
+                            counts[Math.round(dr)] = (counts[Math.round(dr)] || 0) + 1;
+                            total++;
+                            sum += dr;
+                        }
+                    }
+                }
+
+                setDriverReviews(gatheredReviews);
+                setRatingCounts(counts);
+                setTotalReviewsCount(total);
+                // count only finished travels: those with end_time or status === FINALIZADO
+                try {
+                    const finishedCount = Array.isArray(travels)
+                        ? travels.filter((t: any) => !!t?.end_time || t?.status === TravelStatus.FINALIZADO).length
+                        : 0;
+                    setDriverTravelsCount(finishedCount);
+                } catch (e) {
+                    // fallback to total travels if anything goes wrong
+                    setDriverTravelsCount(travels.length || 0);
+                }
+                setAverageRating(total > 0 ? sum / total : (driverRatingParam ? Number(driverRatingParam) : null));
+            } catch (err) {
+                console.error('Error loading driver profile/reviews', err);
+            } finally {
+                setReviewsLoading(false);
+            }
+        })();
+    }, []);
+
+    // reviews are loaded asynchronously into `driverReviews`
 
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, index) => (
@@ -260,13 +332,17 @@ export default function PassengerDriverProfile() {
                 <View style={styles.profileSection}>
                     <View style={styles.profileImageContainer}>
                         <View style={styles.profileImage}>
-                            <Text style={styles.profileInitial}>V</Text>
+                            {driverProfile?.profile_picture ? (
+                                <Image source={{ uri: driverProfile.profile_picture }} style={styles.profileImagePhoto} />
+                            ) : (
+                                <Text style={styles.profileInitial}>{getInitials(driverProfile?.name ?? driverName)}</Text>
+                            )}
                         </View>
                     </View>
                     <View style={styles.profileInfo}>
                         <Text style={styles.driverName}>{driverName}</Text>
                         <Text style={styles.driverRole}>Conductor</Text>
-                        <Text style={styles.driverStats}>4.8 • 120 viajes</Text>
+                        <Text style={styles.driverStats}>{averageRating ? averageRating.toFixed(2) : (driverRatingParam ?? '—')} • {driverTravelsCount} viajes</Text>
                     </View>
                 </View>
 
@@ -274,7 +350,7 @@ export default function PassengerDriverProfile() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Acerca de</Text>
                     <Text style={styles.aboutText}>
-                        Soy estudiante de ingenieria. Me gusta conocer gente nueva y hacer que sus viajes sean seguros y agradables.
+                        {driverProfile?.description ?? 'Sin descripción disponible.'}
                     </Text>
                 </View>
 
@@ -299,76 +375,61 @@ export default function PassengerDriverProfile() {
                     {/* Rating Overview */}
                     <View style={styles.ratingOverview}>
                         <View style={styles.ratingSummary}>
-                            <Text style={styles.ratingNumber}>4.8</Text>
+                            <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : (driverRatingParam ?? '—')}</Text>
                             <View style={styles.ratingStars}>
-                                {renderStars(5)}
+                                {renderStars(Math.round(averageRating ?? (driverRatingParam ? Number(driverRatingParam) : 0)))}
                             </View>
-                            <Text style={styles.ratingCount}>120 reviews</Text>
+                            <Text style={styles.ratingCount}>{totalReviewsCount} reviews</Text>
                         </View>
                         
                         <View style={styles.ratingBreakdown}>
                             <View style={styles.ratingBar}>
                                 <Text style={styles.ratingLabel}>5</Text>
                                 <View style={styles.barContainer}>
-                                    <View style={[styles.bar, { width: '75%' }]} />
+                                    <View style={[styles.bar, { width: totalReviewsCount ? `${Math.round((ratingCounts[5] || 0) / totalReviewsCount * 100)}%` : '0%' }]} />
                                 </View>
-                                <Text style={styles.ratingPercentage}>75%</Text>
+                                <Text style={styles.ratingPercentage}>{totalReviewsCount ? `${Math.round((ratingCounts[5] || 0) / totalReviewsCount * 100)}%` : '0%'}</Text>
                             </View>
                             <View style={styles.ratingBar}>
                                 <Text style={styles.ratingLabel}>4</Text>
                                 <View style={styles.barContainer}>
-                                    <View style={[styles.bar, { width: '15%' }]} />
+                                    <View style={[styles.bar, { width: totalReviewsCount ? `${Math.round((ratingCounts[4] || 0) / totalReviewsCount * 100)}%` : '0%' }]} />
                                 </View>
-                                <Text style={styles.ratingPercentage}>15%</Text>
+                                <Text style={styles.ratingPercentage}>{totalReviewsCount ? `${Math.round((ratingCounts[4] || 0) / totalReviewsCount * 100)}%` : '0%'}</Text>
                             </View>
                             <View style={styles.ratingBar}>
                                 <Text style={styles.ratingLabel}>3</Text>
                                 <View style={styles.barContainer}>
-                                    <View style={[styles.bar, { width: '5%' }]} />
+                                    <View style={[styles.bar, { width: totalReviewsCount ? `${Math.round((ratingCounts[3] || 0) / totalReviewsCount * 100)}%` : '0%' }]} />
                                 </View>
-                                <Text style={styles.ratingPercentage}>5%</Text>
+                                <Text style={styles.ratingPercentage}>{totalReviewsCount ? `${Math.round((ratingCounts[3] || 0) / totalReviewsCount * 100)}%` : '0%'}</Text>
                             </View>
                             <View style={styles.ratingBar}>
                                 <Text style={styles.ratingLabel}>2</Text>
                                 <View style={styles.barContainer}>
-                                    <View style={[styles.bar, { width: '3%' }]} />
+                                    <View style={[styles.bar, { width: totalReviewsCount ? `${Math.round((ratingCounts[2] || 0) / totalReviewsCount * 100)}%` : '0%' }]} />
                                 </View>
-                                <Text style={styles.ratingPercentage}>3%</Text>
+                                <Text style={styles.ratingPercentage}>{totalReviewsCount ? `${Math.round((ratingCounts[2] || 0) / totalReviewsCount * 100)}%` : '0%'}</Text>
                             </View>
                             <View style={styles.ratingBar}>
                                 <Text style={styles.ratingLabel}>1</Text>
                                 <View style={styles.barContainer}>
-                                    <View style={[styles.bar, { width: '2%' }]} />
+                                    <View style={[styles.bar, { width: totalReviewsCount ? `${Math.round((ratingCounts[1] || 0) / totalReviewsCount * 100)}%` : '0%' }]} />
                                 </View>
-                                <Text style={styles.ratingPercentage}>2%</Text>
+                                <Text style={styles.ratingPercentage}>{totalReviewsCount ? `${Math.round((ratingCounts[1] || 0) / totalReviewsCount * 100)}%` : '0%'}</Text>
                             </View>
                         </View>
                     </View>
 
                     {/* Reviews List */}
                     <View style={styles.reviewsList}>
-                        {reviews.map(renderReview)}
+                        {driverReviews.map(renderReview)}
                     </View>
                 </View>
 
                 {/* Bottom Spacer */}
                 <View style={styles.bottomSpacer} />
             </ScrollView>
-
-            {/* Action Buttons */}
-            <View style={styles.actionButtonsContainer}>
-                <TouchableOpacity
-                    style={styles.requestButton}
-                    onPress={handleRequestRide}
-                >
-                    <Text style={styles.requestButtonText}>
-                        Revisar detalles
-                    </Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.messageButton}>
-                    <Text style={styles.messageButtonText}>Mensaje</Text>
-                </TouchableOpacity>
-            </View>
         </SafeAreaView>
     );
 }
@@ -434,6 +495,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#F0F2F5',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    profileImagePhoto: {
+        width: 128,
+        height: 128,
+        borderRadius: 64,
     },
     profileInitial: {
         fontSize: 48,

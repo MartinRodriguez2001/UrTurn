@@ -456,13 +456,27 @@ const handleCallDriver = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Conductor</Text>
           <View style={styles.driverRow}>
-            {driver.avatar ? (
-              <Image source={{ uri: driver.avatar }} style={styles.driverAvatar} />
-            ) : (
-              <View style={styles.driverFallbackAvatar}>
-                <Text style={styles.driverInitials}>{getInitials(driver.name)}</Text>
-              </View>
-            )}
+            <TouchableOpacity
+              onPress={() =>
+                router.push({
+                  pathname: "/Passenger/PassengerDriverProfile",
+                  params: {
+                    driverId: String(driver.id ?? ""),
+                    name: driver.name ?? "",
+                    driverPhone: driver.phone ?? "",
+                  },
+                })
+              }
+              activeOpacity={0.85}
+            >
+              {driver.avatar ? (
+                <Image source={{ uri: driver.avatar }} style={styles.driverAvatar} />
+              ) : (
+                <View style={styles.driverFallbackAvatar}>
+                  <Text style={styles.driverInitials}>{getInitials(driver.name)}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <View style={styles.driverInfo}>
               <Text style={styles.driverName}>{driver.name}</Text>
               <Text style={styles.driverPhone}>
