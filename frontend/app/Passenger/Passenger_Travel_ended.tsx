@@ -137,7 +137,7 @@ export default function Passenger_Travel_ended() {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color="#F99F7C" />
       </SafeAreaView>
     );
   }
@@ -146,7 +146,7 @@ export default function Passenger_Travel_ended() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.card}>
-          <Feather name="check-circle" size={64} color="#059669" />
+          <Feather name="check-circle" size={64} color="#F99F7C" />
           <Text style={styles.title}>¡Gracias por tu opinión!</Text>
           <Text style={styles.completedSubtitle}>
             Tu reseña ayuda a mejorar la experiencia de la comunidad
@@ -167,7 +167,7 @@ export default function Passenger_Travel_ended() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.card}>
-          <Feather name="flag" size={48} color="#065F46" />
+          <Feather name="flag" size={48} color="#F99F7C" />
           <Text style={styles.title}>Viaje finalizado</Text>
           <Text style={styles.subtitle}>No se pudo cargar la información del conductor</Text>
 
@@ -190,7 +190,7 @@ export default function Passenger_Travel_ended() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Feather name="flag" size={40} color="#065F46" />
+          <Feather name="flag" size={40} color="#F99F7C" />
           <Text style={styles.title}>Viaje finalizado</Text>
           <Text style={styles.subtitle}>
             ¿Cómo fue tu experiencia con el conductor?
@@ -218,7 +218,7 @@ export default function Passenger_Travel_ended() {
               rating={rating}
               onRatingChange={setRating}
               size={40}
-              color="#FFA500"
+              color="#F99F7C"
             />
           </View>
 
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0F172A',
+    backgroundColor: '#FFFFFF',
   },
   scrollView: {
     flex: 1,
@@ -368,13 +368,13 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     flex: 2,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#F99F7C',
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: '#F4C6B5',
   },
   submitButtonText: {
     color: '#FFFFFF',
@@ -384,23 +384,23 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 22,
     fontWeight: '700',
-    color: '#065F46',
+    color: '#121417',
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#334155',
+    color: '#61758a',
     textAlign: 'center',
   },
   completedSubtitle: {
     fontSize: 15,
-    color: '#64748B',
+    color: '#61758a',
     textAlign: 'center',
     marginTop: 8,
   },
   button: {
     marginTop: 18,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#F99F7C',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
