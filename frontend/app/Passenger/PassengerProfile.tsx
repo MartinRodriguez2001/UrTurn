@@ -3,6 +3,7 @@ import travelApiService from "@/Services/TravelApiService";
 import { userApi } from "@/Services/UserApiService";
 import { UserProfile } from "@/types/user";
 import { Feather } from "@expo/vector-icons";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
@@ -59,7 +60,7 @@ export default function PassengerProfile() {
           }
         }
 
-        // if we found no reviews, attempt a gentle fallback: use driver_rating fields if present (not ideal)
+        // if we found no reviews in travels, attempt a gentle fallback: use driver_rating fields if present (not ideal)
         if (totalReviews === 0 && Array.isArray(confirmed)) {
           for (const item of confirmed) {
             const travel = (item as any)?.travel ?? (item as any);
@@ -69,6 +70,35 @@ export default function PassengerProfile() {
               counts[star] = (counts[star] || 0) + 1;
               totalReviews++;
             }
+          }
+        }
+
+        // If still no reviews, try fetching user's received reviews directly from the reviews API
+        if (totalReviews === 0) {
+          try {
+            const profileId = profileRes?.data?.id;
+            if (profileId) {
+              const reviewService = (await import('@/Services/ReviewApiService')).default;
+              const userReviewsRes = await reviewService.getUserReviews(profileId).catch(() => null);
+              const reviewsArr = (userReviewsRes && (userReviewsRes as any).data && (userReviewsRes as any).data.received) || [];
+              if (Array.isArray(reviewsArr) && reviewsArr.length > 0) {
+                // reset counts and recount from received reviews
+                const counts2: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+                let total2 = 0;
+                for (const r of reviewsArr) {
+                  const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+                  if (!Number.isNaN(rating) && rating >= 1 && rating <= 5) {
+                    counts2[Math.round(rating)] = (counts2[Math.round(rating)] || 0) + 1;
+                    total2++;
+                  }
+                }
+                // apply the counts from reviews API
+                Object.assign(counts, counts2);
+                totalReviews = total2;
+              }
+            }
+          } catch (e) {
+            // ignore fallback errors
           }
         }
 
@@ -82,6 +112,12 @@ export default function PassengerProfile() {
   }, []);
 
   const totalRatings = useMemo(() => Object.values(ratingCounts).reduce((a, b) => a + b, 0), [ratingCounts]);
+
+  const averageRating = useMemo(() => {
+    if (!totalRatings) return null;
+    const sum = Object.entries(ratingCounts).reduce((s, [k, v]) => s + Number(k) * v, 0);
+    return totalRatings > 0 ? sum / totalRatings : null;
+  }, [ratingCounts, totalRatings]);
 
   const formatPercentage = (count: number) => {
     if (!totalRatings) return "0%";
@@ -227,7 +263,15 @@ export default function PassengerProfile() {
             <View style={styles.ratingSummary}>
               <Text style={styles.ratingNumber}>{totalRatings ? (Object.entries(ratingCounts).reduce((sum, [k, v]) => sum + Number(k) * v, 0) / totalRatings).toFixed(2) : "0.0"}</Text>
               <View style={styles.ratingStars}>
-                <Text style={styles.star}>⭐</Text>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Text key={i} style={styles.star}>
+                    {i < Math.round(averageRating ?? 0) ? (
+                      <FontAwesome name="star" size={24} color="black" />
+                    ) : (
+                      <FontAwesome name="star-o" size={24} color="black" />
+                    )}
+                  </Text>
+                ))}
               </View>
               <Text style={styles.ratingCount}>{totalRatings} reviews</Text>
             </View>
@@ -325,7 +369,7 @@ const styles = StyleSheet.create({
   ratingBar: { flexDirection: "row", alignItems: "center", gap: 8 },
   ratingLabel: { fontFamily: "PlusJakartaSans-Regular", fontSize: 14, lineHeight: 21, color: "#121417", width: 20 },
   barContainer: { flex: 1, height: 8, backgroundColor: "#DBE0E5", borderRadius: 4 },
-  bar: { height: "100%", backgroundColor: "#F99F7C", borderRadius: 4 },
+  bar: { height: "100%", backgroundColor: "#000000ff", borderRadius: 4 },
   ratingPercentage: { fontFamily: "PlusJakartaSans-Regular", fontSize: 14, lineHeight: 21, color: "#61758A", width: 40, textAlign: "right" },
   accountActions: { paddingHorizontal: 16, paddingVertical: 8, gap: 12 },
   accountButton: { borderRadius: 16, paddingVertical: 14, alignItems: "center", borderWidth: 1 },
