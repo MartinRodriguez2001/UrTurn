@@ -164,7 +164,8 @@ const continueWithPhoto = async () => {
             <Feather name="arrow-left" size={22} color="#121417" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Upload Picture</Text>
+            <Text style={styles.title}>Foto de Perfil</Text>
+            <Text style={styles.subtitle}>Ayuda a otros a conocerte mejor</Text>
           </View>
         </View>
 
@@ -196,8 +197,9 @@ const continueWithPhoto = async () => {
                 onPress={showImageOptions}
               >
                 <View style={styles.placeholder}>
-                  <Text style={styles.placeholderIcon}>📷</Text>
+                  <Feather name="camera" size={40} color="#F99F7C" />
                   <Text style={styles.placeholderText}>Toca para agregar foto</Text>
+                  <Text style={styles.placeholderSubtext}>Cámara o galería</Text>
                 </View>
               </TouchableOpacity>
             )}
@@ -205,10 +207,22 @@ const continueWithPhoto = async () => {
 
           {/* Instructions */}
           <View style={styles.instructionsContainer}>
-            <Text style={styles.instructionsTitle}>Consejos para tu foto:</Text>
-            <Text style={styles.instructionText}>• Usa una foto clara y reciente</Text>
-            <Text style={styles.instructionText}>• Asegúrate de que tu rostro sea visible</Text>
-            <Text style={styles.instructionText}>• Evita usar filtros o efectos</Text>
+            <View style={styles.instructionsTitleContainer}>
+              <Feather name="info" size={20} color="#121417" />
+              <Text style={styles.instructionsTitle}>Consejos para tu foto:</Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Feather name="check-circle" size={16} color="#10B981" />
+              <Text style={styles.instructionText}>Usa una foto clara y reciente</Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Feather name="check-circle" size={16} color="#10B981" />
+              <Text style={styles.instructionText}>Asegúrate de que tu rostro sea visible</Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Feather name="check-circle" size={16} color="#10B981" />
+              <Text style={styles.instructionText}>Evita usar filtros o efectos</Text>
+            </View>
           </View>
         </View>
 
@@ -287,16 +301,24 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    height: 23,
     alignItems: "center",
     paddingRight: 48,
+    paddingVertical: 8,
   },
   title: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 24,
+    lineHeight: 30,
     color: "#121417",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#876363",
     textAlign: "center",
   },
   contentContainer: {
@@ -337,18 +359,30 @@ const styles = StyleSheet.create({
     height: 150,
     borderRadius: 75,
     marginBottom: 16,
+    borderWidth: 4,
+    borderColor: "#FFFFFF",
+    elevation: 8,
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
   changeImageButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#F5F0F0",
-    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   changeImageText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
-    color: "#876363",
-    fontWeight: "500",
+    color: "#374151",
+    fontWeight: "600",
   },
   placeholderContainer: {
     alignItems: "center",
@@ -357,43 +391,60 @@ const styles = StyleSheet.create({
     width: 150,
     height: 150,
     borderRadius: 75,
-    backgroundColor: "#F5F0F0",
+    backgroundColor: "#F8F9FA",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: "#F99F7C",
     borderStyle: "dashed",
-  },
-  placeholderIcon: {
-    fontSize: 40,
-    marginBottom: 8,
   },
   placeholderText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
+    color: "#121417",
+    textAlign: "center",
+    fontWeight: "600",
+    marginTop: 8,
+  },
+  placeholderSubtext: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
     color: "#876363",
     textAlign: "center",
-    fontWeight: "500",
+    marginTop: 4,
   },
   instructionsContainer: {
     backgroundColor: "#F8F9FA",
-    padding: 16,
-    borderRadius: 8,
+    padding: 20,
+    borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  instructionsTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
   },
   instructionsTitle: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 16,
     fontWeight: "bold",
     color: "#121417",
+    marginLeft: 8,
+  },
+  instructionItem: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   instructionText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
-    color: "#61758A",
+    color: "#374151",
     lineHeight: 20,
-    marginBottom: 4,
+    marginLeft: 8,
+    flex: 1,
   },
   buttonsContainer: {
     paddingHorizontal: 16,
@@ -401,45 +452,64 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     backgroundColor: "#F99F7C",
-    height: 48,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
+    elevation: 2,
+    shadowColor: "#F99F7C",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   continueButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
     fontSize: 16,
     color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   addPhotoButton: {
     backgroundColor: "#F99F7C",
-    height: 48,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
+    elevation: 2,
+    shadowColor: "#F99F7C",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   addPhotoButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
     fontSize: 16,
     color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   skipButton: {
     backgroundColor: "transparent",
-    height: 40,
-    borderRadius: 8,
+    height: 48,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#F5F0F0",
+    borderWidth: 2,
+    borderColor: "#E5E7EB",
   },
   skipButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
-    color: "#61758A",
+    color: "#6B7280",
+    fontWeight: "500",
   },
   buttonDisabled: {
     opacity: 0.6,

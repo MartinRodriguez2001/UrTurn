@@ -135,7 +135,8 @@ export default function RegisterScreen() {
             <Feather name="arrow-left" size={22} color="#121417" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Sign Up</Text>
+            <Text style={styles.title}>Crear Cuenta</Text>
+            <Text style={styles.subtitle}>Únete a nuestra comunidad universitaria</Text>
           </View>
         </View>
 
@@ -143,10 +144,14 @@ export default function RegisterScreen() {
         <View style={styles.formContainer}>
           {/* Name Input */}
           <View style={styles.inputContainer}>
+            <View style={styles.labelContainer}>
+              <Feather name="user" size={18} color="#876363" />
+              <Text style={styles.label}>Nombre Completo</Text>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="Name"
-              placeholderTextColor="#876363"
+              placeholder="Ingresa tu nombre completo"
+              placeholderTextColor="#A8A8A8"
               value={name}
               onChangeText={setName}
             />
@@ -154,10 +159,14 @@ export default function RegisterScreen() {
 
           {/* Email Input */}
           <View style={styles.inputContainer}>
+            <View style={styles.labelContainer}>
+              <Feather name="mail" size={18} color="#876363" />
+              <Text style={styles.label}>Email Institucional</Text>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="Institutional Email"
-              placeholderTextColor="#876363"
+              placeholder="ejemplo@miuandes.cl"
+              placeholderTextColor="#A8A8A8"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -167,10 +176,14 @@ export default function RegisterScreen() {
 
           {/* Phone Number Input */}
           <View style={styles.inputContainer}>
+            <View style={styles.labelContainer}>
+              <Feather name="phone" size={18} color="#876363" />
+              <Text style={styles.label}>Número de Teléfono</Text>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="Phone Number (ej: +56912345678)"
-              placeholderTextColor="#876363"
+              placeholder="+56912345678"
+              placeholderTextColor="#A8A8A8"
               value={phoneNumber}
               onChangeText={setPhoneNumber}
               keyboardType="phone-pad"
@@ -179,10 +192,15 @@ export default function RegisterScreen() {
 
           {/* Description Input */}
           <View style={styles.inputContainer}>
+            <View style={styles.labelContainer}>
+              <Feather name="edit-3" size={18} color="#876363" />
+              <Text style={styles.label}>Descripción</Text>
+              <Text style={styles.optionalText}>(Opcional)</Text>
+            </View>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Description (Ej: Estudiante de 3er año, Conductor con 5 años de experiencia)"
-              placeholderTextColor="#876363"
+              placeholder="Cuéntanos un poco sobre ti (ej: Estudiante de 3er año, conductor con experiencia)"
+              placeholderTextColor="#A8A8A8"
               value={description}
               onChangeText={setDescription}
               multiline
@@ -190,19 +208,23 @@ export default function RegisterScreen() {
               textAlignVertical="top"
             />
             <Text style={styles.helperText}>
-              Opcional: Cuéntanos un poco sobre ti
+              Esta información ayudará a otros usuarios a conocerte mejor
             </Text>
           </View>
 
           {/* Password Input */}
           <View style={styles.inputContainer}>
+            <View style={styles.labelContainer}>
+              <Feather name="lock" size={18} color="#876363" />
+              <Text style={styles.label}>Contraseña</Text>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#876363"
+              placeholder="Crea una contraseña segura"
+              placeholderTextColor="#A8A8A8"
               value={password}
               onChangeText={setPassword}
-              
+              secureTextEntry
             />
             <Text style={styles.helperText}>
               Mínimo 6 caracteres y debe contener al menos un número
@@ -211,13 +233,17 @@ export default function RegisterScreen() {
 
           {/* Confirm Password Input */}
           <View style={styles.inputContainer}>
+            <View style={styles.labelContainer}>
+              <Feather name="shield" size={18} color="#876363" />
+              <Text style={styles.label}>Confirmar Contraseña</Text>
+            </View>
             <TextInput
               style={styles.input}
-              placeholder="Confirm Password"
-              placeholderTextColor="#876363"
+              placeholder="Confirma tu contraseña"
+              placeholderTextColor="#A8A8A8"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              
+              secureTextEntry
             />
           </View>
 
@@ -251,7 +277,7 @@ export default function RegisterScreen() {
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.signUpButtonText}>Next</Text>
+                <Text style={styles.signUpButtonText}>Continuar</Text>
               )}
             </TouchableOpacity>
           </View>
@@ -294,16 +320,24 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    height: 23,
     alignItems: "center",
     paddingRight: 48, // Offset for back button
+    paddingVertical: 8,
   },
   title: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 24,
+    lineHeight: 30,
     color: "#121417",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#876363",
     textAlign: "center",
   },
   formContainer: {
@@ -314,14 +348,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  labelContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  label: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "600",
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#121417",
+    marginLeft: 8,
+    flex: 1,
+  },
+  optionalText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    color: "#876363",
+    fontStyle: "italic",
+  },
   input: {
-    backgroundColor: "#F5F0F0",
+    backgroundColor: "#F8F9FA",
     height: 56,
-    borderRadius: 8,
+    borderRadius: 12,
     paddingHorizontal: 16,
     fontSize: 16,
     fontFamily: "Plus Jakarta Sans",
     color: "#171212",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   textArea: {
     height: 100,
@@ -331,9 +387,9 @@ const styles = StyleSheet.create({
   helperText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 12,
-    lineHeight: 18,
-    color: "#61758A",
-    marginTop: 4,
+    lineHeight: 16,
+    color: "#6B7280",
+    marginTop: 6,
     paddingHorizontal: 4,
   },
   uploadContainer: {
@@ -378,11 +434,19 @@ const styles = StyleSheet.create({
   },
   signUpButton: {
     backgroundColor: "#F99F7C",
-    height: 48,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
+    elevation: 2,
+    shadowColor: "#F99F7C",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   signUpButtonText: {
     fontFamily: "Plus Jakarta Sans",
@@ -391,6 +455,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: "#FFFFFF",
     textAlign: "center",
+    letterSpacing: 0.5,
   },
   signUpButtonDisabled: {
     opacity: 0.6,
