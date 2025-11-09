@@ -81,6 +81,37 @@ class TravelApiService extends BaseApiService {
     });
   }
   
+  // Obtener viajes de un conductor por su id (si el backend soporta esta ruta)
+  async getTravelsByDriverId(driverId: number): Promise<ApiResponse<TravelsResponse>> {
+    // Try the most specific route first, then fall back to common query patterns
+    const triedEndpoints: string[] = [];
+
+    const endpointsToTry = [
+      `/travels/driver/${driverId}`,
+      `/travels?driver_id=${driverId}`,
+      `/travels?driverId=${driverId}`,
+      `/travels?driver=${driverId}`,
+      `/travels?user_id=${driverId}`,
+    ];
+
+    let lastError: Error | null = null;
+
+    for (const ep of endpointsToTry) {
+      triedEndpoints.push(ep);
+      try {
+        return await this.makeRequest<TravelsResponse>(ep, { method: 'GET' });
+      } catch (err: any) {
+        // remember the last error and try next
+        lastError = err instanceof Error ? err : new Error(String(err));
+        // continue to next endpoint
+      }
+    }
+
+    // If none worked, throw a clear error including tried endpoints
+    const message = lastError ? `${lastError.message} (tried: ${triedEndpoints.join(',')})` : `No se pudo obtener viajes del conductor (tried: ${triedEndpoints.join(',')})`;
+    throw new Error(message);
+  }
+
   // Obtener viajes de un pasajero por su id (si el backend soporta esta ruta)
   async getTravelsByPassengerId(passengerId: number): Promise<ApiResponse<TravelsResponse>> {
     const triedEndpoints: string[] = [];
