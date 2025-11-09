@@ -7,11 +7,11 @@ import {
   PassengerConfirmedTravel,
   PassengerRequestedTravel,
   ProcessedTravel,
-  TravelStatus,
   RequestStatus,
   TravelCoordinate,
   TravelPassenger,
   TravelPlannedStop,
+  TravelStatus,
 } from "@/types/travel";
 import { Feather } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
