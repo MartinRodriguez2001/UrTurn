@@ -1,6 +1,4 @@
-﻿import travelApiService from '@/Services/TravelApiService';
-import { userApi } from '@/Services/UserApiService';
-import { TravelStatus } from '@/types/travel';
+﻿import { userApi } from '@/Services/UserApiService';
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
