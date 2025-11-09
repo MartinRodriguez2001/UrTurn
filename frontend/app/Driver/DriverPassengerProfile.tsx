@@ -1,16 +1,16 @@
-import { userApi } from '@/Services/UserApiService';
 import travelApiService from '@/Services/TravelApiService';
+import { userApi } from '@/Services/UserApiService';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 
 export default function DriverPassengerProfile() {
