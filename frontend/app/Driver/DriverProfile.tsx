@@ -5,6 +5,7 @@ import { useAuth } from "@/context/authContext";
 import { UserProfile } from "@/types/user";
 import { Vehicle } from "@/types/vehicle";
 import { Feather } from "@expo/vector-icons";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -419,9 +420,17 @@ export default function DriverProfile() {
 
           <View style={styles.ratingOverview}>
             <View style={styles.ratingSummary}>
-              <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '—'}</Text>
+              <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '0.0'}</Text>
               <View style={styles.ratingStars}>
-                <Feather name="star" size={20} color="#F59E0B" />
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Text key={i} style={styles.star}>
+                    {i < Math.round(averageRating ?? 0) ? (
+                      <FontAwesome name="star" size={24} color="black" />
+                    ) : (
+                      <FontAwesome name="star-o" size={24} color="black" />
+                    )}
+                  </Text>
+                ))}
               </View>
               <Text style={styles.ratingCount}>{totalReviews} reviews</Text>
             </View>
@@ -985,6 +994,7 @@ const styles = StyleSheet.create({
   ratingSummary: {
     alignItems: 'center',
     width: 98,
+    marginTop: 18
   },
   ratingNumber: {
     fontFamily: 'PlusJakartaSans-Bold',
@@ -998,6 +1008,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 8,
     gap: 2,
+  },
+  star: { 
+    fontSize: 18 
   },
   ratingCount: {
     fontFamily: 'PlusJakartaSans-Regular',
@@ -1029,7 +1042,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     height: '100%',
-    backgroundColor: '#121417',
+    backgroundColor: '#000000ff',
     borderRadius: 4,
   },
   ratingPercentage: {

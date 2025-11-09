@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   descriptionText: { fontFamily: "PlusJakartaSans-Regular", fontSize: 16, lineHeight: 24, color: "#121417" },
   bottomSpacer: { height: 120 },
   ratingOverview: { flexDirection: "row", marginBottom: 32, gap: 32 },
-  ratingSummary: { alignItems: "center", width: 98 },
+  ratingSummary: { alignItems: "center", width: 98, marginTop: 18 },
   ratingNumber: { fontFamily: "PlusJakartaSans-Bold", fontWeight: "800", fontSize: 36, lineHeight: 45, color: "#121417", marginBottom: 8 },
   ratingStars: { flexDirection: "row", marginBottom: 8 },
   star: { fontSize: 18 },
