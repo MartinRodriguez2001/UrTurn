@@ -29,6 +29,7 @@ export interface Travel {
 export enum TravelStatus {
   PENDIENTE = "pendiente",
   CONFIRMADO = "confirmado",
+  STARTED = "started",
   CANCELADO = "cancelado",
   FINALIZADO = "finalizado",
 }

@@ -1902,8 +1902,10 @@ export class TravelService {
         throw new Error("No tienes autorización para finalizar este viaje");
       }
 
-      if (travel.status !== TravelStatus.confirmado) {
-        throw new Error("Solo se pueden finalizar viajes confirmados");
+      // Only travels that were started can be completed
+      // Compare by string to avoid requiring Prisma client regeneration in this workspace
+      if (travel.status !== 'started') {
+        throw new Error("Solo se pueden finalizar viajes iniciados");
       }
 
       const completedTravel = await prisma.travel.update({
@@ -1921,7 +1923,47 @@ export class TravelService {
       };
     } catch (error) {
       console.error("Error completing travel:", error);
+      if (error instanceof Error) throw error;
       throw new Error("Error al finalizar viaje");
+    }
+  }
+
+  async startTravel(travelId: number, driverId: number) {
+    try {
+      const travel = await prisma.travel.findUnique({
+        where: { id: travelId },
+      });
+
+      if (!travel) {
+        throw new Error("El viaje no existe");
+      }
+
+      if (travel.userId !== driverId) {
+        throw new Error("No tienes autorización para iniciar este viaje");
+      }
+
+      if (travel.status !== TravelStatus.confirmado) {
+        throw new Error("Solo se pueden iniciar viajes confirmados");
+      }
+
+      const startedTravel = await prisma.travel.update({
+        where: { id: travelId },
+        data: {
+          // Prisma client may not be regenerated yet in the workspace; use a string cast
+          status: 'started' as unknown as TravelStatus,
+        },
+      });
+
+      return {
+        success: true,
+        travel: startedTravel,
+        message: "Viaje iniciado exitosamente",
+      };
+    } catch (error) {
+      console.error("Error starting travel:", error);
+      // Re-throw the original error when possible to provide clearer diagnostics
+      if (error instanceof Error) throw error;
+      throw new Error("Error al iniciar viaje");
     }
   }
 
@@ -1966,6 +2008,65 @@ export class TravelService {
     } catch (error) {
       console.error("Error getting travel requests:", error);
       throw new Error("Error al obtener solicitudes del viaje");
+    }
+  }
+
+  async getTravelById(travelId: number) {
+    try {
+      const travel = await prisma.travel.findUnique({
+        where: { id: travelId },
+        include: {
+          driver_id: {
+            select: {
+              id: true,
+              name: true,
+              profile_picture: true,
+              phone_number: true,
+            },
+          },
+          vehicle: true,
+          confirmations: {
+            include: {
+              usuario: {
+                select: {
+                  id: true,
+                  name: true,
+                  profile_picture: true,
+                  phone_number: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!travel) {
+        throw new Error("El viaje no existe");
+      }
+
+      // Map confirmations to passengers.confirmed shape expected by frontend
+      const confirmedPassengers = (travel.confirmations || []).map((c: any) => ({
+        id: c.usuario.id,
+        name: c.usuario.name,
+        profile_picture: c.usuario.profile_picture ?? null,
+        phone_number: c.usuario.phone_number ?? null,
+      }));
+
+      const responseTravel = {
+        ...travel,
+        passengers: {
+          confirmed: confirmedPassengers,
+        },
+      };
+
+      return {
+        success: true,
+        travel: responseTravel,
+        message: "Viaje obtenido exitosamente",
+      };
+    } catch (error) {
+      console.error("Error getting travel by id:", error);
+      throw new Error(error instanceof Error ? error.message : "Error al obtener viaje");
     }
   }
 

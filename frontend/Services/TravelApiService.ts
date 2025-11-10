@@ -1,16 +1,16 @@
 import { ApiResponse } from "@/api";
 import type { ChatMessagesPayload, ChatSendPayload } from "@/types/chat";
 import {
-  PassengerConfirmedTravel,
-  PassengerRequestedTravel,
-  TravelCreateData,
-  TravelFilters,
-  TravelMatchRequestPayload,
-  TravelMatchResponse,
-  TravelRequestCreatePayload,
-  TravelRequestRecord,
-  TravelResponse,
-  TravelsResponse,
+    PassengerConfirmedTravel,
+    PassengerRequestedTravel,
+    TravelCreateData,
+    TravelFilters,
+    TravelMatchRequestPayload,
+    TravelMatchResponse,
+    TravelRequestCreatePayload,
+    TravelRequestRecord,
+    TravelResponse,
+    TravelsResponse,
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
 
@@ -215,6 +215,13 @@ class TravelApiService extends BaseApiService {
   //  9. Finalizar viaje
   async completeTravel(travelId: number): Promise<ApiResponse<TravelResponse>> {
     return this.makeRequest<TravelResponse>(`/travels/${travelId}/complete`, {
+      method: 'PUT'
+    });
+  }
+
+  //  9.5 Iniciar viaje (conductor)
+  async startTravel(travelId: number): Promise<ApiResponse<TravelResponse>> {
+    return this.makeRequest<TravelResponse>(`/travels/${travelId}/start`, {
       method: 'PUT'
     });
   }

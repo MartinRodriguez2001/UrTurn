@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth.js";
-import { TravelData, TravelService } from "../services/travel.service.js";
 import { ChatService } from "../services/chat.service.js";
+import { TravelData, TravelService } from "../services/travel.service.js";
 import type { Coordinate } from "../utils/route-assignment.js";
 
 const travelService = new TravelService();
@@ -657,6 +657,31 @@ export class TravelController {
     }
   }
 
+  // ✅ PUT /travels/:id/start - Iniciar viaje
+  async startTravel(req: AuthRequest, res: Response) {
+    try {
+      const driverId = req.user?.id;
+      if (!driverId) {
+        return res.status(401).json({
+          success: false,
+          message: "Usuario no autenticado"
+        });
+      }
+
+      const travelId = parseInt(req.params.id || "");
+
+      const result = await travelService.startTravel(travelId, driverId);
+      res.status(200).json(result);
+
+    } catch (error) {
+      console.error("Error in startTravel:", error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Error al iniciar viaje"
+      });
+    }
+  }
+
   // ✅ GET /travels/:id/requests - Obtener solicitudes de un viaje
   async getTravelRequests(req: AuthRequest, res: Response) {
     try {
@@ -678,6 +703,21 @@ export class TravelController {
       res.status(500).json({
         success: false,
         message: "Error al obtener solicitudes del viaje"
+      });
+    }
+  }
+
+  // ✅ GET /travels/:id - Obtener un viaje por id
+  async getTravelById(req: AuthRequest, res: Response) {
+    try {
+      const travelId = parseInt(req.params.id || "");
+      const result = await travelService.getTravelById(travelId);
+      res.status(200).json(result);
+    } catch (error) {
+      console.error("Error in getTravelById:", error);
+      res.status(400).json({
+        success: false,
+        message: error instanceof Error ? error.message : "Error al obtener viaje"
       });
     }
   }

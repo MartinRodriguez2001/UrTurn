@@ -106,17 +106,19 @@ export default function DriverHomePage() {
     const futureTravels = travels.filter((travel) => {
       const travelDate = new Date(travel.start_time);
       const normalizedStatus = String(travel.status || "")
-        .toLowerCase()
-        .trim();
-      const hasEnded = Boolean(travel.end_time);
-      const isFuture = travelDate > now;
-      const isActive = travelDate <= now && !hasEnded;
+          .toLowerCase()
+          .trim();
+        const hasEnded = Boolean(travel.end_time);
+        const isFuture = travelDate > now;
+        const isActive = travelDate <= now && !hasEnded;
 
-      return (
-        (isFuture || isActive) &&
-        (normalizedStatus === TravelStatus.CONFIRMADO ||
-          normalizedStatus === TravelStatus.PENDIENTE)
-      );
+        // Include 'started' status so ongoing travels appear in scheduled list
+        return (
+          (isFuture || isActive) &&
+          (normalizedStatus === TravelStatus.CONFIRMADO ||
+            normalizedStatus === TravelStatus.PENDIENTE ||
+            normalizedStatus === TravelStatus.STARTED)
+        );
     });
 
     return futureTravels.sort(
@@ -288,9 +290,31 @@ export default function DriverHomePage() {
   };
 
   const handleTravelCardPress = (travel: ProcessedTravel) => {
+    // Prefer server-side status when available. Fallback to time based if not.
+    const hasStarted = travel.status === TravelStatus.STARTED || (
+      (() => {
+        const startTime = travel.start_time ? new Date(travel.start_time).getTime() : NaN;
+        const now = Date.now();
+        return !Number.isNaN(startTime) && startTime <= now && !travel.end_time;
+      })()
+    );
+
     const payload = buildTravelPayload(travel);
     const passengersPayload = mapConfirmedPassengers(travel);
 
+    if (hasStarted) {
+      // If travel started, navigate to the 'on travel' screen for drivers
+      router.push({
+        pathname: "/Driver/DriverOnTravel",
+        params: {
+          travel: JSON.stringify(payload),
+          passengers: JSON.stringify(passengersPayload),
+        },
+      });
+      return;
+    }
+
+    // Otherwise go to the regular travel editing/viewing screen
     router.push({
       pathname: "/Driver/DriverTravel",
       params: {

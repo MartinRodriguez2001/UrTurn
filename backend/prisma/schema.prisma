@@ -17,6 +17,7 @@ datasource db {
 enum TravelStatus {
   pendiente
   confirmado
+  started
   cancelado
   finalizado
 }
