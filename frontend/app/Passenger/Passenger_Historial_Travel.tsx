@@ -1,9 +1,9 @@
+import { useAuth } from "@/context/authContext";
 import type { TravelCoordinate, TravelPlannedStop } from "@/types/travel";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { decodePolyline } from "@/utils/polyline";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useAuth } from "@/context/authContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
