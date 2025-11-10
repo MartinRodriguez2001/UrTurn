@@ -122,47 +122,76 @@ export default function DriverProfile() {
         let total = 0;
         let sum = 0;
         let finishedCount = 0;
+        const profileId = response?.data?.id;
+
         if (Array.isArray(travels)) {
-          for (const t of travels) {
-            // Count ratings (existing logic)
-            const rating = t?.driver_rating ?? t?.rating ?? null;
-            if (rating !== null && rating !== undefined) {
-              const star = Math.round(Number(rating));
-              if (!Number.isNaN(star) && star >= 1 && star <= 5) {
-                counts[star] = (counts[star] || 0) + 1;
-                total++;
-                sum += Number(rating);
-              }
-            }
-            // also handle nested travel.reviews arrays if present
-            const reviews = t?.reviews ?? t?.travel?.reviews ?? [];
-            // Determine driver id for this travel (fallback to current profile id)
-            const driverIdForTravel = t?.driver_id?.id ?? t?.userId ?? userProfile?.id;
+          for (const item of travels) {
+            const travel = (item as any)?.travel ?? (item as any);
+
+            // look for possible reviews arrays in travel
+            const reviews = (travel && (travel.reviews || travel.driver_reviews || travel.reseñas || [])) as any[];
             if (Array.isArray(reviews) && reviews.length > 0) {
               for (const r of reviews) {
-                // Only count reviews that target the driver for this profile
+                // If review objects include a target, ensure it targets this driver
                 const targetId = r?.user_target_id ?? r?.user_target?.id ?? r?.user_target ?? null;
-                if (targetId === null || Number(targetId) !== Number(driverIdForTravel)) {
+                if (profileId && targetId !== null && Number(targetId) !== Number(profileId)) {
                   continue;
                 }
-
-                const star = Number(r.rating ?? r.stars ?? r.starts ?? NaN);
+                const star = Number(r.rating ?? r.stars ?? r.starts ?? r.value ?? NaN);
                 if (!Number.isNaN(star) && star >= 1 && star <= 5) {
-                  counts[star] = (counts[star] || 0) + 1;
+                  counts[Math.round(star)] = (counts[Math.round(star)] || 0) + 1;
                   total++;
                   sum += Number(star);
                 }
               }
             }
 
-            // Count finished trips. The API uses status strings like 'finalizado'.
-            const status = (
-              (t && (t.status ?? t.travel?.status ?? t.travel?.status)) ||
-              undefined
-            );
-            if (typeof status === 'string' && status.toLowerCase() === 'finalizado') {
+            // fallback: some travels include driver_rating fields
+            const fallbackRating = travel?.driver_rating ?? travel?.rating ?? undefined;
+            if ((reviews === undefined || reviews.length === 0) && (fallbackRating !== undefined && fallbackRating !== null)) {
+              const star = Math.round(Number(fallbackRating));
+              if (!Number.isNaN(star) && star >= 1 && star <= 5) {
+                counts[star] = (counts[star] || 0) + 1;
+                total++;
+                sum += Number(fallbackRating);
+              }
+            }
+
+            // Count finished trips. Try common status fields like 'finalizado' or 'finished'
+            const status = (travel && (travel.status ?? travel.state ?? travel.travel_status)) || undefined;
+            if (typeof status === 'string' && (status.toLowerCase() === 'finalizado' || status.toLowerCase() === 'finished')) {
               finishedCount++;
             }
+          }
+        }
+
+        // If we found no reviews in travels, attempt a gentle fallback: fetch user's received reviews directly from the reviews API
+        if (total === 0 && profileId) {
+          try {
+            const reviewService = (await import('@/Services/ReviewApiService')).default;
+            const userReviewsRes = await reviewService.getUserReviews(profileId).catch(() => null);
+            const reviewsArr = (userReviewsRes && (userReviewsRes as any).data && (userReviewsRes as any).data.received) || [];
+            if (Array.isArray(reviewsArr) && reviewsArr.length > 0) {
+              // reset counts and recount from received reviews
+              const counts2: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+              let total2 = 0;
+              let sum2 = 0;
+              for (const r of reviewsArr) {
+                const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+                if (!Number.isNaN(rating) && rating >= 1 && rating <= 5) {
+                  counts2[Math.round(rating)] = (counts2[Math.round(rating)] || 0) + 1;
+                  total2++;
+                  sum2 += Number(rating);
+                }
+              }
+              // apply the counts from reviews API
+              Object.assign(counts, counts2);
+              total = total2;
+              sum = sum2;
+            }
+          } catch (e) {
+            // ignore fallback errors
+            console.warn('⚠️ Error al intentar fallback de reseñas desde ReviewApiService', e);
           }
         }
 
