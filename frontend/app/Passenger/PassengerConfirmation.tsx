@@ -5,7 +5,6 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Linking,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -165,14 +164,13 @@ export default function PassengerConfirmation() {
     getParam(params.dropoffLocation) ?? "Destino por definir";
   const vehicle = getParam(params.vehicle) ?? "";
   const driverName = getParam(params.driverName) ?? "Conductor";
-  const driverPhone = getParam(params.driverPhone) ?? "";
   const driverRatingParam = getParam(params.driverRating);
   const driverRating =
     driverRatingParam !== undefined && driverRatingParam !== null
       ? Number(driverRatingParam)
       : NaN;
   const driverRatingLabel = Number.isFinite(driverRating)
-    ? `${driverRating.toFixed(1)}?`
+    ? `${driverRating.toFixed(1)}`
     : null;
 
   const spacesAvailableParam = getParam(params.spacesAvailable);
@@ -310,7 +308,6 @@ export default function PassengerConfirmation() {
   const driverSummary = useMemo(() => {
     const parts: string[] = [];
     if (vehicle) parts.push(vehicle);
-    if (driverRatingLabel) parts.push(driverRatingLabel);
     if (spacesAvailableLabel) parts.push(spacesAvailableLabel);
     return parts.join(" • ") || "Información del conductor";
   }, [vehicle, driverRatingLabel, spacesAvailableLabel]);
@@ -365,20 +362,7 @@ export default function PassengerConfirmation() {
     </MapView>
   );
 
-  const handleContactDriver = () => {
-    if (!driverPhone) {
-      Alert.alert(
-        "Sin número disponible",
-        "El conductor aún no registra un número de contacto.",
-      );
-      return;
-    }
-
-    const telUrl = `tel:${driverPhone}`;
-    Linking.openURL(telUrl).catch(() => {
-      Alert.alert("No se pudo iniciar la llamada", "Intenta nuevamente.");
-    });
-  };
+  
 
   const handleConfirmRequest = async () => {
     if (!canConfirm || !pickupCoordinate || !dropoffCoordinate) {
@@ -453,25 +437,6 @@ export default function PassengerConfirmation() {
           <View style={styles.passengerInfo}>
             <Text style={styles.passengerName}>{driverName}</Text>
             <Text style={styles.passengerRole}>{driverSummary}</Text>
-          </View>
-          <View style={styles.contactButtonContainer}>
-            <TouchableOpacity
-              style={[
-                styles.contactButton,
-                !driverPhone ? styles.contactButtonDisabled : null,
-              ]}
-              onPress={handleContactDriver}
-              disabled={!driverPhone}
-            >
-              <Text
-                style={[
-                  styles.contactButtonText,
-                  !driverPhone ? styles.contactButtonTextDisabled : null,
-                ]}
-              >
-                Contactar
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -630,31 +595,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: "#61758A",
   },
-  contactButtonContainer: {
-    alignItems: "center",
-    paddingVertical: 12,
-  },
-  contactButton: {
-    width: 102,
-    height: 41,
-    borderRadius: 8,
-    backgroundColor: "#F99F7C",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  contactButtonDisabled: {
-    backgroundColor: "#F0F2F5",
-  },
-  contactButtonText: {
-    fontFamily: "Plus Jakarta Sans",
-    fontWeight: "bold",
-    fontSize: 14,
-    lineHeight: 21,
-    color: "#FFFFFF",
-  },
-  contactButtonTextDisabled: {
-    color: "#98A2B3",
-  },
+  
   mapContainer: {
     height: 240,
     marginHorizontal: 16,
@@ -709,13 +650,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     color: "#121417",
-    marginBottom: 2,
   },
   infoSubtitle: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
     lineHeight: 21,
     color: "#61758A",
+  },
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  ratingNumber: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    lineHeight: 21,
+    color: "#121417",
+    marginLeft: 6,
   },
   actionButtonsContainer: {
     flexDirection: "row",

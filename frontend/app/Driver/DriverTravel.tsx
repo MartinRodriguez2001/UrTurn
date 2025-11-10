@@ -6,16 +6,16 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    ActivityIndicator,
-    Image,
-    Linking,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -423,16 +423,6 @@ const travelId = useMemo(() => {
       icon: "clock" as const,
       label: "Hora de inicio",
       value: formatTime(travel.start_time),
-    },
-    {
-      icon: "clock" as const,
-      label: "Hora de Termino",
-      value: formatTime((travel as any)?.end_time ?? (travel as any)?.endTime),
-    },
-    {
-      icon: "clock" as const,
-      label: "Duración",
-      value: formatDuration(travel.start_time, (travel as any)?.end_time ?? (travel as any)?.endTime),
     },
     {
       icon: "dollar-sign" as const,
