@@ -1,3 +1,4 @@
+import travelApiService from '@/Services/TravelApiService';
 import { userApi } from '@/Services/UserApiService';
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -183,6 +184,7 @@ export default function PassengerDriverProfile() {
     const [ratingCounts, setRatingCounts] = useState<Record<number, number>>({5:0,4:0,3:0,2:0,1:0});
     const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
     const [driverTravelsCount, setDriverTravelsCount] = useState<number>(0);
+    const [vehicles, setVehicles] = useState<any[]>([]);
     const [averageRating, setAverageRating] = useState<number | null>(driverRatingParam ? Number(driverRatingParam) : null);
     const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
 
@@ -244,9 +246,43 @@ export default function PassengerDriverProfile() {
                                     setRatingCounts({5:0,4:0,3:0,2:0,1:0});
                                     setTotalReviewsCount(0);
                                 }
-                // We don't have per-user travels here (unless viewing own profile). Driver travels count
-                // will remain as 0 if we couldn't fetch them; that's acceptable for external profiles.
-                setDriverTravelsCount(0);
+                // Try to fetch driver's travels to compute finished trips count (like DriverProfile)
+                try {
+                    const driverTravelsRes = await travelApiService.getTravelsByDriverId(id).catch(() => null);
+                    const travelsArr = (driverTravelsRes && (driverTravelsRes as any).travels) || (driverTravelsRes && (driverTravelsRes as any).data && (driverTravelsRes as any).data.travels) || [];
+                    let finishedCount = 0;
+                    if (Array.isArray(travelsArr) && travelsArr.length > 0) {
+                        finishedCount = travelsArr.filter((t: any) => {
+                            const status = (t && (t.status ?? t.travel?.status ?? t.travel?.status)) || undefined;
+                            return typeof status === 'string' && status.toLowerCase() === 'finalizado';
+                        }).length;
+                    } else if (driverTravelsRes && (driverTravelsRes as any).summary && (driverTravelsRes as any).summary.byStatus && typeof (driverTravelsRes as any).summary.byStatus.finalizado === 'number') {
+                        // Fallback: service returns summary counts instead of raw travels
+                        finishedCount = (driverTravelsRes as any).summary.byStatus.finalizado;
+                    }
+                    setDriverTravelsCount(finishedCount);
+                    // extract vehicles from travels as a best-effort: backend does not expose vehicles by user id directly
+                    try {
+                        const vehiclesArr = Array.isArray(travelsArr)
+                            ? travelsArr.map((t: any) => t.vehicle).filter(Boolean)
+                            : [];
+                        // dedupe by licence_plate
+                        const dedup: any[] = [];
+                        const seen = new Set<string>();
+                        for (const v of vehiclesArr) {
+                            const key = String(v?.licence_plate ?? `${v?.brand}-${v?.model}-${v?.year}`);
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                dedup.push(v);
+                            }
+                        }
+                        setVehicles(dedup);
+                    } catch (e) {
+                        setVehicles([]);
+                    }
+                } catch (e) {
+                    setDriverTravelsCount(0);
+                }
             } catch (err) {
                 console.error('Error loading driver profile/reviews', err);
             } finally {
@@ -337,7 +373,10 @@ export default function PassengerDriverProfile() {
 
                 {/* About Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Acerca de</Text>
+                    <View style={styles.sectionHeader}>
+                        <Feather name="user" size={20} color="#F99F7C" />
+                        <Text style={styles.descriptionHeader}>Acerca de</Text>
+                    </View>
                     <Text style={styles.aboutText}>
                         {driverProfile?.description ?? 'Sin descripción disponible.'}
                     </Text>
@@ -345,21 +384,26 @@ export default function PassengerDriverProfile() {
 
                 {/* Vehicle Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Vehículo</Text>
-                    <View style={styles.vehicleCard}>
-                        <View style={styles.vehicleImageContainer}>
-                            <Text style={styles.vehicleIcon}>🚗</Text>
-                        </View>
-                        <View style={styles.vehicleInfo}>
-                            <Text style={styles.vehicleType}>Sedán</Text>
-                            <Text style={styles.vehicleModel}>{vehicleType}</Text>
-                        </View>
+                    <View style={styles.sectionHeader}>
+                        <Feather name="truck" size={20} color="#F99F7C" />
+                        <Text style={styles.descriptionHeader}>Vehículo</Text>
                     </View>
+                    {vehicles && vehicles.map((vehicle, idx) => (
+                        <View key={vehicle.id ?? idx} style={styles.vehicleCard}>
+                            <View style={styles.vehicleInfo}>
+                                <Text style={styles.vehicleName}>{vehicle.brand} {vehicle.model}</Text>
+                                <Text style={styles.vehicleDetails}>Año: {vehicle.year} • Patente: {vehicle.licence_plate}</Text>
+                            </View>
+                        </View>
+                    ))}
                 </View>
 
                 {/* Reviews Section */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Reseñas</Text>
+                    <View style={styles.sectionHeader}>
+                        <Feather name="message-circle" size={20} color="#F99F7C" />
+                        <Text style={styles.descriptionHeader}>Reseñas</Text>
+                    </View>
                     
                     {/* Rating Overview */}
                     <View style={styles.ratingOverview}>
@@ -695,6 +739,59 @@ const styles = StyleSheet.create({
         color: '#121417',
         marginBottom: 12,
     },
+    // Vehicle styles (copied from DriverProfile)
+    vehicleName: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '700',
+        fontSize: 18,
+        color: '#121417',
+        marginBottom: 4,
+    },
+    vehicleDetails: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 14,
+        color: '#61758A',
+        marginBottom: 8,
+    },
+    validatedBadge: {
+        backgroundColor: '#E8F5E8',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 16,
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderColor: '#4CAF50',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    validatedText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '600',
+        fontSize: 12,
+        color: '#2E7D32',
+    },
+    pendingBadge: {
+        backgroundColor: '#FFF3E0',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 16,
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderColor: '#FF9800',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    pendingText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '600',
+        fontSize: 12,
+        color: '#F57C00',
+    },
+    pendingContainer: {
+        gap: 8,
+    },
     reviewActions: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -805,4 +902,17 @@ const styles = StyleSheet.create({
         color: '#121417',
         textAlign: 'center',
     },
+    sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  descriptionHeader: {
+    fontSize: 22,
+    fontFamily: "PlusJakartaSans-Bold",
+    fontStyle: "normal",
+    lineHeight: 26,
+    color: "#121417",
+  },
 });

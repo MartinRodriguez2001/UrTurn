@@ -295,7 +295,6 @@ export default function DriverPassengerProfile() {
           <View style={styles.profileInfo}>
             <Text style={styles.passengerName}>{displayName}</Text>
             <Text style={styles.passengerRole}>Pasajero</Text>
-            <Text style={styles.passengerStats}>{passengerProfile?.phone_number ?? getParamValue(params.phone) ?? '—'}</Text>
           </View>
         </View>
 
@@ -339,13 +338,19 @@ export default function DriverPassengerProfile() {
         </Modal>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acerca de</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="user" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Acerca de</Text>
+          </View>
           <Text style={styles.aboutText}>{passengerProfile?.description ?? 'Sin descripción disponible.'}</Text>
         </View>
 
         {/* Reviews Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reseñas de conductores</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="message-circle" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Reseñas</Text>
+          </View>
           <View style={styles.ratingOverview}>
             <View style={styles.ratingSummary}>
               <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '—'}</Text>
@@ -513,4 +518,17 @@ const styles = StyleSheet.create({
   modalButton: { flex: 1, paddingVertical: 12, backgroundColor: '#F99F7C', borderRadius: 8, alignItems: 'center', marginHorizontal: 4 },
   modalButtonText: { fontFamily: 'Plus Jakarta Sans', fontWeight: '600', fontSize: 16, color: '#FFFFFF' },
   modalButtonDisabled: { backgroundColor: '#94A3B8' },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  descriptionHeader: {
+    fontSize: 22,
+    fontFamily: "PlusJakartaSans-Bold",
+    fontStyle: "normal",
+    lineHeight: 26,
+    color: "#121417",
+  },
 });

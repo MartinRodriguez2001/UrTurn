@@ -380,6 +380,29 @@ export class TravelController {
     }
   }
 
+  // ✅ GET /travels/driver/:id - Obtener viajes de un conductor por su id (para vistas públicas)
+  async getTravelsByDriverById(req: AuthRequest, res: Response) {
+    try {
+      const driverId = parseInt(req.params.id || "");
+      if (!Number.isFinite(driverId)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de conductor inválido"
+        });
+      }
+
+      const result = await travelService.getDriverTravels(driverId);
+      res.status(200).json(result);
+
+    } catch (error) {
+      console.error("Error in getTravelsByDriverById:", error);
+      res.status(500).json({
+        success: false,
+        message: "Error al obtener viajes del conductor"
+      });
+    }
+  }
+
   // ✅ GET /travels/available - Obtener viajes disponibles (con filtros)
   async getAvailableTravels(req: AuthRequest, res: Response) {
     try {

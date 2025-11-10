@@ -50,6 +50,13 @@ router.get(
   travelController.getDriverTravels.bind(travelController)
 );
 
+// GET /api/travels/driver/:id - Obtener viajes de un conductor por su id (para vistas públicas)
+router.get(
+  "/driver/:id",
+  authenticateToken,
+  travelController.getTravelsByDriverById?.bind(travelController)
+);
+
 // GET /api/travels/:id/requests - Obtener solicitudes de un viaje específico
 router.get(
   "/:id/requests",
