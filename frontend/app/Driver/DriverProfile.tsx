@@ -115,14 +115,16 @@ export default function DriverProfile() {
         setVehicles([]);
       }
 
-      // Process driver travels to compute ratings
+      // Process driver travels to compute ratings and count finished trips
       try {
         const travels: any[] = (responseTravels as any)?.travels ?? (responseTravels as any)?.data?.travels ?? [];
         const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
         let total = 0;
         let sum = 0;
+        let finishedCount = 0;
         if (Array.isArray(travels)) {
           for (const t of travels) {
+            // Count ratings (existing logic)
             const rating = t?.driver_rating ?? t?.rating ?? null;
             if (rating !== null && rating !== undefined) {
               const star = Math.round(Number(rating));
@@ -144,12 +146,22 @@ export default function DriverProfile() {
                 }
               }
             }
+
+            // Count finished trips. The API uses status strings like 'finalizado'.
+            const status = (
+              (t && (t.status ?? t.travel?.status ?? t.travel?.status)) ||
+              undefined
+            );
+            if (typeof status === 'string' && status.toLowerCase() === 'finalizado') {
+              finishedCount++;
+            }
           }
         }
 
         setRatingCounts(counts);
         setTotalReviews(total);
         setAverageRating(total > 0 ? sum / total : null);
+        setTripsCount(finishedCount);
       } catch (err) {
         console.log("⚠️ No se pudieron procesar las reseñas de viajes:", err);
       }

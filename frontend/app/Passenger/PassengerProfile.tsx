@@ -255,12 +255,20 @@ export default function PassengerProfile() {
 
         <View style={styles.separator} />
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Acerca de</Text>
+          
+          <View style={styles.sectionHeader}>
+            <Feather name="user" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Acerca de</Text>
+          </View>
+
           <Text style={styles.descriptionText}>{userProfile?.description ?? ""}</Text>
         </View>
         
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Reseñas</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="message-circle" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Reseñas</Text>
+          </View>
 
           <View style={styles.ratingOverview}>
             <View style={styles.ratingSummary}>
@@ -322,10 +330,6 @@ export default function PassengerProfile() {
               <TouchableOpacity style={styles.settingsItem}>
                 <View style={styles.settingsItemIcon}>
                   <Feather name="user" size={20} color="#F99F7C" />
-                </View>
-                <View style={styles.settingsItemContent}>
-                  <Text style={styles.settingsItemTitle}>Editar perfil</Text>
-                  <Text style={styles.settingsItemDescription}>Actualiza tu información personal</Text>
                 </View>
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
@@ -598,5 +602,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     color: "#61758A",
+  },
+    sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
   },
 });
