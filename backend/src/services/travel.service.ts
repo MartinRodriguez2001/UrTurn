@@ -1221,6 +1221,7 @@ export class TravelService {
           reviews: {
             select: {
               starts: true,
+              user_target_id: true,
             },
           },
         },
@@ -1229,12 +1230,19 @@ export class TravelService {
 
       const processedTravels = travels.map((travel) => {
         const withLegacyFields = this.mapTravelForResponse(travel);
+
+        // Only consider reviews that target the driver when computing driver_rating
+        const driverId = travel.driver_id?.id ?? null;
+        const driverReviews = Array.isArray(travel.reviews)
+          ? travel.reviews.filter((r: any) => r.user_target_id === driverId)
+          : [];
+
         return {
           ...withLegacyFields,
           driver_rating:
-            travel.reviews.length > 0
-              ? travel.reviews.reduce((sum, r) => sum + r.starts, 0) /
-                travel.reviews.length
+            driverReviews.length > 0
+              ? driverReviews.reduce((sum, r) => sum + r.starts, 0) /
+                driverReviews.length
               : null,
         };
       });

@@ -136,8 +136,16 @@ export default function DriverProfile() {
             }
             // also handle nested travel.reviews arrays if present
             const reviews = t?.reviews ?? t?.travel?.reviews ?? [];
+            // Determine driver id for this travel (fallback to current profile id)
+            const driverIdForTravel = t?.driver_id?.id ?? t?.userId ?? userProfile?.id;
             if (Array.isArray(reviews) && reviews.length > 0) {
               for (const r of reviews) {
+                // Only count reviews that target the driver for this profile
+                const targetId = r?.user_target_id ?? r?.user_target?.id ?? r?.user_target ?? null;
+                if (targetId === null || Number(targetId) !== Number(driverIdForTravel)) {
+                  continue;
+                }
+
                 const star = Number(r.rating ?? r.stars ?? r.starts ?? NaN);
                 if (!Number.isNaN(star) && star >= 1 && star <= 5) {
                   counts[star] = (counts[star] || 0) + 1;
@@ -458,13 +466,6 @@ export default function DriverProfile() {
                 </View>
               ))}
             </View>
-          </View>
-        </View>
-
-        <View style={styles.descriptionContainer}>
-          <View style={styles.sectionHeader}>
-            <Feather name="edit-3" size={20} color="#F99F7C" />
-            <Text style={styles.descriptionHeader}>Editar perfil</Text>
           </View>
         </View>
 

@@ -5,16 +5,16 @@ import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 interface Driver {
@@ -107,7 +107,7 @@ export default function Passenger_Travel_ended() {
         user_target_id: driver.id,
         travel_id: travelId,
         starts: rating,
-        review: comment || 'Sin comentarios',
+        review: comment || '',
       });
       
       setCurrentStep('completed');

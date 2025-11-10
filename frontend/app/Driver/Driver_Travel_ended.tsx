@@ -1,4 +1,5 @@
 import StarRating from '@/components/common/StarRating';
+import { useAuth } from '@/context/authContext';
 import reviewApiService from '@/Services/ReviewApiService';
 import travelApiService from '@/Services/TravelApiService';
 import { Feather } from '@expo/vector-icons';
@@ -47,6 +48,8 @@ export default function Driver_Travel_ended() {
       setLoading(false);
     }
   }, [travelId]);
+
+  const { user } = useAuth();
 
   const loadPassengers = async () => {
     if (!travelId) return;
@@ -124,13 +127,23 @@ export default function Driver_Travel_ended() {
     try {
       setSubmitting(true);
 
-      // Enviar cada reseña al backend
-      const reviewPromises = Object.values(reviews).map((review) =>
+      // Enviar cada reseña al backend. Evitar enviar reseñas cuyo target sea el mismo usuario autenticado
+      const currentUserId = user?.id;
+
+      const reviewsToSend = Object.values(reviews).filter((r) => r.passengerId !== currentUserId);
+
+      if (reviewsToSend.length === 0) {
+        // Nothing to send (possible edge-case where only passenger was the driver)
+        setCurrentStep('completed');
+        return;
+      }
+
+      const reviewPromises = reviewsToSend.map((review) =>
         reviewApiService.createReview({
           user_target_id: review.passengerId,
           travel_id: travelId,
           starts: review.rating,
-          review: review.comment || 'Sin comentarios',
+          review: review.comment || '',
         })
       );
 

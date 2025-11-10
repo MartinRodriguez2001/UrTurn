@@ -238,7 +238,7 @@ export default function DriverPassengerProfile() {
         user_target_id: passengerIdValue,
         travel_id: travelIdToUse,
         starts: reviewRating,
-        review: reviewComment || 'Sin comentarios',
+        review: reviewComment,
       });
 
       setIsReviewModalOpen(false);
