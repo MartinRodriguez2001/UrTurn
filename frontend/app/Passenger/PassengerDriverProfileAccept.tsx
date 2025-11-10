@@ -316,16 +316,6 @@ export default function PassengerDriverProfile() {
             </View>
             
             <Text style={styles.reviewComment}>{review.comment}</Text>
-            
-            <View style={styles.reviewActions}>
-                <TouchableOpacity style={styles.likeButton}>
-                    <Text style={styles.likeIcon}>👍</Text>
-                    <Text style={styles.likeCount}>{review.likes}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.replyButton}>
-                    <Text style={styles.replyIcon}>💬</Text>
-                </TouchableOpacity>
-            </View>
         </View>
     );
 

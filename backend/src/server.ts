@@ -134,6 +134,55 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Recibe la posición del vehículo desde el cliente conductor y la reemite
+  // a todos los sockets suscritos a la sala `travel:{travelId}`.
+  socket.on('travel:vehicle:position', async (payload: any, callback?: (response: { ok: boolean; message?: string }) => void) => {
+    try {
+      const user = socket.data.user;
+      if (!user) {
+        callback?.({ ok: false, message: 'Usuario no autenticado' });
+        return;
+      }
+
+      const travelId = Number(payload?.travelId);
+      const latitude = Number(payload?.latitude ?? payload?.lat);
+      const longitude = Number(payload?.longitude ?? payload?.lng);
+      const heading = payload?.heading !== undefined ? Number(payload.heading) : undefined;
+
+      if (!Number.isFinite(travelId)) {
+        callback?.({ ok: false, message: 'travelId inválido' });
+        return;
+      }
+
+      // Verificar que el emisor sea el conductor del viaje para evitar spoofing
+      const travelRecord = await prisma.travel.findUnique({ where: { id: travelId }, select: { userId: true } });
+      if (!travelRecord) {
+        callback?.({ ok: false, message: 'Viaje no encontrado' });
+        return;
+      }
+
+      if (travelRecord.userId !== user.id) {
+        callback?.({ ok: false, message: 'No autorizado: solo el conductor puede enviar la posición del vehículo' });
+        return;
+      }
+
+      const roomName = `travel:${travelId}`;
+      // Emite a la sala con un payload estandarizado
+      io.to(roomName).emit('travel:vehicle:position', {
+        travelId,
+        latitude: Number.isFinite(latitude) ? latitude : null,
+        longitude: Number.isFinite(longitude) ? longitude : null,
+        heading: Number.isFinite(heading) ? heading : null,
+        updatedAt: new Date().toISOString(),
+      });
+
+      callback?.({ ok: true });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error interno';
+      callback?.({ ok: false, message });
+    }
+  });
+
   socket.on('disconnect', (reason) => {
     console.log(`Socket desconectado (${socket.id}): ${reason}`);
   });
