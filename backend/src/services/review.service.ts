@@ -7,7 +7,8 @@ export interface ReviewData {
   user_target_id: number;
   travel_id: number;
   starts: number;
-  review: string;
+  // review puede ser cadena vacía o no estar presente
+  review?: string;
 }
 
 export class ReviewService {
@@ -79,7 +80,8 @@ export class ReviewService {
           user_target_id: reviewData.user_target_id,
           travel_id: reviewData.travel_id,
           starts: reviewData.starts,
-          review: reviewData.review.trim(),
+          // Si review es undefined o null, crear como cadena vacía
+          review: (reviewData.review ?? '').trim(),
         },
         include: {
           reviewer: {

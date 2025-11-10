@@ -358,7 +358,7 @@ export default function PassengerDriverProfile() {
                     <View style={styles.profileInfo}>
                         <Text style={styles.driverName}>{driverName}</Text>
                         <Text style={styles.driverRole}>Conductor</Text>
-                        <Text style={styles.driverStats}>{averageRating ? averageRating.toFixed(2) : (driverRatingParam ?? '—')} • {driverTravelsCount} viajes</Text>
+                        <Text style={styles.driverStats}>{driverTravelsCount} viajes</Text>
                     </View>
                 </View>
 

@@ -468,6 +468,7 @@ const handleCallDriver = () => {
                 })
               }
               activeOpacity={0.85}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
             >
               {driver.avatar ? (
                 <Image source={{ uri: driver.avatar }} style={styles.driverAvatar} />
@@ -476,13 +477,13 @@ const handleCallDriver = () => {
                   <Text style={styles.driverInitials}>{getInitials(driver.name)}</Text>
                 </View>
               )}
+              <View style={styles.driverInfo}>
+                <Text style={styles.driverName}>{driver.name}</Text>
+                <Text style={styles.driverPhone}>
+                  {driver.phone ? `Teléfono: ${driver.phone}` : "Teléfono no disponible"}
+                </Text>
+              </View>
             </TouchableOpacity>
-            <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>{driver.name}</Text>
-              <Text style={styles.driverPhone}>
-                {driver.phone ? `Teléfono: ${driver.phone}` : "Teléfono no disponible"}
-              </Text>
-            </View>
             <View style={styles.contactActions}>
               <TouchableOpacity
                 style={styles.chatButton}

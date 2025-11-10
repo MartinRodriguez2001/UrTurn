@@ -569,6 +569,7 @@ export default function Passenger_Historial_Travel() {
                   })
                 }
                 activeOpacity={0.85}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
               >
                 {driver.profile_picture ? (
                   <Image source={{ uri: driver.profile_picture }} style={styles.passengerAvatar} />
@@ -577,11 +578,11 @@ export default function Passenger_Historial_Travel() {
                     <Text style={styles.passengerInitials}>{getInitials(driver.name ?? "-")}</Text>
                   </View>
                 )}
+                <View style={styles.passengerInfo}>
+                  <Text style={styles.passengerName}>{driver.name ?? "Conductor"}</Text>
+                  <Text style={styles.passengerRole}>{(driver as any)?.role ?? "Conductor"}</Text>
+                </View>
               </TouchableOpacity>
-              <View style={styles.passengerInfo}>
-                <Text style={styles.passengerName}>{driver.name ?? "Conductor"}</Text>
-                <Text style={styles.passengerRole}>{(driver as any)?.role ?? "Conductor"}</Text>
-              </View>
               <View style={styles.contactActions}>
               </View>
             </View>
