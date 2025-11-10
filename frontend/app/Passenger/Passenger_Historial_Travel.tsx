@@ -3,6 +3,7 @@ import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { decodePolyline } from "@/utils/polyline";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useAuth } from "@/context/authContext";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Image,
@@ -169,6 +170,7 @@ export default function Passenger_Historial_Travel() {
     passengers?: string;
     driver?: string;
   }>();
+  const { user } = useAuth();
   const googleMapsApiKey = useMemo(() => resolveGoogleMapsApiKey()?.trim(), []);
 
   const travelFromParams = useMemo(() => parseJSONParam<TravelParam>(params.travel), [params.travel]);
@@ -285,10 +287,35 @@ export default function Passenger_Historial_Travel() {
 
   const [polylineCoordinates, setPolylineCoordinates] = useState<TravelCoordinate[]>(routeCoordinates);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [hasReviewed, setHasReviewed] = useState<boolean | null>(null);
 
   useEffect(() => {
     setPolylineCoordinates(routeCoordinates);
   }, [routeCoordinates]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!travelId || !user) {
+      setHasReviewed(null);
+      return;
+    }
+
+    (async () => {
+      try {
+        const reviewApiService = (await import('@/Services/ReviewApiService')).default;
+        const res = await reviewApiService.getTravelReviews(Number(travelId));
+        const reviews = (res?.reviews ?? []) as Array<{ reviewer_id?: number }>;
+        const found = reviews.some((r) => r.reviewer_id === (user as any)?.id);
+        if (mounted) setHasReviewed(found);
+      } catch (error) {
+        if (mounted) setHasReviewed(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [travelId, user]);
 
   useEffect(() => {
     if (!googleMapsApiKey || !startCoordinate || !endCoordinate || routeCoordinates.length > 2) {
@@ -563,6 +590,24 @@ export default function Passenger_Historial_Travel() {
           )}
         </View>
       </ScrollView>
+
+      {/* Footer with rating button: only show if travelId exists and user has NOT reviewed this travel */}
+      {travelId !== undefined && hasReviewed === false ? (
+        <View style={styles.footer}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            activeOpacity={0.85}
+            onPress={() => {
+              const paramsPayload: Record<string, string> = {};
+              paramsPayload.travelId = String(travelId);
+              router.push({ pathname: "/Passenger/Passenger_Travel_ended", params: paramsPayload });
+            }}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryButtonText}>Calificar conductor</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <Modal
         visible={isMapExpanded}
