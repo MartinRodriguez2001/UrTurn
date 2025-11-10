@@ -5,15 +5,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Image,
-    Linking,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -667,7 +667,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#FDE3D6",
+    backgroundColor: "#F99F7C",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -675,7 +675,7 @@ const styles = StyleSheet.create({
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "700",
     fontSize: 16,
-    color: "#F97316",
+    color: "#FFFFFF",
   },
   driverInfo: {
     flex: 1,

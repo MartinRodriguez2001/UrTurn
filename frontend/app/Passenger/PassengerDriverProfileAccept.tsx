@@ -1,6 +1,7 @@
 ﻿import travelApiService from '@/Services/TravelApiService';
 import { userApi } from '@/Services/UserApiService';
 import { Feather } from "@expo/vector-icons";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -291,7 +292,7 @@ export default function PassengerDriverProfile() {
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, index) => (
             <Text key={index} style={styles.star}>
-                {index < rating ? '⭐' : '☆'}
+                {index < rating ? <FontAwesome name="star" size={24} color="black" /> : <FontAwesome name="star-o" size={24} color="black" />}
             </Text>
         ));
     };
@@ -362,7 +363,7 @@ export default function PassengerDriverProfile() {
                     <View style={styles.profileInfo}>
                         <Text style={styles.driverName}>{driverName}</Text>
                         <Text style={styles.driverRole}>Conductor</Text>
-                        <Text style={styles.driverStats}>{averageRating ? averageRating.toFixed(2) : (driverRatingParam ?? '—')} • {driverTravelsCount} viajes</Text>
+                        <Text style={styles.driverStats}>{driverTravelsCount} viajes</Text>
                     </View>
                 </View>
 
@@ -380,25 +381,9 @@ export default function PassengerDriverProfile() {
                     {vehicles && vehicles.length > 0 ? (
                         vehicles.map((vehicle, idx) => (
                             <View key={vehicle.id ?? idx} style={styles.vehicleCard}>
-                                <View style={styles.vehicleImageContainer}>
-                                    <Text style={styles.vehicleIcon}>🚗</Text>
-                                </View>
                                 <View style={styles.vehicleInfo}>
                                     <Text style={styles.vehicleName}>{vehicle.brand} {vehicle.model}</Text>
                                     <Text style={styles.vehicleDetails}>Año: {vehicle.year} • Patente: {vehicle.licence_plate}</Text>
-                                    {vehicle.validation ? (
-                                        <View style={styles.validatedBadge}>
-                                            <Feather name="check-circle" size={12} color="#2E7D32" />
-                                            <Text style={styles.validatedText}>Verificado</Text>
-                                        </View>
-                                    ) : (
-                                        <View style={styles.pendingContainer}>
-                                            <View style={styles.pendingBadge}>
-                                                <Feather name="clock" size={12} color="#F57C00" />
-                                                <Text style={styles.pendingText}>Pendiente de verificación</Text>
-                                            </View>
-                                        </View>
-                                    )}
                                 </View>
                             </View>
                         ))
@@ -551,7 +536,7 @@ const styles = StyleSheet.create({
         width: 128,
         height: 128,
         borderRadius: 64,
-        backgroundColor: '#F0F2F5',
+        backgroundColor: '#F99F7C',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -563,7 +548,7 @@ const styles = StyleSheet.create({
     profileInitial: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: '#121417',
+        color: '#FFFFFF',
     },
     profileInfo: {
         alignItems: 'center',

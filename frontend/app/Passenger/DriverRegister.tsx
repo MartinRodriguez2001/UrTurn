@@ -300,7 +300,7 @@ export default function DriverRegister() {
         {/* Intro Section */}
         <View style={styles.introSection}>
           <View style={styles.iconContainer}>
-            <Text style={styles.driverIcon}>🚗</Text>
+            <Feather name="truck" size={25} color="#FFFFFF" />
           </View>
           <Text style={styles.introTitle}>¡Conviértete en Conductor!</Text>
           <Text style={styles.introSubtitle}>

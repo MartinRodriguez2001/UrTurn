@@ -331,7 +331,7 @@ export default function PassengerHomePage() {
           >
             <View style={styles.driverCardContent}>
               <View style={styles.driverIconContainer}>
-                <Feather name="user" size={24} color="#FFFFFF" />
+                <Feather name="truck" size={20} color="#FFFFFF" />
               </View>
               <View style={styles.driverInfo}>
                 <Text style={styles.driverTitle}>

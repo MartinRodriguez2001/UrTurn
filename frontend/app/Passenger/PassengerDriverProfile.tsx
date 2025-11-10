@@ -1,6 +1,7 @@
 import travelApiService from '@/Services/TravelApiService';
 import { userApi } from '@/Services/UserApiService';
 import { Feather } from "@expo/vector-icons";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -296,7 +297,7 @@ export default function PassengerDriverProfile() {
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, index) => (
             <Text key={index} style={styles.star}>
-                {index < rating ? '⭐' : '☆'}
+                {index < rating ? <FontAwesome name="star" size={24} color="black" /> : <FontAwesome name="star-o" size={24} color="black" />}
             </Text>
         ));
     };
@@ -525,7 +526,7 @@ const styles = StyleSheet.create({
         width: 128,
         height: 128,
         borderRadius: 64,
-        backgroundColor: '#F0F2F5',
+        backgroundColor: '#F99F7C',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -537,7 +538,7 @@ const styles = StyleSheet.create({
     profileInitial: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: '#121417',
+        color: '#FFFFFF',
     },
     profileInfo: {
         alignItems: 'center',
