@@ -5,18 +5,20 @@ import { useAuth } from "@/context/authContext";
 import { UserProfile } from "@/types/user";
 import { Vehicle } from "@/types/vehicle";
 import { Feather } from "@expo/vector-icons";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function DriverProfile() {
@@ -28,6 +30,8 @@ export default function DriverProfile() {
   );
   const [processingLogout, setProcessingLogout] = useState(false);
   const [processingDelete, setProcessingDelete] = useState(false);
+  const [tripsCount, setTripsCount] = useState(0);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
 
   const [userProfile, setUserProfile] = useState<UserProfile>({
     name: "",
@@ -111,41 +115,90 @@ export default function DriverProfile() {
         setVehicles([]);
       }
 
-      // Process driver travels to compute ratings
+      // Process driver travels to compute ratings and count finished trips
       try {
         const travels: any[] = (responseTravels as any)?.travels ?? (responseTravels as any)?.data?.travels ?? [];
         const counts: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
         let total = 0;
         let sum = 0;
+        let finishedCount = 0;
+        const profileId = response?.data?.id;
+
         if (Array.isArray(travels)) {
-          for (const t of travels) {
-            const rating = t?.driver_rating ?? t?.rating ?? null;
-            if (rating !== null && rating !== undefined) {
-              const star = Math.round(Number(rating));
-              if (!Number.isNaN(star) && star >= 1 && star <= 5) {
-                counts[star] = (counts[star] || 0) + 1;
-                total++;
-                sum += Number(rating);
-              }
-            }
-            // also handle nested travel.reviews arrays if present
-            const reviews = t?.reviews ?? t?.travel?.reviews ?? [];
+          for (const item of travels) {
+            const travel = (item as any)?.travel ?? (item as any);
+
+            // look for possible reviews arrays in travel
+            const reviews = (travel && (travel.reviews || travel.driver_reviews || travel.reseñas || [])) as any[];
             if (Array.isArray(reviews) && reviews.length > 0) {
               for (const r of reviews) {
-                const star = Number(r.rating ?? r.stars ?? r.starts ?? NaN);
+                // If review objects include a target, ensure it targets this driver
+                const targetId = r?.user_target_id ?? r?.user_target?.id ?? r?.user_target ?? null;
+                if (profileId && targetId !== null && Number(targetId) !== Number(profileId)) {
+                  continue;
+                }
+                const star = Number(r.rating ?? r.stars ?? r.starts ?? r.value ?? NaN);
                 if (!Number.isNaN(star) && star >= 1 && star <= 5) {
-                  counts[star] = (counts[star] || 0) + 1;
+                  counts[Math.round(star)] = (counts[Math.round(star)] || 0) + 1;
                   total++;
                   sum += Number(star);
                 }
               }
             }
+
+            // fallback: some travels include driver_rating fields
+            const fallbackRating = travel?.driver_rating ?? travel?.rating ?? undefined;
+            if ((reviews === undefined || reviews.length === 0) && (fallbackRating !== undefined && fallbackRating !== null)) {
+              const star = Math.round(Number(fallbackRating));
+              if (!Number.isNaN(star) && star >= 1 && star <= 5) {
+                counts[star] = (counts[star] || 0) + 1;
+                total++;
+                sum += Number(fallbackRating);
+              }
+            }
+
+            // Count finished trips. Try common status fields like 'finalizado' or 'finished'
+            const status = (travel && (travel.status ?? travel.state ?? travel.travel_status)) || undefined;
+            if (typeof status === 'string' && (status.toLowerCase() === 'finalizado' || status.toLowerCase() === 'finished')) {
+              finishedCount++;
+            }
+          }
+        }
+
+        // If we found no reviews in travels, attempt a gentle fallback: fetch user's received reviews directly from the reviews API
+        if (total === 0 && profileId) {
+          try {
+            const reviewService = (await import('@/Services/ReviewApiService')).default;
+            const userReviewsRes = await reviewService.getUserReviews(profileId).catch(() => null);
+            const reviewsArr = (userReviewsRes && (userReviewsRes as any).data && (userReviewsRes as any).data.received) || [];
+            if (Array.isArray(reviewsArr) && reviewsArr.length > 0) {
+              // reset counts and recount from received reviews
+              const counts2: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+              let total2 = 0;
+              let sum2 = 0;
+              for (const r of reviewsArr) {
+                const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+                if (!Number.isNaN(rating) && rating >= 1 && rating <= 5) {
+                  counts2[Math.round(rating)] = (counts2[Math.round(rating)] || 0) + 1;
+                  total2++;
+                  sum2 += Number(rating);
+                }
+              }
+              // apply the counts from reviews API
+              Object.assign(counts, counts2);
+              total = total2;
+              sum = sum2;
+            }
+          } catch (e) {
+            // ignore fallback errors
+            console.warn('⚠️ Error al intentar fallback de reseñas desde ReviewApiService', e);
           }
         }
 
         setRatingCounts(counts);
         setTotalReviews(total);
         setAverageRating(total > 0 ? sum / total : null);
+        setTripsCount(finishedCount);
       } catch (err) {
         console.log("⚠️ No se pudieron procesar las reseñas de viajes:", err);
       }
@@ -281,7 +334,12 @@ export default function DriverProfile() {
           <Feather name="arrow-left" size={22} color="#121417" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Perfil</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity 
+          style={styles.settingsButton}
+          onPress={() => setSettingsModalVisible(true)}
+        >
+          <Feather name="settings" size={22} color="#121417" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -324,11 +382,12 @@ export default function DriverProfile() {
             <Text style={styles.userEmail}>
               {userProfile.institutional_email}
             </Text>
+            <Text style={styles.userStats}>{tripsCount} viajes</Text>
           </View>
 
           {/* Indicador de conductor */}
           <View style={styles.driverBadge}>
-            {/* ua */}
+            <Feather name="shield" size={16} color="#2E7D32" />
             <Text style={styles.driverBadgeText}>Conductor Verificado</Text>
           </View>
         </View>
@@ -337,12 +396,18 @@ export default function DriverProfile() {
         <View style={styles.separator} />
 
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Acerca de</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="user" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Acerca de</Text>
+          </View>
           <Text style={styles.descriptionText}>{userProfile.description}</Text>
         </View>
 
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Vehículos</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="truck" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Vehículos</Text>
+          </View>
           {vehicles && vehicles.length > 0 ? (
             vehicles.map((vehicle, index) => (
               <View key={vehicle.id || index} style={styles.vehicleCard}>
@@ -355,12 +420,14 @@ export default function DriverProfile() {
                   </Text>
                   {vehicle.validation ? (
                     <View style={styles.validatedBadge}>
-                      <Text style={styles.validatedText}>✓ Verificado</Text>
+                      <Feather name="check-circle" size={12} color="#2E7D32" />
+                      <Text style={styles.validatedText}>Verificado</Text>
                     </View>
                   ) : (
                     <View style={styles.pendingContainer}>
                         <View style={styles.pendingBadge}>
-                          <Text style={styles.pendingText}>⏳ Pendiente de verificación</Text>
+                          <Feather name="clock" size={12} color="#F57C00" />
+                          <Text style={styles.pendingText}>Pendiente de verificación</Text>
                         </View>
                         
                         {/* ✅ Botón para validar con loading */}
@@ -375,7 +442,10 @@ export default function DriverProfile() {
                           {validatingVehicle === vehicle.id ? (
                             <ActivityIndicator size="small" color="#FFFFFF" />
                           ) : (
-                            <Text style={styles.validateButtonText}>Validar ahora</Text>
+                            <View style={styles.validateButtonContent}>
+                              <Feather name="check" size={12} color="#FFFFFF" />
+                              <Text style={styles.validateButtonText}>Validar ahora</Text>
+                            </View>
                           )}
                         </TouchableOpacity>
                       </View>
@@ -392,13 +462,24 @@ export default function DriverProfile() {
 
         {/* Reviews Section */}
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Reseñas</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="message-circle" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Reseñas</Text>
+          </View>
 
           <View style={styles.ratingOverview}>
             <View style={styles.ratingSummary}>
-              <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '—'}</Text>
+              <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '0.0'}</Text>
               <View style={styles.ratingStars}>
-                <Text style={styles.star}>⭐</Text>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Text key={i} style={styles.star}>
+                    {i < Math.round(averageRating ?? 0) ? (
+                      <FontAwesome name="star" size={24} color="black" />
+                    ) : (
+                      <FontAwesome name="star-o" size={24} color="black" />
+                    )}
+                  </Text>
+                ))}
               </View>
               <Text style={styles.ratingCount}>{totalReviews} reviews</Text>
             </View>
@@ -417,46 +498,193 @@ export default function DriverProfile() {
           </View>
         </View>
 
-        <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Editar perfil</Text>
-        </View>
-
-        <View style={styles.accountActions}>
-          <TouchableOpacity
-            style={[
-              styles.accountButton,
-              styles.logoutButton,
-              (processingLogout || processingDelete) && styles.disabledButton,
-            ]}
-            onPress={handleLogout}
-            disabled={processingLogout || processingDelete}
-          >
-            {processingLogout ? (
-              <ActivityIndicator size="small" color="#F99F7C" />
-            ) : (
-              <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.accountButton,
-              styles.deleteButton,
-              (processingDelete || processingLogout) && styles.disabledButton,
-            ]}
-            onPress={handleDeleteAccount}
-            disabled={processingDelete || processingLogout}
-          >
-            {processingDelete ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Modal de Configuración */}
+      <Modal
+        visible={settingsModalVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setSettingsModalVisible(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setSettingsModalVisible(false)}
+            >
+              <Feather name="x" size={24} color="#121417" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Configuración</Text>
+            <View style={styles.modalSpacer} />
+          </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            {/* Sección General */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>General</Text>
+              
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="user" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Editar perfil</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="bell" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Notificaciones</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="shield" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Privacidad</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sección Conductor */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Conductor</Text>
+              
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="truck" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Gestionar vehículos</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="map" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Historial de viajes</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="dollar-sign" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Ganancias</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sección Ayuda */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Ayuda y soporte</Text>
+              
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="help-circle" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Centro de ayuda</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="message-circle" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Contactar soporte</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="file-text" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Términos y condiciones</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.modalOption}>
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    <Feather name="lock" size={20} color="#F99F7C" />
+                  </View>
+                  <Text style={styles.modalOptionText}>Política de privacidad</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Sección Sesión */}
+            <View style={styles.modalSection}>
+              <Text style={styles.modalSectionTitle}>Sesión</Text>
+              
+              <TouchableOpacity 
+                style={[styles.modalOption, (processingLogout || processingDelete) && styles.disabledOption]}
+                onPress={handleLogout}
+                disabled={processingLogout || processingDelete}
+              >
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    {processingLogout ? (
+                      <ActivityIndicator size="small" color="#F99F7C" />
+                    ) : (
+                      <Feather name="log-out" size={20} color="#F99F7C" />
+                    )}
+                  </View>
+                  <Text style={[styles.modalOptionText, { color: '#F99F7C' }]}>
+                    Cerrar sesión
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#F99F7C" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.modalOption, (processingDelete || processingLogout) && styles.disabledOption]}
+                onPress={handleDeleteAccount}
+                disabled={processingDelete || processingLogout}
+              >
+                <View style={styles.modalOptionContent}>
+                  <View style={styles.settingsItemIcon}>
+                    {processingDelete ? (
+                      <ActivityIndicator size="small" color="#E53935" />
+                    ) : (
+                      <Feather name="trash-2" size={20} color="#E53935" />
+                    )}
+                  </View>
+                  <Text style={[styles.modalOptionText, { color: '#E53935' }]}>
+                    Eliminar cuenta
+                  </Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#E53935" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBottomSpacer} />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -489,6 +717,13 @@ const styles = StyleSheet.create({
   },
   headerSpacer: {
     width: 48,
+  },
+  settingsButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 24,
   },
   scrollContainer: {
     flex: 1,
@@ -595,6 +830,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#4CAF50",
+    gap: 6,
   },
   driverBadgeIcon: {
     fontSize: 16,
@@ -667,11 +903,18 @@ const styles = StyleSheet.create({
     margin: 16,
     gap: 8,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
   descriptionHeader: {
     fontSize: 22,
     fontFamily: "PlusJakartaSans-Bold",
     fontStyle: "normal",
     lineHeight: 26,
+    color: "#121417",
   },
   descriptionText: {
     fontFamily: "PlusJakartaSans-Regular",
@@ -712,6 +955,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: "#4CAF50",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   validatedText: {
     fontFamily: "PlusJakartaSans-SemiBold",
@@ -726,6 +972,9 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     borderWidth: 1,
     borderColor: "#FF9800",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   pendingText: {
     fontFamily: "PlusJakartaSans-SemiBold",
@@ -765,6 +1014,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  validateButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
   validateButtonDisabled: {
     opacity: 0.6,
   },
@@ -782,6 +1036,7 @@ const styles = StyleSheet.create({
   ratingSummary: {
     alignItems: 'center',
     width: 98,
+    marginTop: 18
   },
   ratingNumber: {
     fontFamily: 'PlusJakartaSans-Bold',
@@ -796,8 +1051,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     gap: 2,
   },
-  star: {
-    fontSize: 18,
+  star: { 
+    fontSize: 18 
   },
   ratingCount: {
     fontFamily: 'PlusJakartaSans-Regular',
@@ -829,7 +1084,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     height: '100%',
-    backgroundColor: '#121417',
+    backgroundColor: '#000000ff',
     borderRadius: 4,
   },
   ratingPercentage: {
@@ -840,36 +1095,94 @@ const styles = StyleSheet.create({
     width: 40,
     textAlign: 'right',
   },
-  accountActions: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 12,
+  userStats: { 
+    fontFamily: "PlusJakartaSans-Regular", 
+    fontSize: 14, 
+    color: "#61758A", 
+    marginTop: 4 
   },
-  accountButton: {
-    borderRadius: 16,
-    paddingVertical: 14,
+
+  // Estilos para la Modal
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    height: 60,
+    flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E9ECEF",
+    backgroundColor: "#FFFFFF",
   },
-  logoutButton: {
+  modalCloseButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 18,
+    lineHeight: 23,
+    color: "#121417",
+    textAlign: "center",
+  },
+  modalSpacer: {
+    width: 48,
+  },
+  modalContent: {
+    flex: 1,
+  },
+  modalSection: {
+    paddingTop: 24,
+    paddingHorizontal: 16,
+  },
+  modalSectionTitle: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#61758A",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  modalOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  modalOptionContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  settingsItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#FFF7F2",
-    borderColor: "#F99F7C",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
   },
-  logoutButtonText: {
+  modalOptionText: {
     fontFamily: "PlusJakartaSans-SemiBold",
     fontSize: 16,
-    color: "#F99F7C",
+    lineHeight: 20,
+    color: "#121417",
   },
-  deleteButton: {
-    backgroundColor: "#E53935",
-    borderColor: "#E53935",
-  },
-  deleteButtonText: {
-    fontFamily: "PlusJakartaSans-SemiBold",
-    fontSize: 16,
-    color: "#FFFFFF",
-  },
-  disabledButton: {
+  disabledOption: {
     opacity: 0.6,
   },
+  modalBottomSpacer: {
+    height: 40,
+  },
+
 });

@@ -1,3 +1,4 @@
+import travelApiService from "@/Services/TravelApiService";
 import type { TravelCoordinate, TravelPlannedStop } from "@/types/travel";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { decodePolyline } from "@/utils/polyline";
@@ -5,15 +6,16 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Image,
-    Linking,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -315,6 +317,7 @@ const travelId = useMemo(() => {
   const [polylineCoordinates, setPolylineCoordinates] =
     useState<TravelCoordinate[]>(routeCoordinates);
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
 
   useEffect(() => {
     setPolylineCoordinates(routeCoordinates);
@@ -422,16 +425,6 @@ const travelId = useMemo(() => {
       value: formatTime(travel.start_time),
     },
     {
-      icon: "clock" as const,
-      label: "Hora de Termino",
-      value: formatTime((travel as any)?.end_time ?? (travel as any)?.endTime),
-    },
-    {
-      icon: "clock" as const,
-      label: "Duración",
-      value: formatDuration(travel.start_time, (travel as any)?.end_time ?? (travel as any)?.endTime),
-    },
-    {
       icon: "dollar-sign" as const,
       label: "Precio",
       value: formatPrice(travel.price),
@@ -492,6 +485,40 @@ const travelId = useMemo(() => {
   );
 
   const handleStartTrip = () => {
+    // If we have a travelId, call the API to mark the travel as started.
+    if (travelId !== undefined) {
+      setIsStarting(true);
+      travelApiService.startTravel(travelId)
+        .then((res) => {
+          if (res && (res as any).success) {
+            // Navigate to OnTravel screen passing updated travel info
+            const paramsPayload: Record<string, string> = {
+              travel: JSON.stringify(res.travel ?? travel),
+              passengers: JSON.stringify(passengers),
+            };
+            router.push({ pathname: "/Driver/DriverOnTravel", params: paramsPayload });
+          } else {
+            // If API responded with failure, still navigate but keep user informed
+            const paramsPayload: Record<string, string> = {
+              travel: JSON.stringify(travel),
+              passengers: JSON.stringify(passengers),
+            };
+            router.push({ pathname: "/Driver/DriverOnTravel", params: paramsPayload });
+          }
+        })
+        .catch((err) => {
+          console.warn("Error starting travel:", err);
+          const paramsPayload: Record<string, string> = {
+            travel: JSON.stringify(travel),
+            passengers: JSON.stringify(passengers),
+          };
+          router.push({ pathname: "/Driver/DriverOnTravel", params: paramsPayload });
+        })
+        .finally(() => setIsStarting(false));
+      return;
+    }
+
+    // Fallback: if no travelId is available, navigate locally
     const paramsPayload: Record<string, string> = {
       travel: JSON.stringify(travel),
       passengers: JSON.stringify(passengers),
@@ -583,6 +610,7 @@ const travelId = useMemo(() => {
                     },
                   })
                 }
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
               >
                 {passenger.avatar ? (
                   <Image source={{ uri: passenger.avatar }} style={styles.passengerAvatar} />
@@ -591,11 +619,11 @@ const travelId = useMemo(() => {
                     <Text style={styles.passengerInitials}>{getInitials(passenger.name)}</Text>
                   </View>
                 )}
+                <View style={styles.passengerInfo}>
+                  <Text style={styles.passengerName}>{passenger.name}</Text>
+                  <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
+                </View>
               </TouchableOpacity>
-              <View style={styles.passengerInfo}>
-                <Text style={styles.passengerName}>{passenger.name}</Text>
-                <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
-              </View>
               <View style={styles.contactActions}>
                 <TouchableOpacity
                   style={styles.contactButton}
@@ -649,11 +677,16 @@ const travelId = useMemo(() => {
       <View style={styles.footer}>
         {!isTravelFinished && (
           <TouchableOpacity
-            style={styles.primaryButton}
+            style={[styles.primaryButton, isStarting ? { opacity: 0.7 } : {}]}
             activeOpacity={0.9}
             onPress={handleStartTrip}
+            disabled={isStarting}
           >
-            <Text style={styles.primaryButtonText}>Empezar viaje</Text>
+            {isStarting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Text style={styles.primaryButtonText}>Empezar viaje</Text>
+            )}
           </TouchableOpacity>
         )}
       </View>

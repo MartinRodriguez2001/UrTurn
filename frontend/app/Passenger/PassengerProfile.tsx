@@ -1,11 +1,12 @@
+import { useAuth } from "@/context/authContext";
 import travelApiService from "@/Services/TravelApiService";
 import { userApi } from "@/Services/UserApiService";
 import { UserProfile } from "@/types/user";
-import { useAuth } from "@/context/authContext";
 import { Feather } from "@expo/vector-icons";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, Image, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Image, Modal, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 export default function PassengerProfile() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function PassengerProfile() {
   const [ratingCounts, setRatingCounts] = useState<Record<number, number>>({ 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 });
   const [processingLogout, setProcessingLogout] = useState(false);
   const [processingDelete, setProcessingDelete] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -59,7 +61,7 @@ export default function PassengerProfile() {
           }
         }
 
-        // if we found no reviews, attempt a gentle fallback: use driver_rating fields if present (not ideal)
+        // if we found no reviews in travels, attempt a gentle fallback: use driver_rating fields if present (not ideal)
         if (totalReviews === 0 && Array.isArray(confirmed)) {
           for (const item of confirmed) {
             const travel = (item as any)?.travel ?? (item as any);
@@ -69,6 +71,35 @@ export default function PassengerProfile() {
               counts[star] = (counts[star] || 0) + 1;
               totalReviews++;
             }
+          }
+        }
+
+        // If still no reviews, try fetching user's received reviews directly from the reviews API
+        if (totalReviews === 0) {
+          try {
+            const profileId = profileRes?.data?.id;
+            if (profileId) {
+              const reviewService = (await import('@/Services/ReviewApiService')).default;
+              const userReviewsRes = await reviewService.getUserReviews(profileId).catch(() => null);
+              const reviewsArr = (userReviewsRes && (userReviewsRes as any).data && (userReviewsRes as any).data.received) || [];
+              if (Array.isArray(reviewsArr) && reviewsArr.length > 0) {
+                // reset counts and recount from received reviews
+                const counts2: Record<number, number> = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+                let total2 = 0;
+                for (const r of reviewsArr) {
+                  const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+                  if (!Number.isNaN(rating) && rating >= 1 && rating <= 5) {
+                    counts2[Math.round(rating)] = (counts2[Math.round(rating)] || 0) + 1;
+                    total2++;
+                  }
+                }
+                // apply the counts from reviews API
+                Object.assign(counts, counts2);
+                totalReviews = total2;
+              }
+            }
+          } catch (e) {
+            // ignore fallback errors
           }
         }
 
@@ -82,6 +113,12 @@ export default function PassengerProfile() {
   }, []);
 
   const totalRatings = useMemo(() => Object.values(ratingCounts).reduce((a, b) => a + b, 0), [ratingCounts]);
+
+  const averageRating = useMemo(() => {
+    if (!totalRatings) return null;
+    const sum = Object.entries(ratingCounts).reduce((s, [k, v]) => s + Number(k) * v, 0);
+    return totalRatings > 0 ? sum / totalRatings : null;
+  }, [ratingCounts, totalRatings]);
 
   const formatPercentage = (count: number) => {
     if (!totalRatings) return "0%";
@@ -190,7 +227,9 @@ export default function PassengerProfile() {
           <Feather name="arrow-left" size={22} color="#121417" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Perfil</Text>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity onPress={() => setShowSettingsModal(true)} style={styles.settingsButton}>
+          <Feather name="settings" size={22} color="#121417" />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
@@ -207,25 +246,43 @@ export default function PassengerProfile() {
 
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{userProfile?.name}</Text>
-            <Text style={styles.userRole}>Pasajero</Text>
+            <Text style={styles.userEmail}>
+              {userProfile?.institutional_email}
+            </Text>
             <Text style={styles.userStats}>{tripsCount} viajes</Text>
           </View>
         </View>
 
         <View style={styles.separator} />
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Acerca de</Text>
+          
+          <View style={styles.sectionHeader}>
+            <Feather name="user" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Acerca de</Text>
+          </View>
+
           <Text style={styles.descriptionText}>{userProfile?.description ?? ""}</Text>
         </View>
         
         <View style={styles.descriptionContainer}>
-          <Text style={styles.descriptionHeader}>Reseñas</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="message-circle" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Reseñas</Text>
+          </View>
 
           <View style={styles.ratingOverview}>
             <View style={styles.ratingSummary}>
               <Text style={styles.ratingNumber}>{totalRatings ? (Object.entries(ratingCounts).reduce((sum, [k, v]) => sum + Number(k) * v, 0) / totalRatings).toFixed(2) : "0.0"}</Text>
               <View style={styles.ratingStars}>
-                <Text style={styles.star}>⭐</Text>
+                {Array.from({ length: 5 }, (_, i) => (
+                  <Text key={i} style={styles.star}>
+                    {i < Math.round(averageRating ?? 0) ? (
+                      <FontAwesome name="star" size={24} color="black" />
+                    ) : (
+                      <FontAwesome name="star-o" size={24} color="black" />
+                    )}
+                  </Text>
+                ))}
               </View>
               <Text style={styles.ratingCount}>{totalRatings} reviews</Text>
             </View>
@@ -244,42 +301,180 @@ export default function PassengerProfile() {
           </View>
         </View>
 
-        <View style={styles.accountActions}>
-          <TouchableOpacity
-            style={[
-              styles.accountButton,
-              styles.logoutButton,
-              (processingLogout || processingDelete) && styles.disabledButton,
-            ]}
-            onPress={handleLogout}
-            disabled={processingLogout || processingDelete}
-          >
-            {processingLogout ? (
-              <ActivityIndicator size="small" color="#F99F7C" />
-            ) : (
-              <Text style={styles.logoutButtonText}>Cerrar sesión</Text>
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.accountButton,
-              styles.deleteButton,
-              (processingDelete || processingLogout) && styles.disabledButton,
-            ]}
-            onPress={handleDeleteAccount}
-            disabled={processingDelete || processingLogout}
-          >
-            {processingDelete ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Text style={styles.deleteButtonText}>Eliminar cuenta</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Settings Modal */}
+      <Modal
+        visible={showSettingsModal}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={() => setShowSettingsModal(false)}
+      >
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity
+              onPress={() => setShowSettingsModal(false)}
+              style={styles.modalCloseButton}
+            >
+              <Feather name="x" size={24} color="#121417" />
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Configuración</Text>
+            <View style={styles.modalHeaderSpacer} />
+          </View>
+
+          <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Cuenta</Text>
+              
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="user" size={20} color="#F99F7C" />
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="bell" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Notificaciones</Text>
+                  <Text style={styles.settingsItemDescription}>Gestiona tus preferencias de notificaciones</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="shield" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Privacidad y seguridad</Text>
+                  <Text style={styles.settingsItemDescription}>Controla tu privacidad</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Preferencias</Text>
+              
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="map-pin" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Ubicaciones guardadas</Text>
+                  <Text style={styles.settingsItemDescription}>Casa, trabajo y otros destinos</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="credit-card" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Métodos de pago</Text>
+                  <Text style={styles.settingsItemDescription}>Gestiona tus formas de pago</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="star" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Valoraciones y reseñas</Text>
+                  <Text style={styles.settingsItemDescription}>Ve tu historial de calificaciones</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Soporte</Text>
+              
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="help-circle" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Centro de ayuda</Text>
+                  <Text style={styles.settingsItemDescription}>Encuentra respuestas a tus preguntas</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="message-circle" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Contactar soporte</Text>
+                  <Text style={styles.settingsItemDescription}>Reporta problemas o envía comentarios</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.settingsItem}>
+                <View style={styles.settingsItemIcon}>
+                  <Feather name="info" size={20} color="#F99F7C" />
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Acerca de UrTurn</Text>
+                  <Text style={styles.settingsItemDescription}>Versión, términos y condiciones</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingsSection}>
+              <Text style={styles.settingsSectionTitle}>Sesión</Text>
+              
+              <TouchableOpacity 
+                style={styles.settingsItem}
+                onPress={handleLogout}
+                disabled={processingLogout || processingDelete}
+              >
+                <View style={[styles.settingsItemIcon, { backgroundColor: "#FFF7F2" }]}>
+                  {processingLogout ? (
+                    <ActivityIndicator size="small" color="#F99F7C" />
+                  ) : (
+                    <Feather name="log-out" size={20} color="#F99F7C" />
+                  )}
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={styles.settingsItemTitle}>Cerrar sesión</Text>
+                  <Text style={styles.settingsItemDescription}>Cierra tu sesión actual</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={styles.settingsItem}
+                onPress={handleDeleteAccount}
+                disabled={processingDelete || processingLogout}
+              >
+                <View style={[styles.settingsItemIcon, { backgroundColor: "#FEE8E8" }]}>
+                  {processingDelete ? (
+                    <ActivityIndicator size="small" color="#E53935" />
+                  ) : (
+                    <Feather name="trash-2" size={20} color="#E53935" />
+                  )}
+                </View>
+                <View style={styles.settingsItemContent}>
+                  <Text style={[styles.settingsItemTitle, { color: "#E53935" }]}>Eliminar cuenta</Text>
+                  <Text style={styles.settingsItemDescription}>Elimina permanentemente tu cuenta</Text>
+                </View>
+                <Feather name="chevron-right" size={20} color="#61758A" />
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -296,6 +491,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   backButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  settingsButton: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   headerTitle: { fontFamily: "PlusJakartaSans-Bold", fontSize: 18, lineHeight: 23, color: "#121417", textAlign: "center" },
   headerSpacer: { width: 48 },
   scrollContainer: { flex: 1 },
@@ -305,6 +501,7 @@ const styles = StyleSheet.create({
   profileInitials: { fontSize: 36, fontFamily: "PlusJakartaSans-Bold", color: "#FFFFFF" },
   userInfo: { alignItems: "center", marginBottom: 16 },
   userName: { fontFamily: "PlusJakartaSans-Bold", fontSize: 24, lineHeight: 30, color: "#121417", marginBottom: 4, textAlign: "center" },
+  userEmail: {fontFamily: "PlusJakartaSans-Regular", fontSize: 16, lineHeight: 24, color: "#61758A", marginBottom: 2, },
   userRole: { fontFamily: "PlusJakartaSans-Regular", fontSize: 16, color: "#61758A" },
   userStats: { fontFamily: "PlusJakartaSans-Regular", fontSize: 14, color: "#61758A", marginTop: 4 },
   separator: { height: 8, backgroundColor: "#F8F9FA" },
@@ -313,7 +510,7 @@ const styles = StyleSheet.create({
   descriptionText: { fontFamily: "PlusJakartaSans-Regular", fontSize: 16, lineHeight: 24, color: "#121417" },
   bottomSpacer: { height: 120 },
   ratingOverview: { flexDirection: "row", marginBottom: 32, gap: 32 },
-  ratingSummary: { alignItems: "center", width: 98 },
+  ratingSummary: { alignItems: "center", width: 98, marginTop: 18 },
   ratingNumber: { fontFamily: "PlusJakartaSans-Bold", fontWeight: "800", fontSize: 36, lineHeight: 45, color: "#121417", marginBottom: 8 },
   ratingStars: { flexDirection: "row", marginBottom: 8 },
   star: { fontSize: 18 },
@@ -322,13 +519,94 @@ const styles = StyleSheet.create({
   ratingBar: { flexDirection: "row", alignItems: "center", gap: 8 },
   ratingLabel: { fontFamily: "PlusJakartaSans-Regular", fontSize: 14, lineHeight: 21, color: "#121417", width: 20 },
   barContainer: { flex: 1, height: 8, backgroundColor: "#DBE0E5", borderRadius: 4 },
-  bar: { height: "100%", backgroundColor: "#F99F7C", borderRadius: 4 },
+  bar: { height: "100%", backgroundColor: "#000000ff", borderRadius: 4 },
   ratingPercentage: { fontFamily: "PlusJakartaSans-Regular", fontSize: 14, lineHeight: 21, color: "#61758A", width: 40, textAlign: "right" },
-  accountActions: { paddingHorizontal: 16, paddingVertical: 8, gap: 12 },
-  accountButton: { borderRadius: 16, paddingVertical: 14, alignItems: "center", borderWidth: 1 },
-  logoutButton: { backgroundColor: "#FFF7F2", borderColor: "#F99F7C" },
-  logoutButtonText: { fontFamily: "PlusJakartaSans-SemiBold", fontSize: 16, color: "#F99F7C" },
-  deleteButton: { backgroundColor: "#E53935", borderColor: "#E53935" },
-  deleteButtonText: { fontFamily: "PlusJakartaSans-SemiBold", fontSize: 16, color: "#FFFFFF" },
-  disabledButton: { opacity: 0.6 },
+  
+  // Modal styles
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  modalHeader: {
+    height: 59,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 11,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  modalCloseButton: {
+    width: 48,
+    height: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalTitle: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 18,
+    lineHeight: 23,
+    color: "#121417",
+    textAlign: "center",
+  },
+  modalHeaderSpacer: {
+    width: 48,
+  },
+  modalContent: {
+    flex: 1,
+  },
+  settingsSection: {
+    paddingTop: 24,
+    paddingHorizontal: 16,
+  },
+  settingsSectionTitle: {
+    fontFamily: "PlusJakartaSans-Bold",
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#61758A",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  settingsItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
+  },
+  settingsItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFF7F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+  settingsItemContent: {
+    flex: 1,
+  },
+  settingsItemTitle: {
+    fontFamily: "PlusJakartaSans-SemiBold",
+    fontSize: 16,
+    lineHeight: 20,
+    color: "#121417",
+    marginBottom: 4,
+  },
+  settingsItemDescription: {
+    fontFamily: "PlusJakartaSans-Regular",
+    fontSize: 14,
+    lineHeight: 18,
+    color: "#61758A",
+  },
+    sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
 });

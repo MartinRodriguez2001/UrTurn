@@ -10,6 +10,8 @@ export interface PushNotificationData {
   senderId?: number;
   senderName?: string;
   message?: string;
+  deepLink?: string;
+  targetRole?: 'driver' | 'passenger';
   [key: string]: any;
 }
 

@@ -1,11 +1,12 @@
 ﻿import travelApiService from '@/Services/TravelApiService';
 import { userApi } from '@/Services/UserApiService';
-import { TravelStatus } from '@/types/travel';
 import { Feather } from "@expo/vector-icons";
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
+    Image,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -184,6 +185,7 @@ export default function PassengerDriverProfile() {
     const [ratingCounts, setRatingCounts] = useState<Record<number, number>>({5:0,4:0,3:0,2:0,1:0});
     const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
     const [driverTravelsCount, setDriverTravelsCount] = useState<number>(0);
+    const [vehicles, setVehicles] = useState<any[]>([]);
     const [averageRating, setAverageRating] = useState<number | null>(driverRatingParam ? Number(driverRatingParam) : null);
     const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
 
@@ -200,63 +202,83 @@ export default function PassengerDriverProfile() {
                     setDriverProfile(userRes.data);
                 }
 
-                // try fetching travels by driver id (if backend supports /travels/driver/:id)
-                const travelsRes = await travelApiService.getTravelsByDriverId(id).catch(() => null);
-                const travels: any[] = (travelsRes && (travelsRes as any).travels) || (travelsRes && (travelsRes as any).data && (travelsRes as any).data.travels) || [];
-
-                const gatheredReviews: Review[] = [];
-                const counts: Record<number, number> = {5:0,4:0,3:0,2:0,1:0};
-                let total = 0;
-                let sum = 0;
-
-                for (const t of travels) {
-                    // reviews could appear under different keys
-                    const reviewsArr = t?.reviews || t?.travel?.reviews || t?.passenger_reviews || [];
-                    if (Array.isArray(reviewsArr)) {
-                        for (const r of reviewsArr) {
-                            const rating = Number(r.rating ?? r.stars ?? r.starts ?? r.value ?? NaN);
-                            if (!Number.isNaN(rating) && rating >=1 && rating <=5) {
-                                counts[Math.round(rating)] = (counts[Math.round(rating)] || 0) + 1;
-                                total++;
-                                sum += Number(rating);
-                            }
-                            gatheredReviews.push({
-                                id: String(r.id ?? Math.random()),
-                                userName: r.user?.name ?? r.userName ?? r.author ?? 'Usuario',
-                                userAvatar: r.user?.profile_picture ?? r.userAvatar ?? '👤',
-                                rating: Math.round(rating) || 0,
-                                comment: r.comment ?? r.body ?? r.text ?? '',
-                                date: r.created_at ? new Date(r.created_at).toLocaleDateString('es-CL') : (r.date ?? ''),
-                                likes: r.likes ?? 0,
-                            });
-                        }
-                    }
-
-                    // also use driver_rating as a numeric rating without comment
-                    if (t?.driver_rating !== undefined && t?.driver_rating !== null) {
-                        const dr = Number(t.driver_rating);
-                        if (!Number.isNaN(dr) && dr >=1 && dr <=5) {
-                            counts[Math.round(dr)] = (counts[Math.round(dr)] || 0) + 1;
-                            total++;
-                            sum += dr;
-                        }
-                    }
-                }
-
-                setDriverReviews(gatheredReviews);
-                setRatingCounts(counts);
-                setTotalReviewsCount(total);
-                // count only finished travels: those with end_time or status === FINALIZADO
+                                // Prefer the reviews API which returns reviews received by the user.
+                                try {
+                                    const userReviewsRes = await (await import('@/Services/ReviewApiService')).default.getUserReviews(id).catch(() => null);
+                                    if (userReviewsRes && (userReviewsRes as any).data && (userReviewsRes as any).data.received) {
+                                        const reviewsArr = (userReviewsRes as any).data.received as any[];
+                                        const gathered: Review[] = [];
+                                        const counts: Record<number, number> = {5:0,4:0,3:0,2:0,1:0};
+                                        let total = 0;
+                                        let sum = 0;
+                                        for (const r of reviewsArr) {
+                                            const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+                                            if (!Number.isNaN(rating) && rating >=1 && rating <=5) {
+                                                counts[Math.round(rating)] = (counts[Math.round(rating)] || 0) + 1;
+                                                total++;
+                                                sum += Number(rating);
+                                            }
+                                            gathered.push({
+                                                id: String(r.id ?? Math.random()),
+                                                userName: r.reviewer?.name ?? 'Usuario',
+                                                userAvatar: r.reviewer?.profile_picture ?? '👤',
+                                                rating: Math.round(rating) || 0,
+                                                comment: r.review ?? r.comment ?? r.body ?? '',
+                                                date: r.created_at ? new Date(r.created_at).toISOString().slice(0,10) : (r.date ?? ''),
+                                                likes: r.likes ?? 0,
+                                            });
+                                        }
+                                        setDriverReviews(gathered);
+                                        setRatingCounts(counts);
+                                        setTotalReviewsCount(total);
+                                        setAverageRating(total > 0 ? sum / total : (driverRatingParam ? Number(driverRatingParam) : null));
+                                    } else {
+                                        setDriverReviews([]);
+                                        setRatingCounts({5:0,4:0,3:0,2:0,1:0});
+                                        setTotalReviewsCount(0);
+                                    }
+                                } catch (e) {
+                                    console.error('Error fetching user reviews', e);
+                                    setDriverReviews([]);
+                                    setRatingCounts({5:0,4:0,3:0,2:0,1:0});
+                                    setTotalReviewsCount(0);
+                                }
+                // Try to fetch driver's travels to compute finished trips count (like DriverProfile)
                 try {
-                    const finishedCount = Array.isArray(travels)
-                        ? travels.filter((t: any) => !!t?.end_time || t?.status === TravelStatus.FINALIZADO).length
-                        : 0;
+                    const driverTravelsRes = await travelApiService.getTravelsByDriverId(id).catch(() => null);
+                    const travelsArr = (driverTravelsRes && (driverTravelsRes as any).travels) || (driverTravelsRes && (driverTravelsRes as any).data && (driverTravelsRes as any).data.travels) || [];
+                    let finishedCount = 0;
+                    if (Array.isArray(travelsArr) && travelsArr.length > 0) {
+                        finishedCount = travelsArr.filter((t: any) => {
+                            const status = (t && (t.status ?? t.travel?.status ?? t.travel?.status)) || undefined;
+                            return typeof status === 'string' && status.toLowerCase() === 'finalizado';
+                        }).length;
+                    } else if (driverTravelsRes && (driverTravelsRes as any).summary && (driverTravelsRes as any).summary.byStatus && typeof (driverTravelsRes as any).summary.byStatus.finalizado === 'number') {
+                        // Fallback: service returns summary counts instead of raw travels
+                        finishedCount = (driverTravelsRes as any).summary.byStatus.finalizado;
+                    }
                     setDriverTravelsCount(finishedCount);
+                    // collect vehicles from travels
+                    try {
+                        const vehiclesArr = Array.isArray(travelsArr)
+                            ? travelsArr.map((t: any) => t.vehicle).filter(Boolean)
+                            : [];
+                        const dedup: any[] = [];
+                        const seen = new Set<string>();
+                        for (const v of vehiclesArr) {
+                            const key = String(v?.licence_plate ?? `${v?.brand}-${v?.model}-${v?.year}`);
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                dedup.push(v);
+                            }
+                        }
+                        setVehicles(dedup);
+                    } catch (e) {
+                        setVehicles([]);
+                    }
                 } catch (e) {
-                    // fallback to total travels if anything goes wrong
-                    setDriverTravelsCount(travels.length || 0);
+                    setDriverTravelsCount(0);
                 }
-                setAverageRating(total > 0 ? sum / total : (driverRatingParam ? Number(driverRatingParam) : null));
             } catch (err) {
                 console.error('Error loading driver profile/reviews', err);
             } finally {
@@ -270,7 +292,7 @@ export default function PassengerDriverProfile() {
     const renderStars = (rating: number) => {
         return Array.from({ length: 5 }, (_, index) => (
             <Text key={index} style={styles.star}>
-                {index < rating ? '⭐' : '☆'}
+                {index < rating ? <FontAwesome name="star" size={24} color="black" /> : <FontAwesome name="star-o" size={24} color="black" />}
             </Text>
         ));
     };
@@ -284,7 +306,7 @@ export default function PassengerDriverProfile() {
                     </View>
                     <View style={styles.reviewUserDetails}>
                         <Text style={styles.reviewUserName}>{review.userName}</Text>
-                        <Text style={styles.reviewDate}>{review.date}</Text>
+                        <Text style={styles.reviewDate}>{review.date ? String(review.date).slice(0,10) : ''}</Text>
                     </View>
                 </View>
             </View>
@@ -294,16 +316,6 @@ export default function PassengerDriverProfile() {
             </View>
             
             <Text style={styles.reviewComment}>{review.comment}</Text>
-            
-            <View style={styles.reviewActions}>
-                <TouchableOpacity style={styles.likeButton}>
-                    <Text style={styles.likeIcon}>👍</Text>
-                    <Text style={styles.likeCount}>{review.likes}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.replyButton}>
-                    <Text style={styles.replyIcon}>💬</Text>
-                </TouchableOpacity>
-            </View>
         </View>
     );
 
@@ -331,18 +343,17 @@ export default function PassengerDriverProfile() {
                 <View style={styles.profileSection}>
                     <View style={styles.profileImageContainer}>
                         <View style={styles.profileImage}>
-                                {driverProfile?.profile_picture ? (
-                                    // if driver has a profile picture, we could render an Image, but keep initials placeholder to avoid extra import
+                                {driverProfile?.profile_picture ? 
+                                    <Image source={{ uri: driverProfile.profile_picture }} style={styles.profileImagePhoto} /> 
+                                    : 
                                     <Text style={styles.profileInitial}>{getInitials(driverProfile?.name ?? driverName)}</Text>
-                                ) : (
-                                    <Text style={styles.profileInitial}>{getInitials(driverProfile?.name ?? driverName)}</Text>
-                                )}
+                                }
                             </View>
                     </View>
                     <View style={styles.profileInfo}>
                         <Text style={styles.driverName}>{driverName}</Text>
                         <Text style={styles.driverRole}>Conductor</Text>
-                        <Text style={styles.driverStats}>{averageRating ? averageRating.toFixed(2) : (driverRatingParam ?? '—')} • {driverTravelsCount} viajes</Text>
+                        <Text style={styles.driverStats}>{driverTravelsCount} viajes</Text>
                     </View>
                 </View>
 
@@ -357,15 +368,26 @@ export default function PassengerDriverProfile() {
                 {/* Vehicle Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Vehículo</Text>
-                    <View style={styles.vehicleCard}>
-                        <View style={styles.vehicleImageContainer}>
-                            <Text style={styles.vehicleIcon}>🚗</Text>
+                    {vehicles && vehicles.length > 0 ? (
+                        vehicles.map((vehicle, idx) => (
+                            <View key={vehicle.id ?? idx} style={styles.vehicleCard}>
+                                <View style={styles.vehicleInfo}>
+                                    <Text style={styles.vehicleName}>{vehicle.brand} {vehicle.model}</Text>
+                                    <Text style={styles.vehicleDetails}>Año: {vehicle.year} • Patente: {vehicle.licence_plate}</Text>
+                                </View>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.vehicleCard}>
+                            <View style={styles.vehicleImageContainer}>
+                                <Text style={styles.vehicleIcon}>🚗</Text>
+                            </View>
+                            <View style={styles.vehicleInfo}>
+                                <Text style={styles.vehicleType}>Sedán</Text>
+                                <Text style={styles.vehicleModel}>{vehicleType}</Text>
+                            </View>
                         </View>
-                        <View style={styles.vehicleInfo}>
-                            <Text style={styles.vehicleType}>Sedán</Text>
-                            <Text style={styles.vehicleModel}>{vehicleType}</Text>
-                        </View>
-                    </View>
+                    )}
                 </View>
 
                 {/* Reviews Section */}
@@ -504,14 +526,19 @@ const styles = StyleSheet.create({
         width: 128,
         height: 128,
         borderRadius: 64,
-        backgroundColor: '#F0F2F5',
+        backgroundColor: '#F99F7C',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    profileImagePhoto: {
+        width: 128,
+        height: 128,
+        borderRadius: 64,
     },
     profileInitial: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: '#121417',
+        color: '#FFFFFF',
     },
     profileInfo: {
         alignItems: 'center',
@@ -712,6 +739,59 @@ const styles = StyleSheet.create({
         lineHeight: 24,
         color: '#121417',
         marginBottom: 12,
+    },
+    // Vehicle styles (copied from DriverProfile)
+    vehicleName: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '700',
+        fontSize: 18,
+        color: '#121417',
+        marginBottom: 4,
+    },
+    vehicleDetails: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontSize: 14,
+        color: '#61758A',
+        marginBottom: 8,
+    },
+    validatedBadge: {
+        backgroundColor: '#E8F5E8',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 16,
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderColor: '#4CAF50',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    validatedText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '600',
+        fontSize: 12,
+        color: '#2E7D32',
+    },
+    pendingBadge: {
+        backgroundColor: '#FFF3E0',
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 16,
+        alignSelf: 'flex-start',
+        borderWidth: 1,
+        borderColor: '#FF9800',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    pendingText: {
+        fontFamily: 'Plus Jakarta Sans',
+        fontWeight: '600',
+        fontSize: 12,
+        color: '#F57C00',
+    },
+    pendingContainer: {
+        gap: 8,
     },
     reviewActions: {
         flexDirection: 'row',

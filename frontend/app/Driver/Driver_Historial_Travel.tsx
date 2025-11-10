@@ -583,6 +583,7 @@ const travelId = useMemo(() => {
                     },
                   })
                 }
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
               >
                 {passenger.avatar ? (
                   <Image source={{ uri: passenger.avatar }} style={styles.passengerAvatar} />
@@ -591,11 +592,11 @@ const travelId = useMemo(() => {
                     <Text style={styles.passengerInitials}>{getInitials(passenger.name)}</Text>
                   </View>
                 )}
+                <View style={styles.passengerInfo}>
+                  <Text style={styles.passengerName}>{passenger.name}</Text>
+                  <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
+                </View>
               </TouchableOpacity>
-              <View style={styles.passengerInfo}>
-                <Text style={styles.passengerName}>{passenger.name}</Text>
-                <Text style={styles.passengerRole}>{passenger.role ?? "Pasajero"}</Text>
-              </View>
               <View style={styles.contactActions}>
               </View>
             </View>

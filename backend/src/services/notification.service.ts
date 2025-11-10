@@ -148,15 +148,23 @@ export class NotificationService {
       }
 
       // Crear mensajes para Expo Push
-      const messages = eligibleUsers.map(user => 
-        pushNotificationUtils.createChatMessage(
+      const messages = eligibleUsers.map(user => {
+        const targetRole: 'driver' | 'passenger' =
+          user.IsDriver ? 'driver' : 'passenger';
+        const deepLink = this.buildChatDeepLink(targetRole === 'driver', params.travelId);
+
+        return pushNotificationUtils.createChatMessage(
           user.expo_push_token!,
           params.senderName,
           params.messageText,
           params.travelId,
-          params.senderId
-        )
-      );
+          params.senderId,
+          {
+            deepLink,
+            targetRole,
+          }
+        );
+      });
 
       // Enviar notificaciones
       const result = await pushNotificationUtils.sendBatchNotifications(messages);
@@ -289,6 +297,31 @@ export class NotificationService {
         errors: [error instanceof Error ? error.message : 'Error desconocido'],
       };
     }
+  }
+
+  private getDeepLinkBase(): string {
+    const raw =
+      process.env.APP_DEEP_LINK_BASE ||
+      process.env.APP_SCHEME ||
+      'urturn://';
+
+    if (raw.includes('://')) {
+      return raw.endsWith('/') ? raw : raw;
+    }
+
+    return `${raw}://`;
+  }
+
+  private buildDeepLink(path: string, params?: Record<string, string>): string {
+    const base = this.getDeepLinkBase();
+    const normalizedPath = path.replace(/^\/+/, '');
+    const search = params ? new URLSearchParams(params).toString() : '';
+    return search ? `${base}${normalizedPath}?${search}` : `${base}${normalizedPath}`;
+  }
+
+  private buildChatDeepLink(isDriverTarget: boolean, travelId: number): string {
+    const path = isDriverTarget ? 'Driver/DriverChat' : 'Passenger/PassengerChat';
+    return this.buildDeepLink(path, { travelId: String(travelId) });
   }
 
   /**

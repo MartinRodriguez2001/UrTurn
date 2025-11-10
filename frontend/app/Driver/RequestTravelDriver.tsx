@@ -2,7 +2,8 @@ import travelApiService from "@/Services/TravelApiService";
 import { ProcessedTravel, TravelPlannedStop } from "@/types/travel";
 import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+
 import {
   ActivityIndicator,
   Alert,
@@ -334,6 +335,62 @@ export default function RequestTravelDriver() {
   const phoneNumber = request.passenger?.phoneNumber ?? "Sin teléfono";
   const confirmedPassengers = request.confirmedPassengers ?? [];
 
+  const [passengerRating, setPassengerRating] = useState<number | null>(null);
+  const [passengerTripsCount, setPassengerTripsCount] = useState<number>(0);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const passengerId = request.passenger?.id;
+        if (!passengerId) return;
+
+        // Load reviews received by the passenger to compute average rating
+        try {
+          const ReviewApi = (await import("@/Services/ReviewApiService")).default;
+          const res = await ReviewApi.getUserReviews(Number(passengerId)).catch(() => null);
+          const reviewsArr = (res && (res as any).data && (res as any).data.received) || [];
+          if (Array.isArray(reviewsArr) && reviewsArr.length > 0) {
+            let sum = 0;
+            let count = 0;
+            for (const r of reviewsArr) {
+              const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+              if (!Number.isNaN(rating) && rating >= 1 && rating <= 5) {
+                sum += Number(rating);
+                count++;
+              }
+            }
+            setPassengerRating(count > 0 ? sum / count : null);
+          }
+        } catch (e) {
+          // ignore
+        }
+
+        // If the requested passenger is the authenticated user, try to fetch their travels
+        try {
+          const profileRes = await (await import("@/Services/UserApiService")).userApi.getProfile().catch(() => null);
+          const currentUserId = profileRes?.success && profileRes.data ? profileRes.data.id : undefined;
+          if (currentUserId !== undefined && Number(currentUserId) === Number(request.passenger?.id)) {
+            const travelsRes = await travelApiService.getPassengerTravels().catch(() => null);
+            const travelsArr = (travelsRes && (travelsRes as any).travels) || (travelsRes && (travelsRes as any).data && (travelsRes as any).data.travels) || [];
+            if (Array.isArray(travelsArr) && travelsArr.length > 0) {
+              const finished = travelsArr.filter((t: any) => {
+                const status = (t && (t.status ?? t.travel?.status ?? t.travel?.status)) || undefined;
+                return typeof status === 'string' && status.toLowerCase() === 'finalizado';
+              }).length;
+              setPassengerTripsCount(finished);
+            } else if (travelsRes && (travelsRes as any).summary && (travelsRes as any).summary.byStatus && typeof (travelsRes as any).summary.byStatus.finalizado === 'number') {
+              setPassengerTripsCount((travelsRes as any).summary.byStatus.finalizado);
+            }
+          }
+        } catch (e) {
+          // ignore
+        }
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [request.passenger]);
+
   const pickupLat = toNumber(request.pickupLatitude);
   const pickupLng = toNumber(request.pickupLongitude);
   const dropoffLat = toNumber(request.dropoffLatitude);
@@ -541,19 +598,31 @@ export default function RequestTravelDriver() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.passengerCard}>
+        <TouchableOpacity
+          style={styles.passengerCard}
+          onPress={() =>
+            router.push({
+              pathname: "/Driver/DriverPassengerProfile",
+              params: {
+                passengerId: String(request.passenger?.id ?? ""),
+                name: passengerName,
+                profile_picture: request.passenger?.profilePicture ?? "",
+              },
+            })
+          }
+          accessibilityRole="button"
+          activeOpacity={0.85}
+        >
           <View style={styles.passengerAvatar}>
             <Text style={styles.passengerInitials}>{passengerInitials}</Text>
           </View>
           <View style={styles.passengerText}>
             <Text style={styles.passengerName}>{passengerName}</Text>
-            <Text style={styles.passengerPhone}>{phoneNumber}</Text>
+            <Text style={styles.passengerMeta}>
+              {passengerRating ? `${passengerRating.toFixed(1)}★` : `0.0★`}
+            </Text>
           </View>
-          <TouchableOpacity style={styles.contactButton} activeOpacity={0.85}>
-            <Feather name="phone" size={16} color="#FFFFFF" />
-            <Text style={styles.contactButtonText}>Contactar</Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
 
         <View style={styles.mapCard}>
           {renderRouteMap("preview")}
@@ -678,7 +747,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#F4F5F7",
+    backgroundColor: "#F99F7C",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -686,7 +755,7 @@ const styles = StyleSheet.create({
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "700",
     fontSize: 18,
-    color: "#121417",
+    color: "#FFFFFF",
   },
   passengerText: {
     flex: 1,
@@ -702,6 +771,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#61758A",
     marginTop: 2,
+  },
+  passengerMeta: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 14,
+    color: "#61758A",
+    marginTop: 4,
   },
   contactButton: {
     flexDirection: "row",

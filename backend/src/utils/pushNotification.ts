@@ -6,6 +6,8 @@ export interface PushNotificationData {
   senderId?: number;
   senderName?: string;
   message?: string;
+  deepLink?: string;
+  targetRole?: 'driver' | 'passenger';
   [key: string]: any;
 }
 
@@ -245,23 +247,27 @@ class PushNotificationUtils {
     senderName: string,
     messageText: string,
     travelId: number,
-    senderId: number
+    senderId: number,
+    extraData?: Partial<PushNotificationData>
   ): ExpoPushMessage {
     const truncatedMessage = messageText.length > 50 
       ? `${messageText.substring(0, 50)}...` 
       : messageText;
 
+    const mergedData: PushNotificationData = {
+      ...(extraData ?? {}),
+      travelId,
+      senderId,
+      senderName,
+      message: messageText,
+      type: 'chat_message',
+    };
+
     return {
       to: token,
       title: `Mensaje de ${senderName}`,
       body: truncatedMessage,
-      data: {
-        type: 'chat_message',
-        travelId,
-        senderId,
-        senderName,
-        message: messageText,
-      },
+      data: mergedData,
       sound: 'default',
       badge: 1,
       channelId: 'chat-messages',

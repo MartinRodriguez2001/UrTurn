@@ -1,3 +1,4 @@
+import { getSocket } from '@/Services/SocketService';
 import travelApiService from "@/Services/TravelApiService";
 import type { TravelCoordinate, TravelPlannedStop } from "@/types/travel";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
@@ -737,6 +738,68 @@ export default function DriverOnTravel() {
 
   const PuntaUp = () => <PuntaChevron direction="up" />;
   const PuntaDown = () => <PuntaChevron direction="down" />;
+
+  // Socket emitter: emitimos la posición del conductor para que los pasajeros la vean
+  const socketRef = useRef<any | null>(null);
+  const lastEmitRef = useRef<number>(0);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const s = await getSocket();
+        if (!mounted) return;
+        socketRef.current = s;
+
+        // Try joining the travel room so passengers and driver share the room
+        if (travelId !== undefined) {
+          try {
+            socketRef.current.emit('chat:join', Number(travelId), (resp: any) => {
+              // ignore response; best-effort
+            });
+          } catch (e) {}
+        }
+      } catch (e) {
+        // ignore socket connection error
+        socketRef.current = null;
+      }
+    })();
+
+    return () => {
+      mounted = false;
+      // do not disconnect global socket; ChatProvider manages lifecycle
+      socketRef.current = null;
+    };
+  }, [travelId]);
+
+  // Emit location on changes (throttled ~2s)
+  useEffect(() => {
+    if (!currentLocation) return;
+    const now = Date.now();
+    if (now - (lastEmitRef.current || 0) < 1800) return; // throttle ~1.8s
+    lastEmitRef.current = now;
+
+    (async () => {
+      try {
+        const s = socketRef.current ?? (await getSocket().catch(() => null));
+        if (!s) return;
+        if (!travelId) return;
+        const payload: any = {
+          travelId: Number(travelId),
+          latitude: currentLocation.latitude,
+          longitude: currentLocation.longitude,
+        };
+        if (typeof currentLocation.heading === 'number') payload.heading = currentLocation.heading;
+
+        s.emit('travel:vehicle:position', payload, (resp: any) => {
+          // optional: handle server response for debug
+          // console.log('emit pos resp', resp);
+        });
+      } catch (e) {
+        // ignore
+      }
+    })();
+  }, [currentLocation, travelId]);
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.mapContainer}>

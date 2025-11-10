@@ -5,15 +5,15 @@ import { Feather } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useState } from "react";
 import {
-    Image,
-    Linking,
-    Modal,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Image,
+  Linking,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 
@@ -468,6 +468,7 @@ const handleCallDriver = () => {
                 })
               }
               activeOpacity={0.85}
+              style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
             >
               {driver.avatar ? (
                 <Image source={{ uri: driver.avatar }} style={styles.driverAvatar} />
@@ -476,13 +477,13 @@ const handleCallDriver = () => {
                   <Text style={styles.driverInitials}>{getInitials(driver.name)}</Text>
                 </View>
               )}
+              <View style={styles.driverInfo}>
+                <Text style={styles.driverName}>{driver.name}</Text>
+                <Text style={styles.driverPhone}>
+                  {driver.phone ? `Teléfono: ${driver.phone}` : "Teléfono no disponible"}
+                </Text>
+              </View>
             </TouchableOpacity>
-            <View style={styles.driverInfo}>
-              <Text style={styles.driverName}>{driver.name}</Text>
-              <Text style={styles.driverPhone}>
-                {driver.phone ? `Teléfono: ${driver.phone}` : "Teléfono no disponible"}
-              </Text>
-            </View>
             <View style={styles.contactActions}>
               <TouchableOpacity
                 style={styles.chatButton}
@@ -667,7 +668,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#FDE3D6",
+    backgroundColor: "#F99F7C",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -675,7 +676,7 @@ const styles = StyleSheet.create({
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "700",
     fontSize: 16,
-    color: "#F97316",
+    color: "#FFFFFF",
   },
   driverInfo: {
     flex: 1,

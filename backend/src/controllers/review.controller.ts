@@ -17,10 +17,18 @@ export class ReviewController {
 
       const { user_target_id, travel_id, starts, review } = req.body;
 
-      if (!user_target_id || !travel_id || !starts || !review) {
+      // `review` (comentario) puede ser una cadena vacía; no la hacemos requerida estrictamente.
+      if (
+        user_target_id === undefined ||
+        user_target_id === null ||
+        travel_id === undefined ||
+        travel_id === null ||
+        starts === undefined ||
+        starts === null
+      ) {
         return res.status(400).json({
           success: false,
-          message: "Todos los campos son requeridos: user_target_id, travel_id, starts, review",
+          message: "Todos los campos son requeridos: user_target_id, travel_id, starts",
         });
       }
 
@@ -29,7 +37,7 @@ export class ReviewController {
         user_target_id: parseInt(user_target_id),
         travel_id: parseInt(travel_id),
         starts: parseInt(starts),
-        review: review,
+        review: review ?? '',
       };
 
       const result = await reviewService.createReview(reviewData);

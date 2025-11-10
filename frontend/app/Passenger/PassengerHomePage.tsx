@@ -209,19 +209,44 @@ export default function PassengerHomePage() {
   };
 
   const handleScheduledTravelPress = (item: PassengerConfirmedTravel) => {
-    const payload = buildTravelPayload(item.travel);
+    const travel = item.travel;
+    if (!travel) return;
+
+    // Prefer server-side status when available. If backend hasn't updated yet,
+    // the status may be undefined; fallback to previous time-based inference.
+    const hasStarted = travel.status === TravelStatus.STARTED || (
+      (() => {
+        const startTime = travel.start_time ? new Date(travel.start_time).getTime() : NaN;
+        const now = Date.now();
+        return !Number.isNaN(startTime) && startTime <= now && !travel.end_time;
+      })()
+    );
+
+    const payload = buildTravelPayload(travel);
     if (!payload) return;
 
-    const passengersPayload = mapConfirmedPassengers(item.travel);
-    const driver = item.travel?.driver_id
+    const passengersPayload = mapConfirmedPassengers(travel);
+    const driver = travel.driver_id
       ? {
-          id: item.travel.driver_id.id,
-          name: item.travel.driver_id.name,
-          avatar: item.travel.driver_id.profile_picture ?? null,
-          phone: item.travel.driver_id.phone_number ?? null,
+          id: travel.driver_id.id,
+          name: travel.driver_id.name,
+          avatar: travel.driver_id.profile_picture ?? null,
+          phone: travel.driver_id.phone_number ?? null,
         }
       : null;
 
+    if (hasStarted) {
+      // If the travel already started, go to the 'on travel' screen (uses travelId param)
+      router.push({
+        pathname: "/Passenger/PassengerOnTravel",
+        params: {
+          travelId: String(travel.id),
+        },
+      });
+      return;
+    }
+
+    // Otherwise navigate to the scheduled travel details
     router.push({
       pathname: "/Passenger/PassengerTravel",
       params: {
@@ -279,6 +304,12 @@ export default function PassengerHomePage() {
           <Text style={styles.headerTitle}>Página Principal</Text>
           <Text style={styles.subTitle}>Hola, {user?.name ?? "Pasajero"}</Text>
         </View>
+
+        <TouchableOpacity style={styles.profileButton} onPress={() => router.push("/Passenger/PassengerProfile")}>
+          <View style={styles.profileImage}>
+            <Text style={styles.profileInitial}>{user?.name?.[0] ?? "U"}</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -300,7 +331,7 @@ export default function PassengerHomePage() {
           >
             <View style={styles.driverCardContent}>
               <View style={styles.driverIconContainer}>
-                <Feather name="user" size={24} color="#FFFFFF" />
+                <Feather name="truck" size={20} color="#FFFFFF" />
               </View>
               <View style={styles.driverInfo}>
                 <Text style={styles.driverTitle}>

@@ -1,16 +1,16 @@
 import { ApiResponse } from "@/api";
 import type { ChatMessagesPayload, ChatSendPayload } from "@/types/chat";
 import {
-  PassengerConfirmedTravel,
-  PassengerRequestedTravel,
-  TravelCreateData,
-  TravelFilters,
-  TravelMatchRequestPayload,
-  TravelMatchResponse,
-  TravelRequestCreatePayload,
-  TravelRequestRecord,
-  TravelResponse,
-  TravelsResponse,
+    PassengerConfirmedTravel,
+    PassengerRequestedTravel,
+    TravelCreateData,
+    TravelFilters,
+    TravelMatchRequestPayload,
+    TravelMatchResponse,
+    TravelRequestCreatePayload,
+    TravelRequestRecord,
+    TravelResponse,
+    TravelsResponse,
 } from "@/types/travel";
 import BaseApiService from "./BaseApiService";
 
@@ -60,6 +60,27 @@ class TravelApiService extends BaseApiService {
     });
   }
 
+    //  3.5 Obtener un viaje específico por ID
+    async getTravelById(travelId: number): Promise<ApiResponse<TravelResponse>> {
+      return this.makeRequest<TravelResponse>(`/travels/${travelId}`, {
+        method: 'GET'
+      });
+    }
+
+  //  4. Obtener viajes del pasajero
+  async getPassengerTravels(): Promise<
+    ApiResponse<{
+      data: {
+        requested: PassengerRequestedTravel[];
+        confirmed: PassengerConfirmedTravel[];
+      };
+    }>
+  > {
+    return this.makeRequest('/travels/passenger', {
+      method: 'GET'
+    });
+  }
+  
   // Obtener viajes de un conductor por su id (si el backend soporta esta ruta)
   async getTravelsByDriverId(driverId: number): Promise<ApiResponse<TravelsResponse>> {
     // Try the most specific route first, then fall back to common query patterns
@@ -91,20 +112,6 @@ class TravelApiService extends BaseApiService {
     throw new Error(message);
   }
 
-  //  4. Obtener viajes del pasajero
-  async getPassengerTravels(): Promise<
-    ApiResponse<{
-      data: {
-        requested: PassengerRequestedTravel[];
-        confirmed: PassengerConfirmedTravel[];
-      };
-    }>
-  > {
-    return this.makeRequest('/travels/passenger', {
-      method: 'GET'
-    });
-  }
-  
   // Obtener viajes de un pasajero por su id (si el backend soporta esta ruta)
   async getTravelsByPassengerId(passengerId: number): Promise<ApiResponse<TravelsResponse>> {
     const triedEndpoints: string[] = [];
@@ -208,6 +215,13 @@ class TravelApiService extends BaseApiService {
   //  9. Finalizar viaje
   async completeTravel(travelId: number): Promise<ApiResponse<TravelResponse>> {
     return this.makeRequest<TravelResponse>(`/travels/${travelId}/complete`, {
+      method: 'PUT'
+    });
+  }
+
+  //  9.5 Iniciar viaje (conductor)
+  async startTravel(travelId: number): Promise<ApiResponse<TravelResponse>> {
+    return this.makeRequest<TravelResponse>(`/travels/${travelId}/start`, {
       method: 'PUT'
     });
   }

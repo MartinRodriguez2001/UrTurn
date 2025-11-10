@@ -1,16 +1,23 @@
+import reviewApiService from '@/Services/ReviewApiService';
 import travelApiService from '@/Services/TravelApiService';
 import { userApi } from '@/Services/UserApiService';
+import StarRating from '@/components/common/StarRating';
 import { Feather } from '@expo/vector-icons';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
+
 import {
-    Image,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 export default function DriverPassengerProfile() {
@@ -29,6 +36,11 @@ export default function DriverPassengerProfile() {
   const [totalReviewsCount, setTotalReviewsCount] = useState<number>(0);
   const [averageRating, setAverageRating] = useState<number | null>(null);
   const [reviewsLoading, setReviewsLoading] = useState<boolean>(false);
+  // Modal / review state for driver to review this passenger
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewRating, setReviewRating] = useState<number>(5);
+  const [reviewComment, setReviewComment] = useState<string>('');
+  const [submittingReview, setSubmittingReview] = useState<boolean>(false);
 
   useEffect(() => {
     (async () => {
@@ -49,8 +61,22 @@ export default function DriverPassengerProfile() {
       if (Number.isNaN(passengerId)) return;
       setReviewsLoading(true);
       try {
-        const travelsRes = await travelApiService.getTravelsByPassengerId(passengerId).catch(() => null);
-        const travels: any[] = (travelsRes && (travelsRes as any).travels) || (travelsRes && (travelsRes as any).data && (travelsRes as any).data.travels) || [];
+        // Only try to fetch passenger travels if the requested passenger is the authenticated user.
+        // Backend supports `/travels/passenger` for the authenticated passenger; it doesn't
+        // provide a generic `/travels?usuarioId=...` route. Avoid probing unknown endpoints.
+        let travels: any[] = [];
+        try {
+          const profileRes = await userApi.getProfile().catch(() => null);
+          const currentUserId = profileRes?.success && profileRes.data ? profileRes.data.id : undefined;
+          if (currentUserId !== undefined && Number(currentUserId) === Number(passengerId)) {
+            const travelsRes = await travelApiService.getPassengerTravels().catch(() => null);
+            travels = (travelsRes && (travelsRes as any).data && (travelsRes as any).data.requested) || (travelsRes && (travelsRes as any).data && (travelsRes as any).data.confirmed) || (travelsRes && (travelsRes as any).travels) || [];
+          } else {
+            travels = [];
+          }
+        } catch (e) {
+          travels = [];
+        }
 
         const gatheredReviews: any[] = [];
         const counts: Record<number, number> = {5:0,4:0,3:0,2:0,1:0};
@@ -74,7 +100,7 @@ export default function DriverPassengerProfile() {
                 userAvatar: r.user?.profile_picture ?? r.userAvatar ?? '👤',
                 rating: Math.round(rating) || 0,
                 comment: r.comment ?? r.body ?? r.text ?? '',
-                date: r.created_at ? new Date(r.created_at).toLocaleDateString('es-CL') : (r.date ?? ''),
+                date: r.created_at ? new Date(r.created_at).toISOString().slice(0,10) : (r.date ?? ''),
                 likes: r.likes ?? 0,
               });
             }
@@ -91,10 +117,57 @@ export default function DriverPassengerProfile() {
           }
         }
 
-        setPassengerReviews(gatheredReviews);
-        setRatingCounts(counts);
-        setTotalReviewsCount(total);
-        setAverageRating(total > 0 ? sum / total : null);
+        // If we didn't gather any reviews from travels (e.g. viewing another passenger),
+        // try to fetch their reviews directly from the reviews API.
+        if (gatheredReviews.length > 0) {
+          setPassengerReviews(gatheredReviews);
+          setRatingCounts(counts);
+          setTotalReviewsCount(total);
+          setAverageRating(total > 0 ? sum / total : null);
+        } else {
+          try {
+            const userReviewsRes = await (await import('@/Services/ReviewApiService')).default.getUserReviews(passengerId).catch(() => null);
+            const reviewsArr = (userReviewsRes && (userReviewsRes as any).data && (userReviewsRes as any).data.received) || [];
+            if (Array.isArray(reviewsArr) && reviewsArr.length > 0) {
+              const counts2: Record<number, number> = {5:0,4:0,3:0,2:0,1:0};
+              let total2 = 0;
+              let sum2 = 0;
+              const gathered2: any[] = [];
+              for (const r of reviewsArr) {
+                const rating = Number(r.starts ?? r.stars ?? r.rating ?? NaN);
+                if (!Number.isNaN(rating) && rating >=1 && rating <=5) {
+                  counts2[Math.round(rating)] = (counts2[Math.round(rating)] || 0) + 1;
+                  total2++;
+                  sum2 += Number(rating);
+                }
+                gathered2.push({
+                  id: String(r.id ?? Math.random()),
+                  userName: r.reviewer?.name ?? r.user?.name ?? 'Conductor',
+                  userAvatar: r.reviewer?.profile_picture ?? r.user?.profile_picture ?? '👤',
+                  rating: Math.round(rating) || 0,
+                  comment: r.review ?? r.comment ?? r.body ?? '',
+                  date: r.created_at ? new Date(r.created_at).toISOString().slice(0,10) : (r.date ?? ''),
+                  likes: r.likes ?? 0,
+                });
+              }
+              setPassengerReviews(gathered2);
+              setRatingCounts(counts2);
+              setTotalReviewsCount(total2);
+              setAverageRating(total2 > 0 ? sum2 / total2 : null);
+            } else {
+              setPassengerReviews([]);
+              setRatingCounts({5:0,4:0,3:0,2:0,1:0});
+              setTotalReviewsCount(0);
+              setAverageRating(null);
+            }
+          } catch (e) {
+            console.error('Error fetching user reviews fallback', e);
+            setPassengerReviews([]);
+            setRatingCounts({5:0,4:0,3:0,2:0,1:0});
+            setTotalReviewsCount(0);
+            setAverageRating(null);
+          }
+        }
       } catch (e) {
         console.error('Error fetching passenger travels/reviews', e);
       } finally {
@@ -116,6 +189,84 @@ export default function DriverPassengerProfile() {
   const displayName = useMemo(() => {
     return getParamValue(params.name) ?? passengerProfile?.name ?? 'Pasajero';
   }, [params.name, passengerProfile]);
+
+  const passengerIdValue = useMemo(() => {
+    const raw = getParamValue(params.passengerId ?? params.id ?? params.userId);
+    return raw ? Number(raw) : NaN;
+  }, [params.passengerId, params.id, params.userId]);
+
+  const handleOpenReviewModal = () => {
+    if (Number.isNaN(passengerIdValue)) return;
+    setReviewRating(5);
+    setReviewComment('');
+    setIsReviewModalOpen(true);
+  };
+
+  const handleSubmitReview = async () => {
+    if (Number.isNaN(passengerIdValue)) return;
+    try {
+      setSubmittingReview(true);
+      // Ensure current user is not the same as the target
+      try {
+        const profileRes = await userApi.getProfile().catch(() => null);
+        const currentUserId = profileRes?.success && profileRes.data ? profileRes.data.id : undefined;
+        if (currentUserId !== undefined && Number(currentUserId) === Number(passengerIdValue)) {
+          throw new Error('No puedes calificarte a ti mismo');
+        }
+      } catch (err) {
+        // If we couldn't determine current user id, continue and let backend validate.
+      }
+      // Try to find a travel id where this passenger was confirmed in the driver's travels
+      let travelIdToUse: number | null = null;
+      try {
+        const driverTravelsRes = await travelApiService.getDriverTravels();
+        if (driverTravelsRes.success && driverTravelsRes.travels) {
+          const found = (driverTravelsRes.travels as any[]).find((t) =>
+            Array.isArray(t.passengers?.confirmed) && t.passengers.confirmed.some((p: any) => Number(p.id) === Number(passengerIdValue))
+          );
+          if (found) travelIdToUse = Number(found.id);
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      if (!travelIdToUse) {
+        throw new Error('No se pudo determinar el viaje asociado para esta reseña. Califica desde la pantalla de viaje finalizado.');
+      }
+
+      await reviewApiService.createReview({
+        user_target_id: passengerIdValue,
+        travel_id: travelIdToUse,
+        starts: reviewRating,
+        review: reviewComment,
+      });
+
+      setIsReviewModalOpen(false);
+      // Try to refresh reviews for the passenger
+      try {
+        const userReviews = await (await import('@/Services/ReviewApiService')).default.getUserReviews(passengerIdValue).catch(() => null);
+        const reviewsArr = (userReviews && (userReviews as any).data && (userReviews as any).data.received) || [];
+        if (Array.isArray(reviewsArr) && reviewsArr.length > 0) {
+          setPassengerReviews(reviewsArr.map((r: any) => ({
+            id: String(r.id ?? Math.random()),
+            userName: r.reviewer?.name ?? 'Conductor',
+            userAvatar: r.reviewer?.profile_picture ?? '👤',
+            rating: Math.round(Number(r.starts ?? r.stars ?? r.rating ?? 0)) || 0,
+            comment: r.review ?? r.comment ?? r.body ?? '',
+            date: r.created_at ? new Date(r.created_at).toISOString().slice(0,10) : (r.date ?? ''),
+            likes: r.likes ?? 0,
+          })));
+        }
+      } catch (e) {
+        // ignore
+      }
+    } catch (error: any) {
+      console.error('Error submitting review:', error);
+      Alert.alert('Error', error?.message ?? 'No se pudo enviar la reseña');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -144,24 +295,68 @@ export default function DriverPassengerProfile() {
           <View style={styles.profileInfo}>
             <Text style={styles.passengerName}>{displayName}</Text>
             <Text style={styles.passengerRole}>Pasajero</Text>
-            <Text style={styles.passengerStats}>{passengerProfile?.phone_number ?? getParamValue(params.phone) ?? '—'}</Text>
           </View>
         </View>
 
+        {/* Review modal */}
+        <Modal
+          visible={isReviewModalOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setIsReviewModalOpen(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContainer}>
+              <Text style={styles.modalTitle}>Reseñar a {displayName}</Text>
+              <StarRating rating={reviewRating} onRatingChange={setReviewRating} size={36} color="#F99F7C" />
+              <Text style={styles.commentLabel}>Comentario (opcional)</Text>
+              <TextInput
+                style={styles.reviewComment}
+                value={reviewComment}
+                onChangeText={setReviewComment}
+                placeholder="Escribe tu experiencia..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                numberOfLines={4}
+                maxLength={250}
+              />
+
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={styles.modalButton} onPress={() => setIsReviewModalOpen(false)} disabled={submittingReview}>
+                  <Text style={styles.modalButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.modalButton, submittingReview && styles.modalButtonDisabled]}
+                  onPress={handleSubmitReview}
+                  disabled={submittingReview}
+                >
+                  <Text style={styles.modalButtonText}>{submittingReview ? 'Enviando...' : 'Enviar'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Acerca de</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="user" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Acerca de</Text>
+          </View>
           <Text style={styles.aboutText}>{passengerProfile?.description ?? 'Sin descripción disponible.'}</Text>
         </View>
 
         {/* Reviews Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Reseñas de conductores</Text>
+          <View style={styles.sectionHeader}>
+            <Feather name="message-circle" size={20} color="#F99F7C" />
+            <Text style={styles.descriptionHeader}>Reseñas</Text>
+          </View>
           <View style={styles.ratingOverview}>
             <View style={styles.ratingSummary}>
               <Text style={styles.ratingNumber}>{averageRating ? averageRating.toFixed(2) : '—'}</Text>
               <View style={styles.ratingStars}>
                 {Array.from({ length: 5 }, (_, i) => (
-                  <Text key={i} style={styles.star}>{i < Math.round(averageRating ?? 0) ? '⭐' : '☆'}</Text>
+                  <Text key={i} style={styles.star}>{i < Math.round(averageRating ?? 0) ? <FontAwesome name="star" size={24} color="black" /> : <FontAwesome name="star-o" size={24} color="black" />}</Text>
                 ))}
               </View>
               <Text style={styles.ratingCount}>{totalReviewsCount} reviews</Text>
@@ -188,11 +383,11 @@ export default function DriverPassengerProfile() {
                     <View style={styles.reviewAvatar}><Text style={styles.reviewAvatarText}>{review.userAvatar}</Text></View>
                     <View style={styles.reviewUserDetails}>
                       <Text style={styles.reviewUserName}>{review.userName}</Text>
-                      <Text style={styles.reviewDate}>{review.date}</Text>
+                      <Text style={styles.reviewDate}>{review.date ? String(review.date).slice(0,10) : ''}</Text>
                     </View>
                   </View>
                 </View>
-                <View style={styles.reviewStars}>{Array.from({ length: 5 }, (_, index) => (<Text key={index} style={styles.star}>{index < review.rating ? '⭐' : '☆'}</Text>))}</View>
+                <View style={styles.reviewStars}>{Array.from({ length: 5 }, (_, index) => (<Text key={index} style={styles.star}>{index < review.rating ? <FontAwesome name="star" size={24} color="black" /> : <FontAwesome name="star-o" size={24} color="black" />}</Text>))}</View>
                 <Text style={styles.reviewComment}>{review.comment}</Text>
               </View>
             ))}
@@ -224,9 +419,9 @@ const styles = StyleSheet.create({
   scrollContainer: { flex: 1 },
   profileSection: { alignItems: 'center', paddingVertical: 16, paddingHorizontal: 16 },
   profileImageContainer: { marginBottom: 16 },
-  profileImage: { width: 128, height: 128, borderRadius: 64, backgroundColor: '#F0F2F5', alignItems: 'center', justifyContent: 'center' },
+  profileImage: { width: 128, height: 128, borderRadius: 64, backgroundColor: '#F99F7C', alignItems: 'center', justifyContent: 'center' },
   profileImagePhoto: { width: 128, height: 128, borderRadius: 64 },
-  profileInitial: { fontSize: 48, fontWeight: 'bold', color: '#121417' },
+  profileInitial: { fontSize: 48, fontWeight: 'bold', color: '#FFFFFF' },
   profileInfo: { alignItems: 'center' },
   passengerName: { fontFamily: 'Plus Jakarta Sans', fontWeight: 'bold', fontSize: 22, color: '#121417', textAlign: 'center', marginBottom: 4 },
   passengerRole: { fontFamily: 'Plus Jakarta Sans', fontSize: 16, color: '#61758A', textAlign: 'center', marginBottom: 4 },
@@ -312,4 +507,28 @@ const styles = StyleSheet.create({
   reviewDate: { fontFamily: 'Plus Jakarta Sans', fontSize: 14, lineHeight: 21, color: '#61758A' },
   reviewStars: { flexDirection: 'row', marginBottom: 12, gap: 2 },
   reviewComment: { fontFamily: 'Plus Jakarta Sans', fontSize: 16, lineHeight: 24, color: '#121417', marginBottom: 12 },
+  // New styles for review modal and button
+  reviewButton: { marginTop: 12, backgroundColor: '#F99F7C', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 10 },
+  reviewButtonText: { fontFamily: 'Plus Jakarta Sans', fontWeight: '600', fontSize: 16, color: '#FFFFFF' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContainer: { width: '100%', maxWidth: 640, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 18 },
+  modalTitle: { fontFamily: 'Plus Jakarta Sans', fontWeight: '700', fontSize: 18, color: '#121417', marginBottom: 12 },
+  commentLabel: { fontFamily: 'Plus Jakarta Sans', fontSize: 14, color: '#121417', marginTop: 12, marginBottom: 8 },
+  modalActions: { flexDirection: 'row', justifyContent: 'space-between', gap: 8, marginTop: 16 },
+  modalButton: { flex: 1, paddingVertical: 12, backgroundColor: '#F99F7C', borderRadius: 8, alignItems: 'center', marginHorizontal: 4 },
+  modalButtonText: { fontFamily: 'Plus Jakarta Sans', fontWeight: '600', fontSize: 16, color: '#FFFFFF' },
+  modalButtonDisabled: { backgroundColor: '#94A3B8' },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 4,
+  },
+  descriptionHeader: {
+    fontSize: 22,
+    fontFamily: "PlusJakartaSans-Bold",
+    fontStyle: "normal",
+    lineHeight: 26,
+    color: "#121417",
+  },
 });

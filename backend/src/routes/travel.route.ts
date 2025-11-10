@@ -50,12 +50,20 @@ router.get(
   travelController.getDriverTravels.bind(travelController)
 );
 
+// GET /api/travels/driver/:id - Obtener viajes de un conductor por su id (para vistas públicas)
+router.get(
+  "/driver/:id",
+  authenticateToken,
+  travelController.getTravelsByDriverById?.bind(travelController)
+);
+
 // GET /api/travels/:id/requests - Obtener solicitudes de un viaje específico
 router.get(
   "/:id/requests",
   authenticateToken,
   travelController.getTravelRequests.bind(travelController)
 );
+
 
 // GET /api/travels/:id/messages - Obtener historial de chat del viaje
 router.get(
@@ -76,6 +84,13 @@ router.put(
   "/:id/complete",
   authenticateToken,
   travelController.completeTravel.bind(travelController)
+);
+
+// PUT /api/travels/:id/start - Iniciar un viaje
+router.put(
+  "/:id/start",
+  authenticateToken,
+  travelController.startTravel.bind(travelController)
 );
 
 // DELETE /api/travels/:id - Cancelar viaje
@@ -99,6 +114,13 @@ router.get(
   "/passenger",
   authenticateToken,
   travelController.getPassengerTravels.bind(travelController)
+);
+
+// GET /api/travels/:id - Obtener un viaje por id
+router.get(
+  "/:id",
+  authenticateToken,
+  travelController.getTravelById.bind(travelController)
 );
 
 // POST /api/travels/:id/request - Solicitar unirse a un viaje

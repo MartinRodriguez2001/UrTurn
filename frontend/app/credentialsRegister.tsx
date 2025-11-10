@@ -258,7 +258,8 @@ export default function CredentialRegister() {
             <Feather name="arrow-left" size={22} color="#121417" />
           </TouchableOpacity>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Documentos</Text>
+            <Text style={styles.title}>Verificación de Documentos</Text>
+            <Text style={styles.subtitle}>Confirma tu identidad estudiantil</Text>
           </View>
         </View>
 
@@ -274,7 +275,10 @@ export default function CredentialRegister() {
 
           {/* Institution Credential Section */}
           <View style={styles.documentSection}>
-            <Text style={styles.documentTitle}>📋 Credencial Institucional</Text>
+            <View style={styles.documentTitleContainer}>
+              <Feather name="credit-card" size={20} color="#F99F7C" />
+              <Text style={styles.documentTitle}>Credencial Institucional</Text>
+            </View>
             <Text style={styles.documentDescription}>
               Sube una foto clara de tu credencial universitaria o carnet estudiantil
             </Text>
@@ -285,7 +289,7 @@ export default function CredentialRegister() {
                   <Image source={{ uri: institutionCredential }} style={styles.documentImage} />
                 ) : (
                   <View style={styles.documentFile}>
-                    <Text style={styles.documentFileIcon}>📄</Text>
+                    <Feather name="file-text" size={32} color="#2E86AB" />
                     <Text style={styles.documentFileName}>Documento adjuntado</Text>
                   </View>
                 )}
@@ -301,7 +305,7 @@ export default function CredentialRegister() {
                 style={styles.uploadButton}
                 onPress={selectInstitutionCredential}
               >
-                <Text style={styles.uploadIcon}>📷</Text>
+                <Feather name="upload" size={32} color="#FFFFFF" />
                 <Text style={styles.uploadText}>Adjuntar Credencial</Text>
               </TouchableOpacity>
             )}
@@ -309,7 +313,10 @@ export default function CredentialRegister() {
 
           {/* Student Certificate Section */}
           <View style={styles.documentSection}>
-            <Text style={styles.documentTitle}>🎓 Certificado de Alumno Regular</Text>
+            <View style={styles.documentTitleContainer}>
+              <Feather name="award" size={20} color="#F99F7C" />
+              <Text style={styles.documentTitle}>Certificado de Alumno Regular</Text>
+            </View>
             <Text style={styles.documentDescription}>
               Sube tu certificado de alumno regular vigente (puede ser PDF o imagen)
             </Text>
@@ -320,7 +327,7 @@ export default function CredentialRegister() {
                   <Image source={{ uri: studentCertificate }} style={styles.documentImage} />
                 ) : (
                   <View style={styles.documentFile}>
-                    <Text style={styles.documentFileIcon}>📄</Text>
+                    <Feather name="file-text" size={32} color="#2E86AB" />
                     <Text style={styles.documentFileName}>Documento adjuntado</Text>
                   </View>
                 )}
@@ -336,7 +343,7 @@ export default function CredentialRegister() {
                 style={styles.uploadButton}
                 onPress={selectStudentCertificate}
               >
-                <Text style={styles.uploadIcon}>📷</Text>
+                <Feather name="upload" size={32} color="#FFFFFF" />
                 <Text style={styles.uploadText}>Adjuntar Certificado</Text>
               </TouchableOpacity>
             )}
@@ -344,11 +351,26 @@ export default function CredentialRegister() {
 
           {/* Instructions */}
           <View style={styles.instructionsContainer}>
-            <Text style={styles.instructionsTitle}>💡 Consejos importantes:</Text>
-            <Text style={styles.instructionText}>• Los documentos deben estar vigentes</Text>
-            <Text style={styles.instructionText}>• Las fotos deben ser claras y legibles</Text>
-            <Text style={styles.instructionText}>• Puedes usar PDF para el certificado</Text>
-            <Text style={styles.instructionText}>• La verificación puede tomar 24-48 horas</Text>
+            <View style={styles.instructionsTitleContainer}>
+              <Feather name="info" size={20} color="#F59E0B" />
+              <Text style={styles.instructionsTitle}>Consejos importantes:</Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Feather name="check-circle" size={16} color="#10B981" />
+              <Text style={styles.instructionText}>Los documentos deben estar vigentes</Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Feather name="check-circle" size={16} color="#10B981" />
+              <Text style={styles.instructionText}>Las fotos deben ser claras y legibles</Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Feather name="check-circle" size={16} color="#10B981" />
+              <Text style={styles.instructionText}>Puedes usar PDF para el certificado</Text>
+            </View>
+            <View style={styles.instructionItem}>
+              <Feather name="check-circle" size={16} color="#10B981" />
+              <Text style={styles.instructionText}>La verificación puede tomar 24-48 horas</Text>
+            </View>
           </View>
         </View>
 
@@ -416,16 +438,24 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    height: 23,
     alignItems: "center",
     paddingRight: 48,
+    paddingVertical: 8,
   },
   title: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
-    fontSize: 18,
-    lineHeight: 23,
+    fontSize: 20,
+    lineHeight: 25,
     color: "#121417",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  subtitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    lineHeight: 16,
+    color: "#876363",
     textAlign: "center",
   },
   contentContainer: {
@@ -457,15 +487,22 @@ const styles = StyleSheet.create({
   documentSection: {
     marginBottom: 24,
     backgroundColor: "#F8F9FA",
-    padding: 16,
+    padding: 20,
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  documentTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
   },
   documentTitle: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
     fontSize: 18,
     color: "#121417",
-    marginBottom: 8,
+    marginLeft: 8,
   },
   documentDescription: {
     fontFamily: "Plus Jakarta Sans",
@@ -477,22 +514,28 @@ const styles = StyleSheet.create({
   uploadButton: {
     backgroundColor: "#F99F7C",
     height: 100,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    borderWidth: 3,
     borderColor: "#F99F7C",
     borderStyle: "dashed",
-  },
-  uploadIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    elevation: 2,
+    shadowColor: "#F99F7C",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   uploadText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 16,
     fontWeight: "bold",
     color: "#FFFFFF",
+    marginTop: 8,
+    letterSpacing: 0.5,
   },
   documentPreview: {
     alignItems: "center",
@@ -508,52 +551,66 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 100,
     backgroundColor: "#E8F4FD",
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
-  },
-  documentFileIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
   },
   documentFileName: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
-    color: "#2E86AB",
-    fontWeight: "500",
+    color: "#1E40AF",
+    fontWeight: "600",
+    marginTop: 8,
   },
   changeDocumentButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: "#F5F0F0",
-    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    backgroundColor: "#F8F9FA",
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   changeDocumentText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
-    color: "#876363",
-    fontWeight: "500",
+    color: "#374151",
+    fontWeight: "600",
   },
   instructionsContainer: {
-    backgroundColor: "#FFF8E1",
-    padding: 16,
-    borderRadius: 8,
+    backgroundColor: "#FEF3C7",
+    padding: 20,
+    borderRadius: 12,
     marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#FDE68A",
+  },
+  instructionsTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
   },
   instructionsTitle: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 16,
     fontWeight: "bold",
-    color: "#121417",
+    color: "#92400E",
+    marginLeft: 8,
+  },
+  instructionItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
     marginBottom: 8,
   },
   instructionText: {
     fontFamily: "Plus Jakarta Sans",
     fontSize: 14,
-    color: "#61758A",
+    color: "#78350F",
     lineHeight: 20,
-    marginBottom: 4,
+    marginLeft: 8,
+    flex: 1,
   },
   buttonsContainer: {
     paddingHorizontal: 16,
@@ -561,17 +618,26 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     backgroundColor: "#F99F7C",
-    height: 48,
-    borderRadius: 8,
+    height: 52,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
+    elevation: 2,
+    shadowColor: "#F99F7C",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   continueButtonText: {
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "bold",
     fontSize: 16,
     color: "#FFFFFF",
+    letterSpacing: 0.5,
   },
   buttonDisabled: {
     opacity: 0.6,
