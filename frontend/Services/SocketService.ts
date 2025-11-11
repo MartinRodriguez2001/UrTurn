@@ -23,29 +23,36 @@ const createSocketConnection = async (): Promise<Socket> => {
   }
 
   const instance = io(getSocketUrl(), {
-    transports: ['websocket'],
+    transports: ['websocket', 'polling'], // Allow both websocket and polling
     auth: {
       token
     },
     autoConnect: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 500,
-    reconnectionDelayMax: 3_000
+    reconnectionDelayMax: 3_000,
+    upgrade: true, // Allow upgrading from polling to websocket
+    rememberUpgrade: true
   });
 
   return new Promise<Socket>((resolve, reject) => {
     const handleConnect = () => {
+      console.log('✅ Socket.IO conectado exitosamente');
       instance.off('connect_error', handleError);
       resolve(instance);
     };
 
     const handleError = (error: Error) => {
+      console.error('❌ Error conectando Socket.IO:', error.message);
       instance.off('connect', handleConnect);
       reject(error);
     };
 
     instance.once('connect', handleConnect);
     instance.once('connect_error', handleError);
+
+    // Log connection attempts
+    console.log('🔄 Intentando conectar Socket.IO a:', getSocketUrl());
   });
 };
 
