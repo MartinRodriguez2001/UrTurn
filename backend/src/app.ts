@@ -18,14 +18,10 @@ const app = express();
 const prisma = new PrismaClient();
 
 app.use(helmet());
+
+// CORS - Accept all origins
 app.use(cors({
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:5173',  
-    'http://localhost:8081',  // Expo Dev Tools
-    'http://localhost:8082',  // Frontend React Native
-    'http://localhost:19006', // Expo Web
-  ],
+  origin: true, // Accept all origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

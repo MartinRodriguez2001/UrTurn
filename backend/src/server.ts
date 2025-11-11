@@ -19,14 +19,9 @@ type SocketData = {
 
 const io = new Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, SocketData>(server, {
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:8081',
-      'http://localhost:8082',
-      'http://localhost:19006',
-    ],
-    credentials: true
+    origin: true, // Accept all origins
+    credentials: true,
+    methods: ['GET', 'POST']
   }
 });
 
