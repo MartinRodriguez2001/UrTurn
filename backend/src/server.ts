@@ -19,14 +19,29 @@ type SocketData = {
 
 const io = new Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, SocketData>(server, {
   cors: {
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:8081',
-      'http://localhost:8082',
-      'http://localhost:19006',
-    ],
-    credentials: true
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      // Allow Expo Go and any local network IP in development
+      if (
+        origin.includes('expo.dev') ||
+        origin.startsWith('exp://') ||
+        origin.startsWith('http://192.168.') ||
+        origin.startsWith('http://10.0.') ||
+        origin.startsWith('http://localhost') ||
+        origin.startsWith('http://127.0.0.1') ||
+        origin === 'https://urturn-copy-production.up.railway.app'
+      ) {
+        return callback(null, true);
+      }
+
+      callback(null, false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST']
   }
 });
 
@@ -141,7 +156,8 @@ io.on('connection', (socket) => {
 
 server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`HTTP + Socket.IO escuchando en http://0.0.0.0:${PORT}`);
-  console.log(`Disponible en red local: http://192.168.0.9:${PORT}`);
+  console.log(`Disponible en red local: http://192.168.0.101:${PORT}`);
+  console.log(`API Base URL: http://192.168.0.101:${PORT}/api`);
 });
 
 process.on('SIGTERM', async () => {

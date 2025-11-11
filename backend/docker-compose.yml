@@ -20,7 +20,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: urturn-backend
     ports:
       - "3000:3000"
@@ -30,6 +30,7 @@ services:
       NODE_ENV: development
       JWT_SECRET: urturn_super_secret_key_change_in_production_2024
       JWT_EXPIRES_IN: 7d
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:-}
     depends_on:
       postgres:
         condition: service_healthy
