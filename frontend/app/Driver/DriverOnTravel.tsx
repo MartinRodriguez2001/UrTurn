@@ -22,7 +22,7 @@ import MapView, {
   Polyline,
   PROVIDER_GOOGLE,
   type MapViewProps,
-} from "react-native-maps";
+} from "@/components/common/MapView";
 
 type Passenger = {
   id: string | number;
@@ -417,6 +417,7 @@ export default function DriverOnTravel() {
 
   const mapRef = useRef<MapView | null>(null);
   const locationSubscriptionRef = useRef<Location.LocationSubscription | null>(null);
+  const webLocationWatchIdRef = useRef<number | null>(null);
   const hasFitRouteRef = useRef(false);
   const lastCameraUpdateRef = useRef(0);
   useEffect(() => {
@@ -516,6 +517,71 @@ export default function DriverOnTravel() {
 
     const startLocationTracking = async () => {
       try {
+        // Web platform: use the browser geolocation API to avoid internal
+        // expo-location event emitter issues on web builds.
+        if (Platform.OS === "web") {
+          try {
+            // Try to get a current position first
+            if (navigator?.geolocation?.getCurrentPosition) {
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  if (!isMounted) return;
+                  setCurrentLocation({
+                    latitude: pos.coords.latitude,
+                    longitude: pos.coords.longitude,
+                    accuracy: pos.coords.accuracy ?? 0,
+                    altitude: pos.coords.altitude ?? 0,
+                    heading: pos.coords.heading ?? 0,
+                    speed: pos.coords.speed ?? null,
+                    altitudeAccuracy: pos.coords.altitudeAccuracy ?? null,
+                  } as Location.LocationObjectCoords);
+                },
+                (err) => {
+                  if (!isMounted) return;
+                  setLocationError(err?.message || String(err));
+                },
+                { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+              );
+            }
+
+            // Clear any previous watch
+            if (webLocationWatchIdRef.current != null) {
+              navigator.geolocation.clearWatch(webLocationWatchIdRef.current);
+              webLocationWatchIdRef.current = null;
+            }
+
+            const id = navigator.geolocation.watchPosition(
+              (pos) => {
+                if (!isMounted) return;
+                setCurrentLocation({
+                  latitude: pos.coords.latitude,
+                  longitude: pos.coords.longitude,
+                  accuracy: pos.coords.accuracy ?? 0,
+                  altitude: pos.coords.altitude ?? 0,
+                  heading: pos.coords.heading ?? 0,
+                  speed: pos.coords.speed ?? null,
+                  altitudeAccuracy: pos.coords.altitudeAccuracy ?? null,
+                } as Location.LocationObjectCoords);
+              },
+              (err) => {
+                if (!isMounted) return;
+                setLocationError(err?.message || String(err));
+              },
+              { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+            );
+
+            webLocationWatchIdRef.current = typeof id === "number" ? id : Number(id);
+            setLocationStatus("granted");
+            setLocationError(null);
+            return;
+          } catch (e) {
+            console.warn("No se pudo iniciar seguimiento geolocation web", e);
+            if (isMounted) setLocationError("Error al obtener la ubicación actual.");
+            return;
+          }
+        }
+
+        // Native platforms: use expo-location as before
         const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
         let status = existingStatus;
 
@@ -544,6 +610,7 @@ export default function DriverOnTravel() {
           setCurrentLocation(lastKnown.coords);
         }
 
+        // remove previous expo-location subscription if present
         locationSubscriptionRef.current?.remove();
 
         const subscription = await Location.watchPositionAsync(
@@ -576,8 +643,23 @@ export default function DriverOnTravel() {
 
     return () => {
       isMounted = false;
-      locationSubscriptionRef.current?.remove();
-      locationSubscriptionRef.current = null;
+      if (Platform.OS === "web") {
+        if (webLocationWatchIdRef.current != null && navigator?.geolocation?.clearWatch) {
+          try {
+            navigator.geolocation.clearWatch(webLocationWatchIdRef.current);
+          } catch (e) {
+            // ignore
+          }
+          webLocationWatchIdRef.current = null;
+        }
+      } else {
+        try {
+          locationSubscriptionRef.current?.remove();
+        } catch (e) {
+          // ignore
+        }
+        locationSubscriptionRef.current = null;
+      }
     };
   }, []);
   useEffect(() => {

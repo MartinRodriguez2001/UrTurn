@@ -5,10 +5,11 @@ import TravelRouteSection from "@/components/travel/TravelRouteSection";
 import TravelScheduleSection from "@/components/travel/TravelScheduleSection";
 import travelApiService from "@/Services/TravelApiService";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
+import { openWebDatePicker, openWebTimePicker } from "@/utils/webDateTime";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Alert,
   Platform,
@@ -108,6 +109,34 @@ export default function PassengerSearchRider() {
     pickup.setHours(travelTime.getHours(), travelTime.getMinutes(), 0, 0);
     return pickup;
   };
+
+  const openDatePicker = useCallback(async () => {
+    if (Platform.OS === "web") {
+      const selected = await openWebDatePicker({
+        initialDate: travelDate,
+        minDate: new Date(),
+        maxDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      if (selected) {
+        applySelectedDate(selected);
+      }
+      return;
+    }
+    setShowDatePicker(true);
+  }, [travelDate, applySelectedDate]);
+
+  const openTimePicker = useCallback(async () => {
+    if (Platform.OS === "web") {
+      const selected = await openWebTimePicker({
+        initialTime: travelTime,
+      });
+      if (selected) {
+        applySelectedTime(selected);
+      }
+      return;
+    }
+    setShowTimePicker(true);
+  }, [travelTime, applySelectedTime]);
 
   const validateForm = () => {
     const newErrors: { origin?: string; destination?: string; time?: string } = {};
@@ -268,8 +297,8 @@ export default function PassengerSearchRider() {
           <TravelScheduleSection
             dateValue={formattedDate}
             timeValue={formattedTime}
-            onPressDate={() => setShowDatePicker(true)}
-            onPressTime={() => setShowTimePicker(true)}
+            onPressDate={openDatePicker}
+            onPressTime={openTimePicker}
             timeError={errors.time}
           />
 
@@ -412,4 +441,3 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 });
-

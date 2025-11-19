@@ -222,15 +222,29 @@ export default function DriverProfile() {
       .slice(0, 2);
   };
 
+  const openSettingsPlaceholder = (
+    title: string,
+    description: string,
+    context?: string,
+  ) => {
+    router.push({
+      pathname: "/settings/placeholder",
+      params: { title, description, context },
+    });
+  };
+
   const handleChangeProfilePhoto = () => {
-    console.log("Cambiar foto de perfil");
+    openSettingsPlaceholder(
+      "Editar foto de perfil",
+      "Podrás actualizar tu foto para que pasajeros y conductores te reconozcan fácilmente.",
+      "Incluiremos un selector de imágenes con recorte automático y verificación de identidad.",
+    );
   };
 
   const executeLogout = async () => {
     try {
       setProcessingLogout(true);
       await logout();
-      router.replace("/");
     } catch (error) {
       console.error("❌ Error al cerrar sesión:", error);
       Alert.alert("Error", "No se pudo cerrar sesión. Intenta nuevamente.");
@@ -244,6 +258,11 @@ export default function DriverProfile() {
       return;
     }
 
+    const performLogout = async () => {
+      await executeLogout();
+      router.replace("/ChooseModeScreen");
+    };
+
     Alert.alert(
       "Cerrar sesión",
       "¿Quieres cerrar sesión para ingresar con otra cuenta?",
@@ -252,7 +271,7 @@ export default function DriverProfile() {
         {
           text: "Cerrar sesión",
           style: "destructive",
-          onPress: executeLogout,
+          onPress: performLogout,
         },
       ]
     );
@@ -290,7 +309,8 @@ export default function DriverProfile() {
       }
 
       await logout();
-      router.replace("/");
+      Alert.alert("Cuenta eliminada", "Tu cuenta se eliminó correctamente.");
+      router.replace("/ChooseModeScreen");
     } catch (error) {
       console.error("❌ Error al eliminar la cuenta:", error);
       Alert.alert(
@@ -525,7 +545,16 @@ export default function DriverProfile() {
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>General</Text>
               
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Editar perfil",
+                    "Pronto podrás actualizar tu información personal directamente desde la aplicación.",
+                    "Podrás cambiar tu descripción, foto y datos de contacto que ven los pasajeros.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="user" size={20} color="#F99F7C" />
@@ -535,7 +564,16 @@ export default function DriverProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Notificaciones",
+                    "Administra qué alertas recibes en tu teléfono o PWA.",
+                    "Configura avisos para solicitudes de viaje, chat y publicaciones confirmadas.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="bell" size={20} color="#F99F7C" />
@@ -545,7 +583,16 @@ export default function DriverProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Privacidad",
+                    "Decide qué información del conductor es visible para los pasajeros.",
+                    "Incluiremos controles para mostrar u ocultar datos personales y reseñas.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="shield" size={20} color="#F99F7C" />
@@ -560,7 +607,16 @@ export default function DriverProfile() {
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Conductor</Text>
               
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Gestionar vehículos",
+                    "Desde aquí administrarás tus autos registrados en UrTurn.",
+                    "Podrás agregar, editar o eliminar vehículos y subir documentación.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="truck" size={20} color="#F99F7C" />
@@ -570,7 +626,16 @@ export default function DriverProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Historial de viajes",
+                    "Consulta el detalle de tus viajes como conductor.",
+                    "Incluiremos filtros por fecha, ganancias e historial de pasajeros.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="map" size={20} color="#F99F7C" />
@@ -580,7 +645,16 @@ export default function DriverProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Ganancias",
+                    "Supervisa tus ingresos como conductor dentro de la app.",
+                    "Podrás ver resúmenes semanales, exportar reportes y registrar pagos recibidos.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="dollar-sign" size={20} color="#F99F7C" />
@@ -595,7 +669,16 @@ export default function DriverProfile() {
             <View style={styles.modalSection}>
               <Text style={styles.modalSectionTitle}>Ayuda y soporte</Text>
               
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Centro de ayuda",
+                    "Accede a artículos y preguntas frecuentes para resolver dudas.",
+                    "Incluiremos tutoriales, políticas de seguridad y guías para publicar viajes.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="help-circle" size={20} color="#F99F7C" />
@@ -605,7 +688,16 @@ export default function DriverProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Contactar soporte",
+                    "Habla con el equipo de UrTurn para obtener asistencia personalizada.",
+                    "Podrás levantar tickets, adjuntar fotos y hacer seguimiento a incidentes.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="message-circle" size={20} color="#F99F7C" />
@@ -615,7 +707,16 @@ export default function DriverProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Términos y condiciones",
+                    "Revisa el detalle legal del servicio y tus obligaciones como conductor.",
+                    "Mostraremos enlaces actualizados con las políticas que aceptas al utilizar UrTurn.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="file-text" size={20} color="#F99F7C" />
@@ -625,7 +726,16 @@ export default function DriverProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.modalOption}>
+              <TouchableOpacity
+                style={styles.modalOption}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Política de privacidad",
+                    "Conoce cómo tratamos tus datos personales y de viaje.",
+                    "Incluiremos información sobre retención de datos, seguridad y derechos ARCO.",
+                  )
+                }
+              >
                 <View style={styles.modalOptionContent}>
                   <View style={styles.settingsItemIcon}>
                     <Feather name="lock" size={20} color="#F99F7C" />

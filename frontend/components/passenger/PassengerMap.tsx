@@ -1,5 +1,6 @@
 import React from 'react';
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import { Platform } from 'react-native';
+import MapView, { Marker, PROVIDER_GOOGLE } from '@/components/common/MapView';
 import type { PassengerMapProps } from './PassengerMap.types';
 
 type MapGestureEvent = {
@@ -55,18 +56,27 @@ const PassengerMap: React.FC<PassengerMapProps> = ({
         [selectCoordinate],
     );
 
+    const isWeb = Platform.OS === 'web';
+    const regionProps = isWeb
+        ? {
+            initialRegion: region ?? defaultRegion,
+        }
+        : {
+            region,
+            initialRegion: defaultRegion,
+        };
+
     return (
         <MapView
             ref={mapRef}
             style={style}
             provider={PROVIDER_GOOGLE}
-            region={region}
-            initialRegion={defaultRegion}
+            {...regionProps}
             showsBuildings
             showsCompass
             showsIndoors={false}
             toolbarEnabled={false}
-            onRegionChangeComplete={onRegionChangeComplete}
+            onRegionChangeComplete={isWeb ? undefined : onRegionChangeComplete}
             onPress={handleMapPress}
             onLongPress={handleMapLongPress}
             showsUserLocation={showsUserLocation}

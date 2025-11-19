@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from "@/components/common/MapView";
 
 type PassengerDetails = {
   id: number | string;
