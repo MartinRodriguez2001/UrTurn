@@ -1,19 +1,19 @@
 import * as Location from "@/Services/LocationService";
+import { loadGoogleMapsApi } from "@/utils/googleMapsLoader";
 import React from "react";
 import {
-  ActivityIndicator,
-  Modal,
-  Platform,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Modal,
+    Platform,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import PassengerMap from "../passenger/PassengerMap";
 import type { MapCoordinate, MapRegion } from "../passenger/PassengerMap.types";
-import { loadGoogleMapsApi } from "@/utils/googleMapsLoader";
 
 type PlacesAutocompletePrediction = {
   description: string;

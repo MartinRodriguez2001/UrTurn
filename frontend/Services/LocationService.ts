@@ -1,5 +1,5 @@
-import { Platform } from "react-native";
 import * as ExpoLocation from "expo-location";
+import { Platform } from "react-native";
 
 type PermissionResponse = { status: string };
 

@@ -1,3 +1,9 @@
+import MapView, {
+    Marker,
+    Polyline,
+    PROVIDER_GOOGLE,
+    type MapViewProps,
+} from "@/components/common/MapView";
 import { getSocket } from '@/Services/SocketService';
 import travelApiService from "@/Services/TravelApiService";
 import type { TravelCoordinate, TravelPlannedStop } from "@/types/travel";
@@ -8,21 +14,15 @@ import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import MapView, {
-  Marker,
-  Polyline,
-  PROVIDER_GOOGLE,
-  type MapViewProps,
-} from "@/components/common/MapView";
 
 type Passenger = {
   id: string | number;
