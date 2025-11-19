@@ -34,13 +34,26 @@ class NotificationService {
   private isInitialized: boolean = false;
 
   constructor() {
-    this.setupNotificationHandling();
+    if (this.isPlatformSupported()) {
+      this.setupNotificationHandling();
+    }
+  }
+
+  /**
+   * Determina si la plataforma actual soporta las APIs nativas de expo-notifications
+   */
+  public isPlatformSupported(): boolean {
+    return Platform.OS !== 'web';
   }
 
   /**
    * Configuración inicial del manejo de notificaciones
    */
   private setupNotificationHandling() {
+    if (!this.isPlatformSupported()) {
+      return;
+    }
+
     // Configurar cómo se muestran las notificaciones cuando la app está en primer plano
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -58,6 +71,11 @@ class NotificationService {
    */
   async initialize(): Promise<boolean> {
     try {
+      if (!this.isPlatformSupported()) {
+        console.warn('Las notificaciones push nativas no están disponibles en web.');
+        return false;
+      }
+
       if (this.isInitialized) {
         return true;
       }
@@ -101,6 +119,14 @@ class NotificationService {
    */
   async requestPermissions(): Promise<NotificationPermissionStatus> {
     try {
+      if (!this.isPlatformSupported()) {
+        return {
+          granted: false,
+          canAskAgain: false,
+          status: Notifications.PermissionStatus.DENIED,
+        };
+      }
+
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       
       let finalStatus = existingStatus;
@@ -148,6 +174,11 @@ class NotificationService {
    */
   async getExpoPushToken(): Promise<string | null> {
     try {
+      if (!this.isPlatformSupported()) {
+        console.warn('Expo Push no está disponible en web sin configurar Web Push (VAPID).');
+        return null;
+      }
+
       if (this.expoPushToken) {
         return this.expoPushToken;
       }
@@ -219,6 +250,11 @@ class NotificationService {
    */
   async showLocalNotification(payload: LocalNotificationPayload): Promise<string | null> {
     try {
+      if (!this.isPlatformSupported()) {
+        console.warn('Las notificaciones locales no están disponibles en web actualmente.');
+        return null;
+      }
+
       const permissions = await this.requestPermissions();
       if (!permissions.granted) {
         console.warn('No se pueden mostrar notificaciones: permisos denegados');
@@ -251,6 +287,10 @@ class NotificationService {
    */
   async cancelAllNotifications(): Promise<void> {
     try {
+      if (!this.isPlatformSupported()) {
+        return;
+      }
+
       await Notifications.cancelAllScheduledNotificationsAsync();
       console.log('Todas las notificaciones pendientes canceladas');
     } catch (error) {
@@ -263,6 +303,10 @@ class NotificationService {
    */
   async clearBadge(): Promise<void> {
     try {
+      if (!this.isPlatformSupported()) {
+        return;
+      }
+
       await Notifications.setBadgeCountAsync(0);
     } catch (error) {
       console.error('Error al limpiar badge:', error);
@@ -338,6 +382,10 @@ class NotificationService {
     onNotificationReceived?: (notification: Notifications.Notification) => void,
     onNotificationTapped?: (response: Notifications.NotificationResponse) => void
   ) {
+    if (!this.isPlatformSupported()) {
+      return () => undefined;
+    }
+
     // Listener para notificaciones recibidas mientras la app está abierta
     const receivedListener = Notifications.addNotificationReceivedListener((notification) => {
       console.log('Notificación recibida:', notification);

@@ -18,7 +18,7 @@ import MapView, {
   Polyline,
   PROVIDER_GOOGLE,
   type Region,
-} from "react-native-maps";
+} from "@/components/common/MapView";
 
 type Coordinate = { latitude: number; longitude: number };
 
@@ -386,16 +386,7 @@ export default function PassengerConfirmation() {
         pickupTime,
       });
 
-      Alert.alert(
-        "Solicitud enviada",
-        "Avisaremos al conductor que quieres unirte a su viaje.",
-        [
-          {
-            text: "Ver mis viajes",
-            onPress: () => router.replace("/Passenger/PassengerHomePage"),
-          },
-        ],
-      );
+      router.replace("/Passenger/PassengerHomePage");
     } catch (error) {
       const message =
         error instanceof Error

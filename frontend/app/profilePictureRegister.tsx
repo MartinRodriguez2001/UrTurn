@@ -6,6 +6,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Platform,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -13,10 +14,33 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+
+const convertUriToBase64 = async (uri: string): Promise<string | null> => {
+  try {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    if (blob.size > MAX_IMAGE_BYTES) {
+      Alert.alert('Archivo muy grande', 'Selecciona una imagen de hasta 4 MB.');
+      return null;
+    }
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => reject(new Error('No se pudo procesar la imagen'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error convirtiendo imagen a base64:', error);
+    Alert.alert('Error', 'No se pudo procesar la imagen seleccionada.');
+    return null;
+  }
+};
 
 export default function ProfilePictureRegister() {
   const router = useRouter();
   const { name, email, password, phoneNumber, description } = useLocalSearchParams();
+  const isWeb = Platform.OS === 'web';
   
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -43,7 +67,14 @@ export default function ProfilePictureRegister() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
+        if (isWeb) {
+          const base64 = await convertUriToBase64(result.assets[0].uri);
+          if (base64) {
+            setImageUri(base64);
+          }
+        } else {
+          setImageUri(result.assets[0].uri);
+        }
       }
     } catch (error) {
       console.error('Error al seleccionar imagen:', error);
@@ -72,7 +103,14 @@ export default function ProfilePictureRegister() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        setImageUri(result.assets[0].uri);
+        if (isWeb) {
+          const base64 = await convertUriToBase64(result.assets[0].uri);
+          if (base64) {
+            setImageUri(base64);
+          }
+        } else {
+          setImageUri(result.assets[0].uri);
+        }
       }
     } catch (error) {
       console.error('Error al tomar foto:', error);

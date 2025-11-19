@@ -17,9 +17,35 @@ import {
 } from "react-native";
 import { useAuth } from '../context/authContext';
 
+const MAX_FILE_BYTES = 4 * 1024 * 1024;
+
+const convertUriToBase64 = async (uri: string): Promise<string | null> => {
+  try {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    if (blob.size > MAX_FILE_BYTES) {
+      Alert.alert('Archivo muy grande', 'Selecciona un archivo de hasta 4 MB.');
+      return null;
+    }
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(typeof reader.result === 'string' ? reader.result : null);
+      };
+      reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error convirtiendo archivo a base64:', error);
+    Alert.alert('Error', 'No se pudo procesar el archivo seleccionado.');
+    return null;
+  }
+};
+
 export default function CredentialRegister() {
   const router = useRouter();
   const { register } = useAuth();
+  const isWeb = Platform.OS === 'web';
   
   // Recibir datos de la pantalla anterior (profilePictureRegister)
   const { name, email, password, phoneNumber, description, profilePicture } = useLocalSearchParams();
@@ -29,6 +55,11 @@ export default function CredentialRegister() {
   const [loading, setLoading] = useState(false);
 
   const selectInstitutionCredential = async () => {
+    if (isWeb) {
+      await pickDocument('credential');
+      return;
+    }
+
     Alert.alert(
       'Credencial Institucional',
       'Selecciona tu credencial institucional',
@@ -55,6 +86,11 @@ export default function CredentialRegister() {
 
   // Función para seleccionar certificado de alumno regular
   const selectStudentCertificate = async () => {
+    if (isWeb) {
+      await pickDocument('certificate');
+      return;
+    }
+
     Alert.alert(
       'Certificado de Alumno Regular',
       'Selecciona tu certificado de alumno regular',
@@ -79,7 +115,32 @@ export default function CredentialRegister() {
     );
   };
 
+  const setDocumentValue = async (type: 'credential' | 'certificate', uri: string) => {
+    if (isWeb) {
+      const base64 = await convertUriToBase64(uri);
+      if (!base64) {
+        return;
+      }
+      if (type === 'credential') {
+        setInstitutionCredential(base64);
+      } else {
+        setStudentCertificate(base64);
+      }
+    } else {
+      if (type === 'credential') {
+        setInstitutionCredential(uri);
+      } else {
+        setStudentCertificate(uri);
+      }
+    }
+  };
+
   const takePhoto = async (type: 'credential' | 'certificate') => {
+    if (isWeb) {
+      await pickDocument(type);
+      return;
+    }
+
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       
@@ -99,11 +160,7 @@ export default function CredentialRegister() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        if (type === 'credential') {
-          setInstitutionCredential(result.assets[0].uri);
-        } else {
-          setStudentCertificate(result.assets[0].uri);
-        }
+        await setDocumentValue(type, result.assets[0].uri);
       }
     } catch (error) {
       console.error(`Error al tomar foto del ${type}:`, error);
@@ -112,6 +169,11 @@ export default function CredentialRegister() {
   };
 
   const pickImage = async (type: 'credential' | 'certificate') => {
+    if (isWeb) {
+      await pickDocument(type);
+      return;
+    }
+
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
@@ -132,11 +194,7 @@ export default function CredentialRegister() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        if (type === 'credential') {
-          setInstitutionCredential(result.assets[0].uri);
-        } else {
-          setStudentCertificate(result.assets[0].uri);
-        }
+        await setDocumentValue(type, result.assets[0].uri);
       }
     } catch (error) {
       console.error(`Error al seleccionar imagen del ${type}:`, error);
@@ -153,11 +211,7 @@ export default function CredentialRegister() {
       });
 
       if (!result.canceled && result.assets[0]) {
-        if (type === 'credential') {
-          setInstitutionCredential(result.assets[0].uri);
-        } else {
-          setStudentCertificate(result.assets[0].uri);
-        }
+        await setDocumentValue(type, result.assets[0].uri);
       }
     } catch (error) {
       console.error(`Error al seleccionar documento del ${type}:`, error);
@@ -208,15 +262,9 @@ export default function CredentialRegister() {
       Alert.alert(
         'Registro Exitoso',
         '¡Bienvenido a UrTurn! Tu cuenta ha sido creada correctamente. Tus documentos serán verificados en las próximas 24-48 horas.',
-        [
-          {
-            text: 'Continuar',
-            onPress: () => {
-              router.replace('/ChooseModeScreen');
-            }
-          }
-        ]
       );
+
+      router.replace('/ChooseModeScreen');
     } else {
       console.log('❌ Error en registro:', result.message);
       Alert.alert('Error de Registro', result.message || 'No se pudo completar el registro');
@@ -242,7 +290,13 @@ export default function CredentialRegister() {
 };
 
   const isImage = (uri: string) => {
-    return uri.includes('.jpg') || uri.includes('.jpeg') || uri.includes('.png') || uri.includes('.gif');
+    if (!uri) {
+      return false;
+    }
+    if (uri.startsWith('data:image/')) {
+      return true;
+    }
+    return /\.(jpg|jpeg|png|gif)$/i.test(uri);
   };
 
   return (

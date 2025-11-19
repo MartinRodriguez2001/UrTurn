@@ -1,4 +1,4 @@
-import * as Location from "expo-location";
+import * as Location from "@/Services/LocationService";
 import React from "react";
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import PassengerMap from "../passenger/PassengerMap";
 import type { MapCoordinate, MapRegion } from "../passenger/PassengerMap.types";
+import { loadGoogleMapsApi } from "@/utils/googleMapsLoader";
 
 type PlacesAutocompletePrediction = {
   description: string;
@@ -72,6 +73,13 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     [googleMapsApiKey],
   );
   const searchEnabled = trimmedApiKey.length > 0;
+  const isWeb = Platform.OS === "web";
+  const [googleLoaded, setGoogleLoaded] = React.useState(!isWeb);
+  const googleRef = React.useRef<any | null>(null);
+  const autocompleteServiceRef = React.useRef<any | null>(null);
+  const placesServiceRef = React.useRef<any | null>(null);
+  const placesNodeRef = React.useRef<any | null>(null);
+  const webSessionTokenRef = React.useRef<any | null>(null);
 
   const [selectedCoordinate, setSelectedCoordinate] = React.useState<MapCoordinate | null>(
     initialCoordinate,
@@ -93,6 +101,60 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const [sessionToken, setSessionToken] = React.useState(createPlacesSessionToken);
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   const hidePredictionsTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const canUsePlacesApi = searchEnabled && (isWeb ? googleLoaded : true);
+
+  const regenerateSessionToken = React.useCallback(() => {
+    if (isWeb) {
+      if (googleRef.current) {
+        webSessionTokenRef.current = new googleRef.current.maps.places.AutocompleteSessionToken();
+      }
+      setSessionToken(createPlacesSessionToken());
+      return;
+    }
+    setSessionToken(createPlacesSessionToken());
+  }, [isWeb]);
+
+  React.useEffect(() => {
+    if (!isWeb) {
+      return;
+    }
+
+    let isMounted = true;
+
+    if (!searchEnabled) {
+      setGoogleLoaded(false);
+      return;
+    }
+
+    loadGoogleMapsApi(trimmedApiKey)
+      .then((googleInstance) => {
+        if (!isMounted) return;
+        googleRef.current = googleInstance;
+        if (!autocompleteServiceRef.current) {
+          autocompleteServiceRef.current = new googleInstance.maps.places.AutocompleteService();
+        }
+        if (!placesNodeRef.current && typeof document !== "undefined") {
+          placesNodeRef.current = document.createElement("div");
+        }
+        if (!placesServiceRef.current && placesNodeRef.current) {
+          placesServiceRef.current = new googleInstance.maps.places.PlacesService(
+            placesNodeRef.current,
+          );
+        }
+        webSessionTokenRef.current = new googleInstance.maps.places.AutocompleteSessionToken();
+        setGoogleLoaded(true);
+      })
+      .catch((error) => {
+        console.warn("Google Places API no disponible:", error);
+        if (isMounted) {
+          setGoogleLoaded(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isWeb, searchEnabled, trimmedApiKey]);
 
   React.useEffect(() => {
     if (!visible) {
@@ -146,14 +208,61 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       return;
     }
 
+    let cancelled = false;
+    const currentSessionToken = isWeb ? webSessionTokenRef.current : sessionToken;
+
+    setSearchLoading(true);
+
+    if (isWeb) {
+      if (!canUsePlacesApi || !autocompleteServiceRef.current || !currentSessionToken) {
+        setSearchLoading(false);
+        return;
+      }
+
+      const timeoutId = setTimeout(() => {
+        autocompleteServiceRef.current?.getPlacePredictions(
+          {
+            input: trimmedQuery,
+            language: "es",
+            sessionToken: currentSessionToken,
+          },
+          (results: any[] | null, status: string) => {
+            if (cancelled) {
+              return;
+            }
+
+            if (status === "OK" && Array.isArray(results)) {
+              const mapped = results.map((result) => ({
+                description: result.description,
+                place_id: result.place_id,
+                structured_formatting: result.structured_formatting,
+              }));
+              setPredictions(mapped);
+            } else if (status === "ZERO_RESULTS") {
+              setPredictions([]);
+            } else {
+              console.warn(`Google Places autocomplete returned status ${status}`);
+              setPredictions([]);
+            }
+            setSearchLoading(false);
+          },
+        );
+      }, 200);
+
+      return () => {
+        cancelled = true;
+        clearTimeout(timeoutId);
+        setSearchLoading(false);
+      };
+    }
+
     const controller = new AbortController();
     const timeoutId = setTimeout(async () => {
       try {
-        setSearchLoading(true);
         const response = await fetch(
           `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
             trimmedQuery,
-          )}&key=${trimmedApiKey}&language=es&sessiontoken=${sessionToken}`,
+          )}&key=${trimmedApiKey}&language=es&sessiontoken=${currentSessionToken ?? sessionToken}`,
           { signal: controller.signal },
         );
 
@@ -173,21 +282,24 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
           }
         }
       } catch (error) {
-        if (controller.signal.aborted) {
-          return;
+        if (!controller.signal.aborted) {
+          console.warn("Error fetching location suggestions", error);
+          setPredictions([]);
         }
-        console.warn("Error fetching location suggestions", error);
-        setPredictions([]);
       } finally {
-        setSearchLoading(false);
+        if (!cancelled) {
+          setSearchLoading(false);
+        }
       }
     }, 250);
 
     return () => {
+      cancelled = true;
       controller.abort();
       clearTimeout(timeoutId);
+      setSearchLoading(false);
     };
-  }, [visible, searchQuery, trimmedApiKey, sessionToken, searchEnabled]);
+  }, [visible, searchQuery, sessionToken, canUsePlacesApi, searchEnabled, trimmedApiKey, isWeb]);
 
   const formatPredictionLabel = React.useCallback((prediction: PlacesAutocompletePrediction) => {
     const primary = prediction.structured_formatting?.main_text ?? prediction.description;
@@ -197,6 +309,29 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
   const fetchPlaceCoordinate = React.useCallback(
     async (placeId: string): Promise<MapCoordinate | null> => {
+      if (isWeb) {
+        if (!canUsePlacesApi || !placesServiceRef.current) {
+          return null;
+        }
+
+        return new Promise((resolve) => {
+          placesServiceRef.current?.getDetails(
+            { placeId, fields: ["geometry"], language: "es" },
+            (result: any, status: string) => {
+              if (status === "OK" && result?.geometry?.location) {
+                resolve({
+                  latitude: result.geometry.location.lat(),
+                  longitude: result.geometry.location.lng(),
+                });
+              } else {
+                console.warn(`Google Places details returned status ${status}`);
+                resolve(null);
+              }
+            },
+          );
+        });
+      }
+
       if (!searchEnabled) {
         return null;
       }
@@ -234,7 +369,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
       return null;
     },
-    [trimmedApiKey, searchEnabled],
+    [isWeb, canUsePlacesApi, searchEnabled, trimmedApiKey],
   );
 
   const handlePredictionSelect = React.useCallback(
@@ -262,7 +397,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         setSelectingPrediction(false);
         setPredictions([]);
         setIsSearchFocused(false);
-        setSessionToken(createPlacesSessionToken());
+        regenerateSessionToken();
       }
     },
     [fetchPlaceCoordinate, formatPredictionLabel],
@@ -306,7 +441,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       const region = createRegionFromCoordinate(coordinate);
       setMapRegion(region);
       setFocusRegion(region);
-      setSessionToken(createPlacesSessionToken());
+      regenerateSessionToken();
     } catch (error) {
       console.warn("Unable to obtain current location", error);
     } finally {
@@ -315,7 +450,10 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   }, []);
 
   const shouldShowPredictions =
-    searchEnabled && isSearchFocused && (searchLoading || predictions.length > 0);
+    searchEnabled &&
+    (isWeb ? canUsePlacesApi : true) &&
+    isSearchFocused &&
+    (searchLoading || predictions.length > 0);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
@@ -393,7 +531,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
             setSelectedCoordinate(coordinate);
             setSearchQuery("");
             setPredictions([]);
-            setSessionToken(createPlacesSessionToken());
+            regenerateSessionToken();
           }}
           showsUserLocation
         />

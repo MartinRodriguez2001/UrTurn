@@ -79,9 +79,21 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
       return isInitialized;
     }
 
+    initializationAttempted.current = true;
+
+    if (!notificationService.isPlatformSupported()) {
+      console.log('Las notificaciones push no están disponibles en esta plataforma.');
+      setPermissions({
+        granted: false,
+        canAskAgain: false,
+        status: Notifications.PermissionStatus.DENIED,
+      });
+      setExpoPushToken(null);
+      return false;
+    }
+
     setLoading(true);
     setError(null);
-    initializationAttempted.current = true;
 
     try {
       console.log('Inicializando servicio de notificaciones...');

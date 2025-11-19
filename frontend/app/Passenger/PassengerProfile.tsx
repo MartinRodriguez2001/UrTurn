@@ -156,7 +156,6 @@ export default function PassengerProfile() {
     try {
       setProcessingLogout(true);
       await logout();
-      router.replace("/");
     } catch (error) {
       console.error("❌ Error al cerrar sesión:", error);
       Alert.alert("Error", "No se pudo cerrar sesión. Intenta nuevamente.");
@@ -175,9 +174,24 @@ export default function PassengerProfile() {
       "¿Deseas cerrar sesión para ingresar con otra cuenta?",
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "Cerrar sesión", style: "destructive", onPress: executeLogout },
+        { text: "Cerrar sesión", style: "destructive", onPress: async () => {
+            await executeLogout();
+            router.replace("/ChooseModeScreen");
+          }
+        },
       ]
     );
+  };
+
+  const openSettingsPlaceholder = (
+    title: string,
+    description: string,
+    context?: string,
+  ) => {
+    router.push({
+      pathname: "/settings/placeholder",
+      params: { title, description, context },
+    });
   };
 
   const deleteAccount = async () => {
@@ -193,7 +207,8 @@ export default function PassengerProfile() {
         throw new Error(response.message || "No se pudo eliminar la cuenta.");
       }
       await logout();
-      router.replace("/");
+      Alert.alert("Cuenta eliminada", "Tu cuenta se eliminó correctamente.");
+      router.replace("/ChooseModeScreen");
     } catch (error) {
       console.error("❌ Error al eliminar la cuenta:", error);
       Alert.alert(
@@ -334,7 +349,16 @@ export default function PassengerProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Notificaciones",
+                    "Aquí podrás decidir qué alertas recibir y cómo te notificamos.",
+                    "Configura avisos de viajes confirmados, mensajes del chat y recordatorios.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="bell" size={20} color="#F99F7C" />
                 </View>
@@ -345,7 +369,16 @@ export default function PassengerProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Privacidad y seguridad",
+                    "Controla quién puede ver tu información y administra tus datos.",
+                    "Podrás gestionar bloqueo de usuarios, visibilidad de tu perfil y datos compartidos en cada viaje.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="shield" size={20} color="#F99F7C" />
                 </View>
@@ -360,7 +393,16 @@ export default function PassengerProfile() {
             <View style={styles.settingsSection}>
               <Text style={styles.settingsSectionTitle}>Preferencias</Text>
               
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Ubicaciones guardadas",
+                    "Agrega tus direcciones frecuentes para publicar o solicitar viajes más rápido.",
+                    "Podrás guardar casa, trabajo y otros destinos habituales para reutilizarlos en un toque.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="map-pin" size={20} color="#F99F7C" />
                 </View>
@@ -371,7 +413,16 @@ export default function PassengerProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Métodos de pago",
+                    "Gestiona tus tarjetas o cuentas de pago para futuros viajes.",
+                    "Esta sección permitirá añadir, editar o eliminar medios de pago disponibles para UrTurn.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="credit-card" size={20} color="#F99F7C" />
                 </View>
@@ -382,7 +433,16 @@ export default function PassengerProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Valoraciones y reseñas",
+                    "Consulta el detalle de tus calificaciones recibidas y enviadas.",
+                    "Podrás responder a reseñas y revisar estadísticas de tus viajes como pasajero.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="star" size={20} color="#F99F7C" />
                 </View>
@@ -397,7 +457,16 @@ export default function PassengerProfile() {
             <View style={styles.settingsSection}>
               <Text style={styles.settingsSectionTitle}>Soporte</Text>
               
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Centro de ayuda",
+                    "Encuentra respuestas a las preguntas más comunes.",
+                    "Incluiremos artículos sobre publicación de viajes, validación de documentos y seguridad.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="help-circle" size={20} color="#F99F7C" />
                 </View>
@@ -408,7 +477,16 @@ export default function PassengerProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Contactar soporte",
+                    "Habla con nuestro equipo para resolver dudas o reportar problemas.",
+                    "Podrás abrir tickets, adjuntar capturas y recibir seguimiento personalizado.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="message-circle" size={20} color="#F99F7C" />
                 </View>
@@ -419,7 +497,16 @@ export default function PassengerProfile() {
                 <Feather name="chevron-right" size={20} color="#61758A" />
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.settingsItem}>
+              <TouchableOpacity
+                style={styles.settingsItem}
+                onPress={() =>
+                  openSettingsPlaceholder(
+                    "Acerca de UrTurn",
+                    "Consulta la versión de la app y nuestros términos y condiciones.",
+                    "Incluiremos información corporativa, enlaces a políticas y novedades de la plataforma.",
+                  )
+                }
+              >
                 <View style={styles.settingsItemIcon}>
                   <Feather name="info" size={20} color="#F99F7C" />
                 </View>

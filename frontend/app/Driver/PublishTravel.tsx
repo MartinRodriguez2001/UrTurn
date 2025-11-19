@@ -8,11 +8,13 @@ import VehicleApiService from "@/Services/VehicleApiService";
 import { TravelCreateData } from "@/types/travel";
 import { Vehicle } from "@/types/vehicle";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
+import { loadGoogleMapsApi } from "@/utils/googleMapsLoader";
+import { openWebDatePicker, openWebTimePicker } from "@/utils/webDateTime";
 import { decodePolyline } from "@/utils/polyline";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from "expo-router";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -55,6 +57,10 @@ export default function PublishTravel() {
   // Estados para validación
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const googleMapsApiKey = resolveGoogleMapsApiKey();
+  const isWeb = Platform.OS === "web";
+  const [googleLoaded, setGoogleLoaded] = useState(!isWeb);
+  const googleRef = useRef<any | null>(null);
+  const directionsServiceRef = useRef<any | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Estados para vehículos
@@ -66,6 +72,40 @@ export default function PublishTravel() {
   // Estados para date/time pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+
+  useEffect(() => {
+    if (!isWeb) {
+      return;
+    }
+
+    if (!googleMapsApiKey?.trim()) {
+      setGoogleLoaded(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    loadGoogleMapsApi(googleMapsApiKey.trim())
+      .then((googleInstance) => {
+        if (!isMounted) {
+          return;
+        }
+        googleRef.current = googleInstance;
+        directionsServiceRef.current =
+          directionsServiceRef.current ?? new googleInstance.maps.DirectionsService();
+        setGoogleLoaded(true);
+      })
+      .catch((error) => {
+        console.warn("No se pudo cargar Google Maps Directions API:", error);
+        if (isMounted) {
+          setGoogleLoaded(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isWeb, googleMapsApiKey]);
 
   useEffect(() => {
     loadUserVehicles();
@@ -103,43 +143,79 @@ export default function PublishTravel() {
           setRouteError(null);
         }
 
-        const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
-        url.searchParams.set(
-          "origin",
-          `${originCoordinate.latitude},${originCoordinate.longitude}`
-        );
-        url.searchParams.set(
-          "destination",
-          `${destinationCoordinate.latitude},${destinationCoordinate.longitude}`
-        );
-        url.searchParams.set("mode", "driving");
-        url.searchParams.set("language", "es");
-        url.searchParams.set("key", trimmedKey);
+        let candidateRoute: MapCoordinate[] = fallbackRoute;
 
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-          throw new Error(`Directions API error: ${response.status}`);
+        if (isWeb) {
+          if (!googleLoaded || !directionsServiceRef.current) {
+            throw new Error("Google Directions no está listo.");
+          }
+
+          const response: any = await new Promise((resolve, reject) => {
+            directionsServiceRef.current.route(
+              {
+                origin: {
+                  lat: originCoordinate.latitude,
+                  lng: originCoordinate.longitude,
+                },
+                destination: {
+                  lat: destinationCoordinate.latitude,
+                  lng: destinationCoordinate.longitude,
+                },
+                travelMode: googleRef.current.maps.TravelMode.DRIVING,
+              },
+              (result: any, status: string) => {
+                if (status === "OK") {
+                  resolve(result);
+                } else {
+                  reject(new Error(status));
+                }
+              },
+            );
+          });
+
+          const overviewPath = response?.routes?.[0]?.overview_path;
+          if (Array.isArray(overviewPath) && overviewPath.length >= 2) {
+            candidateRoute = overviewPath.map<MapCoordinate>((point: any) => ({
+              latitude: point.lat(),
+              longitude: point.lng(),
+            }));
+          }
+        } else {
+          const url = new URL("https://maps.googleapis.com/maps/api/directions/json");
+          url.searchParams.set(
+            "origin",
+            `${originCoordinate.latitude},${originCoordinate.longitude}`,
+          );
+          url.searchParams.set(
+            "destination",
+            `${destinationCoordinate.latitude},${destinationCoordinate.longitude}`,
+          );
+          url.searchParams.set("mode", "driving");
+          url.searchParams.set("language", "es");
+          url.searchParams.set("key", trimmedKey);
+
+          const response = await fetch(url.toString());
+          if (!response.ok) {
+            throw new Error(`Directions API error: ${response.status}`);
+          }
+
+          const data: {
+            status: string;
+            routes?: Array<{ overview_polyline?: { points?: string } }>;
+          } = await response.json();
+
+          if (data.status !== "OK" || !Array.isArray(data.routes) || data.routes.length === 0) {
+            throw new Error(`Directions API status: ${data.status ?? "UNKNOWN"}`);
+          }
+
+          const overviewPolyline = data.routes[0]?.overview_polyline?.points;
+          const decoded = decodePolyline(overviewPolyline).map<MapCoordinate>((point) => ({
+            latitude: point.latitude,
+            longitude: point.longitude,
+          }));
+
+          candidateRoute = decoded.length >= 2 ? decoded : fallbackRoute;
         }
-
-        const data: {
-          status: string;
-          routes?: Array<{ overview_polyline?: { points?: string } }>;
-        } = await response.json();
-
-        if (data.status !== "OK" || !Array.isArray(data.routes) || data.routes.length === 0) {
-          throw new Error(`Directions API status: ${data.status ?? "UNKNOWN"}`);
-        }
-
-        const overviewPolyline = data.routes[0]?.overview_polyline?.points;
-        const decoded = decodePolyline(overviewPolyline).map<MapCoordinate>((point) => ({
-          latitude: point.latitude,
-          longitude: point.longitude,
-        }));
-
-        const candidateRoute =
-          decoded.length >= 2
-            ? decoded
-            : fallbackRoute;
 
         if (!cancelled) {
           setRouteWaypoints(candidateRoute);
@@ -164,7 +240,7 @@ export default function PublishTravel() {
     return () => {
       cancelled = true;
     };
-  }, [originCoordinate, destinationCoordinate, googleMapsApiKey]);
+  }, [originCoordinate, destinationCoordinate, googleMapsApiKey, isWeb, googleLoaded]);
 
   const loadUserVehicles = async () => {
     try {
@@ -349,16 +425,58 @@ export default function PublishTravel() {
       const response = await travelApiService.createTravel(travelData);
 
       if (response.success) {
-        Alert.alert(
-          "Viaje publicado!",
-          "Tu viaje ha sido publicado exitosamente y ya está disponible para que otros usuarios se unan.",
-          [
-            {
-              text: "Ver mis viajes",
-              onPress: () => router.replace("/Driver/DriverHomePage"),
+        const travelPayload = {
+          id: response.travel?.id,
+          start_location_name: travelData.start_location_name,
+          start_latitude: travelData.start_latitude,
+          start_longitude: travelData.start_longitude,
+          end_location_name: travelData.end_location_name,
+          end_latitude: travelData.end_latitude,
+          end_longitude: travelData.end_longitude,
+          start_time: travelData.start_time,
+          price: travelData.price,
+          route_waypoints: travelData.routeWaypoints,
+          routeWaypoints: travelData.routeWaypoints,
+          planned_stops: response.travel?.planned_stops ?? null,
+        };
+
+        const passengersPayload =
+          response.travel?.passengers?.confirmed?.map((passenger: any) => ({
+            id: passenger.id,
+            name: passenger.name,
+            role: "Confirmado",
+            avatar: passenger.profile_picture ?? null,
+            phone: passenger.phone_number ?? null,
+          })) ?? [];
+
+        const navigateToTravelDetail = () => {
+          router.replace({
+            pathname: "/Driver/DriverTravel",
+            params: {
+              travel: JSON.stringify(travelPayload),
+              passengers: JSON.stringify(passengersPayload),
             },
-          ]
-        );
+          });
+        };
+
+        if (Platform.OS === "web") {
+          navigateToTravelDetail();
+        } else {
+          Alert.alert(
+            "Viaje publicado!",
+            "Tu viaje ha sido publicado exitosamente y ya está disponible para que otros usuarios se unan.",
+            [
+              {
+                text: "Ver viaje",
+                onPress: navigateToTravelDetail,
+              },
+              {
+                text: "Cerrar",
+                style: "cancel",
+              },
+            ]
+          );
+        }
       } else {
         Alert.alert("Error", response.message || "Error al publicar el viaje");
       }
@@ -431,11 +549,31 @@ export default function PublishTravel() {
     setShowStartTimePicker(false);
   };
 
-  const openDatePicker = () => {
+  const openDatePicker = async () => {
+    if (Platform.OS === "web") {
+      const selectedDate = await openWebDatePicker({
+        initialDate: formData.startDate,
+        minDate: new Date(),
+        maxDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      });
+      if (selectedDate) {
+        applySelectedDate(selectedDate);
+      }
+      return;
+    }
     setShowDatePicker(true);
   };
 
-  const openTimePicker = () => {
+  const openTimePicker = async () => {
+    if (Platform.OS === "web") {
+      const selectedTime = await openWebTimePicker({
+        initialTime: formData.startTime,
+      });
+      if (selectedTime) {
+        applySelectedTime(selectedTime);
+      }
+      return;
+    }
     setShowStartTimePicker(true);
   };
 

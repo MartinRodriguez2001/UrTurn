@@ -1,4 +1,4 @@
-import * as Location from "expo-location";
+import * as Location from "@/Services/LocationService";
 import React from "react";
 import {
   ActivityIndicator,
