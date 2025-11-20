@@ -3,6 +3,7 @@ import { loadGoogleMapsApi } from "@/utils/googleMapsLoader";
 import React from "react";
 import {
     ActivityIndicator,
+    Alert,
     Modal,
     Platform,
     SafeAreaView,
@@ -522,23 +523,8 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     }, 150);
   }, []);
 
-  const handleUseMyLocation = React.useCallback(async () => {
-    try {
-      setRequestingLocation(true);
-      let permission = await Location.getForegroundPermissionsAsync();
-      if (permission.status !== Location.PermissionStatus.GRANTED) {
-        permission = await Location.requestForegroundPermissionsAsync();
-      }
-      if (permission.status !== Location.PermissionStatus.GRANTED) {
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      const coordinate: MapCoordinate = {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
+  const applyCoordinate = React.useCallback(
+    (coordinate: MapCoordinate) => {
       setSelectedCoordinate(coordinate);
       setSearchQuery("");
       setPredictions([]);
@@ -547,12 +533,71 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       setMapRegion(region);
       setFocusRegion(region);
       regenerateSessionToken();
+    },
+    [regenerateSessionToken]
+  );
+
+  const handleUseMyLocation = React.useCallback(async () => {
+    if (requestingLocation) {
+      return;
+    }
+    try {
+      setRequestingLocation(true);
+      if (Platform.OS === "web") {
+        if (typeof navigator === "undefined" || !navigator.geolocation) {
+          Alert.alert(
+            "Ubicación no disponible",
+            "Tu navegador no permite acceder a la ubicación. Revisa la configuración de Safari."
+          );
+          return;
+        }
+        await new Promise<void>((resolve) => {
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              applyCoordinate({
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+              });
+              resolve();
+            },
+            (err) => {
+              Alert.alert(
+                "Activa tu ubicación",
+                err?.message ?? "Safari necesita que permitas el acceso a tu ubicación."
+              );
+              resolve();
+            },
+            { enableHighAccuracy: true, timeout: 6000 }
+          );
+        });
+        return;
+      }
+
+      let permission = await Location.getForegroundPermissionsAsync();
+      if (permission.status !== Location.PermissionStatus.GRANTED) {
+        permission = await Location.requestForegroundPermissionsAsync();
+      }
+      if (permission.status !== Location.PermissionStatus.GRANTED) {
+        Alert.alert(
+          "Activa tu ubicación",
+          "Necesitamos tu ubicación para establecer el punto exacto."
+        );
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      applyCoordinate({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
     } catch (error) {
       console.warn("Unable to obtain current location", error);
+      Alert.alert("Error", "No se pudo obtener tu ubicación actual.");
     } finally {
       setRequestingLocation(false);
     }
-  }, []);
+  }, [applyCoordinate, requestingLocation]);
 
   const shouldShowPredictions =
     isSearchFocused && searchQuery.trim().length >= 2 && (searchLoading || predictions.length > 0);

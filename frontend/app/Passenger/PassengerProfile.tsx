@@ -176,7 +176,7 @@ export default function PassengerProfile() {
         { text: "Cancelar", style: "cancel" },
         { text: "Cerrar sesión", style: "destructive", onPress: async () => {
             await executeLogout();
-            router.replace("/ChooseModeScreen");
+            router.replace("/");
           }
         },
       ]
@@ -208,7 +208,7 @@ export default function PassengerProfile() {
       }
       await logout();
       Alert.alert("Cuenta eliminada", "Tu cuenta se eliminó correctamente.");
-      router.replace("/ChooseModeScreen");
+      router.replace("/");
     } catch (error) {
       console.error("❌ Error al eliminar la cuenta:", error);
       Alert.alert(

@@ -260,7 +260,7 @@ export default function DriverProfile() {
 
     const performLogout = async () => {
       await executeLogout();
-      router.replace("/ChooseModeScreen");
+      router.replace("/");
     };
 
     Alert.alert(
@@ -310,7 +310,7 @@ export default function DriverProfile() {
 
       await logout();
       Alert.alert("Cuenta eliminada", "Tu cuenta se eliminó correctamente.");
-      router.replace("/ChooseModeScreen");
+      router.replace("/");
     } catch (error) {
       console.error("❌ Error al eliminar la cuenta:", error);
       Alert.alert(

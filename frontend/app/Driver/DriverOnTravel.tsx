@@ -12,7 +12,7 @@ import { decodePolyline } from "@/utils/polyline";
 import { Feather } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Platform,
@@ -22,6 +22,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    useWindowDimensions,
 } from "react-native";
 
 type Passenger = {
@@ -228,7 +229,9 @@ const FOLLOW_CAMERA_PITCH = 45;
 // Reduce the visual rotation of the driver icon so it's less "laid over" at steep headings.
 const DRIVER_ICON_ROTATION_FACTOR = 0.7;
 export default function DriverOnTravel() {
+  const { width } = useWindowDimensions();
   const isWeb = Platform.OS === "web";
+  const shouldSimulateDeviceFrame = isWeb && width >= 640;
   const router = useRouter();
   const params = useLocalSearchParams<{ travel?: string; passengers?: string }>();
   const googleMapsApiKey = useMemo(
@@ -421,9 +424,16 @@ export default function DriverOnTravel() {
   const webLocationWatchIdRef = useRef<number | null>(null);
   const hasFitRouteRef = useRef(false);
   const lastCameraUpdateRef = useRef(0);
+  const isMountedRef = useRef(true);
   useEffect(() => {
     setPolylineCoordinates(routeCoordinates);
   }, [routeCoordinates]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (
@@ -513,156 +523,163 @@ export default function DriverOnTravel() {
       longitudeDelta,
     };
   }, [polylineCoordinates]);
-  useEffect(() => {
-    let isMounted = true;
-
-    const startLocationTracking = async () => {
+  const clearWebWatch = useCallback(() => {
+    if (
+      webLocationWatchIdRef.current != null &&
+      typeof navigator !== "undefined" &&
+      navigator.geolocation?.clearWatch
+    ) {
       try {
-        // Web platform: use the browser geolocation API to avoid internal
-        // expo-location event emitter issues on web builds.
-        if (Platform.OS === "web") {
-          try {
-            // Try to get a current position first
-            if (navigator?.geolocation?.getCurrentPosition) {
-              navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                  if (!isMounted) return;
-                  setCurrentLocation({
-                    latitude: pos.coords.latitude,
-                    longitude: pos.coords.longitude,
-                    accuracy: pos.coords.accuracy ?? 0,
-                    altitude: pos.coords.altitude ?? 0,
-                    heading: pos.coords.heading ?? 0,
-                    speed: pos.coords.speed ?? null,
-                    altitudeAccuracy: pos.coords.altitudeAccuracy ?? null,
-                  } as Location.LocationObjectCoords);
-                },
-                (err) => {
-                  if (!isMounted) return;
-                  setLocationError(err?.message || String(err));
-                },
-                { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
-              );
-            }
-
-            // Clear any previous watch
-            if (webLocationWatchIdRef.current != null) {
-              navigator.geolocation.clearWatch(webLocationWatchIdRef.current);
-              webLocationWatchIdRef.current = null;
-            }
-
-            const id = navigator.geolocation.watchPosition(
-              (pos) => {
-                if (!isMounted) return;
-                setCurrentLocation({
-                  latitude: pos.coords.latitude,
-                  longitude: pos.coords.longitude,
-                  accuracy: pos.coords.accuracy ?? 0,
-                  altitude: pos.coords.altitude ?? 0,
-                  heading: pos.coords.heading ?? 0,
-                  speed: pos.coords.speed ?? null,
-                  altitudeAccuracy: pos.coords.altitudeAccuracy ?? null,
-                } as Location.LocationObjectCoords);
-              },
-              (err) => {
-                if (!isMounted) return;
-                setLocationError(err?.message || String(err));
-              },
-              { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
-            );
-
-            webLocationWatchIdRef.current = typeof id === "number" ? id : Number(id);
-            setLocationStatus("granted");
-            setLocationError(null);
-            return;
-          } catch (e) {
-            console.warn("No se pudo iniciar seguimiento geolocation web", e);
-            if (isMounted) setLocationError("Error al obtener la ubicación actual.");
-            return;
-          }
-        }
-
-        // Native platforms: use expo-location as before
-        const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
-        let status = existingStatus;
-
-        if (status !== Location.PermissionStatus.GRANTED) {
-          const request = await Location.requestForegroundPermissionsAsync();
-          status = request.status;
-        }
-
-        if (!isMounted) {
-          return;
-        }
-
-        setLocationStatus(status);
-
-        if (status !== Location.PermissionStatus.GRANTED) {
-          setLocationError(
-            "Habilita el acceso a tu ubicación para seguir el viaje en tiempo real."
-          );
-          return;
-        }
-
-        setLocationError(null);
-
-        const lastKnown = await Location.getLastKnownPositionAsync({});
-        if (lastKnown?.coords && isMounted) {
-          setCurrentLocation(lastKnown.coords);
-        }
-
-        // remove previous expo-location subscription if present
-        locationSubscriptionRef.current?.remove();
-
-        const subscription = await Location.watchPositionAsync(
-          {
-            accuracy: Location.Accuracy.Highest,
-            distanceInterval: 5,
-            timeInterval: 2000,
-          },
-          (location) => {
-            if (!isMounted) return;
-            setCurrentLocation(location.coords);
-          }
-        );
-
-        if (!isMounted) {
-          subscription.remove();
-          return;
-        }
-
-        locationSubscriptionRef.current = subscription;
-      } catch (error) {
-        console.warn("No se pudo iniciar el seguimiento de ubicación", error);
-        if (isMounted) {
-          setLocationError("Error al obtener la ubicación actual.");
-        }
+        navigator.geolocation.clearWatch(webLocationWatchIdRef.current);
+      } catch {
+        // ignore
       }
-    };
-
-    startLocationTracking();
-
-    return () => {
-      isMounted = false;
-      if (Platform.OS === "web") {
-        if (webLocationWatchIdRef.current != null && navigator?.geolocation?.clearWatch) {
-          try {
-            navigator.geolocation.clearWatch(webLocationWatchIdRef.current);
-          } catch (e) {
-            // ignore
-          }
-          webLocationWatchIdRef.current = null;
-        }
-      } else {
-        try {
-          locationSubscriptionRef.current?.remove();
-        } catch (e) {
-          // ignore
-        }
-        locationSubscriptionRef.current = null;
-      }
-    };
+      webLocationWatchIdRef.current = null;
+    }
   }, []);
+
+  const clearNativeSubscription = useCallback(() => {
+    try {
+      locationSubscriptionRef.current?.remove();
+    } catch {
+      // ignore
+    }
+    locationSubscriptionRef.current = null;
+  }, []);
+
+  const startWebLocationTracking = useCallback(() => {
+    if (Platform.OS !== "web") {
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocationError("Tu navegador no soporta geolocalización.");
+      setLocationStatus(Location.PermissionStatus.DENIED);
+      return;
+    }
+
+    const options: PositionOptions = { enableHighAccuracy: true, maximumAge: 1000, timeout: 6000 };
+
+    setLocationStatus("checking");
+    setLocationError(null);
+
+    const handleSuccess = (pos: GeolocationPosition) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+      setLocationStatus(Location.PermissionStatus.GRANTED);
+      setLocationError(null);
+      setCurrentLocation({
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracy: pos.coords.accuracy ?? 0,
+        altitude: pos.coords.altitude ?? 0,
+        heading: pos.coords.heading ?? 0,
+        speed: pos.coords.speed ?? null,
+        altitudeAccuracy: pos.coords.altitudeAccuracy ?? null,
+      } as Location.LocationObjectCoords);
+    };
+
+    const handleError = (err?: GeolocationPositionError) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+      if (err?.code === 1) {
+        setLocationStatus(Location.PermissionStatus.DENIED);
+      }
+      setLocationError(err?.message || "No se pudo obtener tu ubicación actual.");
+    };
+
+    try {
+      navigator.geolocation.getCurrentPosition(handleSuccess, handleError, options);
+    } catch (error) {
+      handleError();
+    }
+
+    clearWebWatch();
+
+    try {
+      const id = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
+      webLocationWatchIdRef.current = typeof id === "number" ? id : Number(id);
+    } catch (error) {
+      console.warn("No se pudo iniciar seguimiento web", error);
+      handleError();
+    }
+  }, [clearWebWatch]);
+
+  const startNativeLocationTracking = useCallback(async () => {
+    if (Platform.OS === "web") {
+      return;
+    }
+    try {
+      setLocationStatus("checking");
+      let { status } = await Location.getForegroundPermissionsAsync();
+      if (status !== Location.PermissionStatus.GRANTED) {
+        const request = await Location.requestForegroundPermissionsAsync();
+        status = request.status;
+      }
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      setLocationStatus(status);
+
+      if (status !== Location.PermissionStatus.GRANTED) {
+        setLocationError(
+          "Habilita el acceso a tu ubicación para seguir el viaje en tiempo real."
+        );
+        clearNativeSubscription();
+        return;
+      }
+
+      setLocationError(null);
+
+      const lastKnown = await Location.getLastKnownPositionAsync({});
+      if (lastKnown?.coords && isMountedRef.current) {
+        setCurrentLocation(lastKnown.coords);
+      }
+
+      clearNativeSubscription();
+
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Highest,
+          distanceInterval: 5,
+          timeInterval: 2000,
+        },
+        (loc) => {
+          if (!isMountedRef.current) return;
+          setCurrentLocation(loc.coords);
+        }
+      );
+
+      locationSubscriptionRef.current = subscription;
+    } catch (error) {
+      console.warn("No se pudo iniciar el seguimiento nativo", error);
+      if (isMountedRef.current) {
+        setLocationError("Error al obtener tu ubicación actual.");
+      }
+    }
+  }, [clearNativeSubscription]);
+
+  useEffect(() => {
+    if (Platform.OS === "web") {
+      startWebLocationTracking();
+      return () => {
+        clearWebWatch();
+      };
+    }
+
+    startNativeLocationTracking();
+    return () => {
+      clearNativeSubscription();
+    };
+  }, [
+    clearNativeSubscription,
+    clearWebWatch,
+    startNativeLocationTracking,
+    startWebLocationTracking,
+  ]);
   useEffect(() => {
     if (!mapRef.current || hasFitRouteRef.current) return;
     if (polylineCoordinates.length >= 2) {
@@ -765,6 +782,8 @@ export default function DriverOnTravel() {
   const nextStopSubtitleText = nextStop
     ? "Siguiente: " + nextStop.label
     : "Todas las paradas completadas";
+  const shouldShowWebPermissionBanner =
+    Platform.OS === "web" && locationStatus !== Location.PermissionStatus.GRANTED;
 
   const handleBack = () => {
     router.back();
@@ -1084,6 +1103,23 @@ export default function DriverOnTravel() {
               </View>
             ) : null}
 
+            {shouldShowWebPermissionBanner ? (
+              <TouchableOpacity
+                style={styles.permissionBanner}
+                activeOpacity={0.9}
+                onPress={startWebLocationTracking}
+              >
+                <Feather name="navigation" size={18} color="#1D4ED8" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.permissionBannerTitle}>Activa tu ubicación</Text>
+                  <Text style={styles.permissionBannerSubtitle}>
+                    Safari necesita tu confirmación. Toca aquí para volver a intentarlo.
+                  </Text>
+                </View>
+                <Feather name="arrow-right" size={18} color="#1D4ED8" />
+              </TouchableOpacity>
+            ) : null}
+
             {locationError ? (
               <View style={styles.alertRow}>
                 <Feather name="alert-triangle" size={18} color="#B91C1C" />
@@ -1211,7 +1247,7 @@ export default function DriverOnTravel() {
     </SafeAreaView>
   );
 
-  if (!isWeb) {
+  if (!shouldSimulateDeviceFrame) {
     return screen;
   }
 
@@ -1347,6 +1383,29 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 12,
     marginBottom: 12,
+  },
+  permissionBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: "#DBEAFE",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    marginBottom: 12,
+  },
+  permissionBannerTitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontWeight: "700",
+    fontSize: 15,
+    color: "#1D4ED8",
+  },
+  permissionBannerSubtitle: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    color: "#1E3A8A",
   },
   statusText: {
     fontFamily: "Plus Jakarta Sans",
