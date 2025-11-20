@@ -1,0 +1,1 @@
+{"version":3,"file":"polyline.d.ts","sourceRoot":"","sources":["../../src/utils/polyline.ts"],"names":[],"mappings":"AAAA,MAAM,WAAW,aAAa;IAC5B,QAAQ,EAAE,MAAM,CAAC;IACjB,SAAS,EAAE,MAAM,CAAC;CACnB;AAED,wBAAgB,cAAc,CAAC,OAAO,EAAE,MAAM,GAAG,IAAI,GAAG,SAAS,GAAG,aAAa,EAAE,CA2ClF"}

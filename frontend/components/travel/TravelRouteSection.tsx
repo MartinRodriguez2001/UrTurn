@@ -1,11 +1,11 @@
 import * as Location from "@/Services/LocationService";
 import React from "react";
 import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import type { MapCoordinate, MapRegion } from "../passenger/PassengerMap.types";
 import LocationPickerModal from "./LocationPickerModal";
