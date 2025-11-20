@@ -37,6 +37,63 @@ const DEFAULT_REGION: MapRegion = {
   longitudeDelta: 0.08,
 };
 
+const NOMINATIM_HEADERS = {
+  "User-Agent": "UrTurnApp/1.0 (https://urturn.cl)",
+  Accept: "application/json",
+};
+
+const formatCoordinateLabel = (coordinate: MapCoordinate) =>
+  `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
+
+const fetchOpenStreetMapLabel = async (coordinate: MapCoordinate) => {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${coordinate.latitude}&lon=${coordinate.longitude}&zoom=18&addressdetails=1&accept-language=es`,
+      { headers: NOMINATIM_HEADERS },
+    );
+    if (!response.ok) {
+      throw new Error(`Reverse geocode failed with status ${response.status}`);
+    }
+    const data: {
+      display_name?: string;
+      address?: Partial<{
+        road: string;
+        house_number: string;
+        neighbourhood: string;
+        suburb: string;
+        city: string;
+        town: string;
+        village: string;
+        state: string;
+      }>;
+    } = await response.json();
+
+    if (data.display_name) {
+      return data.display_name;
+    }
+    if (data.address) {
+      const {
+        road,
+        house_number,
+        neighbourhood,
+        suburb,
+        city,
+        town,
+        village,
+        state,
+      } = data.address;
+      const cityLabel = city || town || village || state;
+      const parts = [road, house_number, neighbourhood, suburb, cityLabel].filter(Boolean);
+      if (parts.length) {
+        return parts.join(", ");
+      }
+    }
+  } catch (error) {
+    console.warn("Error reverse geocoding with OpenStreetMap", error);
+  }
+  return formatCoordinateLabel(coordinate);
+};
+
 export default function TravelRouteSection({
   title = "Ruta del viaje",
   originLabel = "Origen *",
@@ -70,7 +127,6 @@ export default function TravelRouteSection({
   const [requestingUserRegion, setRequestingUserRegion] = React.useState(false);
 
   const trimmedApiKey = googleMapsApiKey?.trim();
-  const hasPlacesSearch = Boolean(trimmedApiKey);
 
   React.useEffect(() => {
     setOriginCoordinate(originCoordinateValue ?? null);
@@ -116,7 +172,7 @@ export default function TravelRouteSection({
   const reverseGeocodeCoordinate = React.useCallback(
     async (coordinate: MapCoordinate) => {
       if (!trimmedApiKey) {
-        return `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
+        return fetchOpenStreetMapLabel(coordinate);
       }
       try {
         const response = await fetch(
@@ -133,7 +189,7 @@ export default function TravelRouteSection({
       } catch (error) {
         console.warn("Error reverse geocoding coordinate", error);
       }
-      return `${coordinate.latitude.toFixed(5)}, ${coordinate.longitude.toFixed(5)}`;
+      return fetchOpenStreetMapLabel(coordinate);
     },
     [trimmedApiKey],
   );
@@ -198,11 +254,6 @@ export default function TravelRouteSection({
           </View>
         </TouchableOpacity>
         {originError ? <Text style={styles.errorText}>{originError}</Text> : null}
-        {!hasPlacesSearch ? (
-          <Text style={styles.helperInfo}>
-            Configura tu clave de Google Maps para habilitar la búsqueda de direcciones.
-          </Text>
-        ) : null}
       </View>
 
       <View style={styles.inputContainer}>
@@ -330,11 +381,6 @@ const styles = StyleSheet.create({
     fontFamily: "Plus Jakarta Sans",
     fontSize: 12,
     color: "#EF4444",
-  },
-  helperInfo: {
-    fontFamily: "Plus Jakarta Sans",
-    fontSize: 12,
-    color: "#61758A",
   },
   buttonDisabled: {
     opacity: 0.6,

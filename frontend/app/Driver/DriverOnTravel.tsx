@@ -228,6 +228,7 @@ const FOLLOW_CAMERA_PITCH = 45;
 // Reduce the visual rotation of the driver icon so it's less "laid over" at steep headings.
 const DRIVER_ICON_ROTATION_FACTOR = 0.7;
 export default function DriverOnTravel() {
+  const isWeb = Platform.OS === "web";
   const router = useRouter();
   const params = useLocalSearchParams<{ travel?: string; passengers?: string }>();
   const googleMapsApiKey = useMemo(
@@ -882,7 +883,7 @@ export default function DriverOnTravel() {
       }
     })();
   }, [currentLocation, travelId]);
-  return (
+  const screen = (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.mapContainer}>
         <MapView
@@ -1206,11 +1207,48 @@ export default function DriverOnTravel() {
             </View>
           </>
         ) : null}
-  </View>
+      </View>
     </SafeAreaView>
+  );
+
+  if (!isWeb) {
+    return screen;
+  }
+
+  return (
+    <View style={styles.webScaffold}>
+      <View style={styles.webDeviceShadow}>
+        <View style={styles.webDeviceFrame}>{screen}</View>
+      </View>
+    </View>
   );
 }
 const styles = StyleSheet.create({
+  webScaffold: {
+    flex: 1,
+    backgroundColor: "#020617",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+  },
+  webDeviceShadow: {
+    width: "100%",
+    maxWidth: 430,
+    height: "100%",
+    borderRadius: 40,
+    shadowColor: "#020617",
+    shadowOffset: { width: 0, height: 18 },
+    shadowOpacity: 0.45,
+    shadowRadius: 28,
+    elevation: 16,
+  },
+  webDeviceFrame: {
+    flex: 1,
+    borderRadius: 40,
+    overflow: "hidden",
+    backgroundColor: "#0F172A",
+  },
   safeArea: {
     flex: 1,
     backgroundColor: "#0F172A",
@@ -1221,7 +1259,7 @@ const styles = StyleSheet.create({
   },
   topControls: {
     position: "absolute",
-    top: Platform.OS === "ios" ? 48 : 16,
+    top: Platform.OS === "ios" ? 48 : Platform.OS === "web" ? 32 : 16,
     left: 16,
     right: 16,
     flexDirection: "row",

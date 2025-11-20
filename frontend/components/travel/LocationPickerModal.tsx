@@ -24,6 +24,15 @@ type PlacesAutocompletePrediction = {
   };
 };
 
+type LocationPrediction = {
+  id: string;
+  primaryText: string;
+  secondaryText?: string;
+  source: "google" | "osm";
+  placeId?: string;
+  coordinate?: MapCoordinate;
+};
+
 type LocationPickerModalProps = {
   visible: boolean;
   onClose: () => void;
@@ -55,6 +64,11 @@ const createRegionFromCoordinate = (coordinate: MapCoordinate): MapRegion => ({
 const createPlacesSessionToken = () =>
   `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
 
+const NOMINATIM_HEADERS = {
+  "User-Agent": "UrTurnApp/1.0 (https://urturn.cl)",
+  Accept: "application/json",
+};
+
 const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   visible,
   onClose,
@@ -72,7 +86,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     () => googleMapsApiKey?.trim() ?? "",
     [googleMapsApiKey],
   );
-  const searchEnabled = trimmedApiKey.length > 0;
+  const hasGooglePlacesKey = trimmedApiKey.length > 0;
   const isWeb = Platform.OS === "web";
   const [googleLoaded, setGoogleLoaded] = React.useState(!isWeb);
   const googleRef = React.useRef<any | null>(null);
@@ -97,11 +111,11 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   const [searchQuery, setSearchQuery] = React.useState(initialQuery);
   const [searchLoading, setSearchLoading] = React.useState(false);
   const [selectingPrediction, setSelectingPrediction] = React.useState(false);
-  const [predictions, setPredictions] = React.useState<PlacesAutocompletePrediction[]>([]);
+  const [predictions, setPredictions] = React.useState<LocationPrediction[]>([]);
   const [sessionToken, setSessionToken] = React.useState(createPlacesSessionToken);
   const [isSearchFocused, setIsSearchFocused] = React.useState(false);
   const hidePredictionsTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
-  const canUsePlacesApi = searchEnabled && (isWeb ? googleLoaded : true);
+  const canUseGooglePlaces = hasGooglePlacesKey && (isWeb ? googleLoaded : true);
 
   const regenerateSessionToken = React.useCallback(() => {
     if (isWeb) {
@@ -121,7 +135,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
     let isMounted = true;
 
-    if (!searchEnabled) {
+    if (!hasGooglePlacesKey) {
       setGoogleLoaded(false);
       return;
     }
@@ -154,7 +168,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isWeb, searchEnabled, trimmedApiKey]);
+  }, [isWeb, hasGooglePlacesKey, trimmedApiKey]);
 
   React.useEffect(() => {
     if (!visible) {
@@ -195,7 +209,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   );
 
   React.useEffect(() => {
-    if (!visible || !searchEnabled) {
+    if (!visible) {
       setSearchLoading(false);
       setPredictions([]);
       return;
@@ -213,44 +227,99 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
     setSearchLoading(true);
 
-    if (isWeb) {
-      if (!canUsePlacesApi || !autocompleteServiceRef.current || !currentSessionToken) {
-        setSearchLoading(false);
-        return;
+    if (canUseGooglePlaces) {
+      if (isWeb) {
+        if (!autocompleteServiceRef.current || !currentSessionToken) {
+          setSearchLoading(false);
+          return;
+        }
+
+        const timeoutId = setTimeout(() => {
+          autocompleteServiceRef.current?.getPlacePredictions(
+            {
+              input: trimmedQuery,
+              language: "es",
+              sessionToken: currentSessionToken,
+            },
+            (results: any[] | null, status: string) => {
+              if (cancelled) {
+                return;
+              }
+
+              if (status === "OK" && Array.isArray(results)) {
+                const mapped: LocationPrediction[] = results.map((result) => ({
+                  id: result.place_id,
+                  primaryText: result.structured_formatting?.main_text ?? result.description,
+                  secondaryText: result.structured_formatting?.secondary_text,
+                  placeId: result.place_id,
+                  source: "google",
+                }));
+                setPredictions(mapped);
+              } else if (status === "ZERO_RESULTS") {
+                setPredictions([]);
+              } else {
+                console.warn(`Google Places autocomplete returned status ${status}`);
+                setPredictions([]);
+              }
+              setSearchLoading(false);
+            },
+          );
+        }, 200);
+
+        return () => {
+          cancelled = true;
+          clearTimeout(timeoutId);
+          setSearchLoading(false);
+        };
       }
 
-      const timeoutId = setTimeout(() => {
-        autocompleteServiceRef.current?.getPlacePredictions(
-          {
-            input: trimmedQuery,
-            language: "es",
-            sessionToken: currentSessionToken,
-          },
-          (results: any[] | null, status: string) => {
-            if (cancelled) {
-              return;
-            }
+      const controller = new AbortController();
+      const timeoutId = setTimeout(async () => {
+        try {
+          const response = await fetch(
+            `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+              trimmedQuery,
+            )}&key=${trimmedApiKey}&language=es&sessiontoken=${currentSessionToken ?? sessionToken}`,
+            { signal: controller.signal },
+          );
 
-            if (status === "OK" && Array.isArray(results)) {
-              const mapped = results.map((result) => ({
-                description: result.description,
-                place_id: result.place_id,
-                structured_formatting: result.structured_formatting,
-              }));
-              setPredictions(mapped);
-            } else if (status === "ZERO_RESULTS") {
-              setPredictions([]);
-            } else {
-              console.warn(`Google Places autocomplete returned status ${status}`);
-              setPredictions([]);
+          if (!response.ok) {
+            throw new Error(`Request failed with status ${response.status}`);
+          }
+
+          const data: { predictions: PlacesAutocompletePrediction[]; status: string } =
+            await response.json();
+
+          if (data.status === "OK") {
+            const mapped: LocationPrediction[] = data.predictions.map((prediction) => ({
+              id: prediction.place_id,
+              primaryText: prediction.structured_formatting?.main_text ?? prediction.description,
+              secondaryText: prediction.structured_formatting?.secondary_text,
+              placeId: prediction.place_id,
+              source: "google",
+            }));
+            setPredictions(mapped);
+          } else {
+            setPredictions([]);
+            if (data.status !== "ZERO_RESULTS") {
+              console.warn(`Google Places autocomplete returned status ${data.status}`);
             }
+          }
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            console.warn("Error fetching location suggestions", error);
+            setPredictions([]);
+          }
+        } finally {
+          if (!cancelled) {
             setSearchLoading(false);
-          },
-        );
-      }, 200);
+          }
+        }
+      }, 250);
 
       return () => {
         cancelled = true;
+        controller.abort();
         clearTimeout(timeoutId);
         setSearchLoading(false);
       };
@@ -260,30 +329,58 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
     const timeoutId = setTimeout(async () => {
       try {
         const response = await fetch(
-          `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(
+          `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=8&accept-language=es&q=${encodeURIComponent(
             trimmedQuery,
-          )}&key=${trimmedApiKey}&language=es&sessiontoken=${currentSessionToken ?? sessionToken}`,
-          { signal: controller.signal },
+          )}`,
+          { headers: NOMINATIM_HEADERS, signal: controller.signal },
         );
-
         if (!response.ok) {
-          throw new Error(`Request failed with status ${response.status}`);
+          throw new Error(`OSM search failed with status ${response.status}`);
         }
+        const data: Array<{
+          place_id: number;
+          display_name: string;
+          lat: string;
+          lon: string;
+          address?: Partial<{
+            road: string;
+            house_number: string;
+            neighbourhood: string;
+            suburb: string;
+            city: string;
+            town: string;
+            village: string;
+            county: string;
+            state: string;
+          }>;
+        }> = await response.json();
 
-        const data: { predictions: PlacesAutocompletePrediction[]; status: string } =
-          await response.json();
-
-        if (data.status === "OK") {
-          setPredictions(data.predictions);
-        } else {
-          setPredictions([]);
-          if (data.status !== "ZERO_RESULTS") {
-            console.warn(`Google Places autocomplete returned status ${data.status}`);
-          }
-        }
+        const mapped: LocationPrediction[] = data.map((item) => {
+          const coordinate = {
+            latitude: Number(item.lat),
+            longitude: Number(item.lon),
+          };
+          const address = item.address ?? {};
+          const primary = address.road || address.neighbourhood || item.display_name;
+          const locality = address.city || address.town || address.village || address.state;
+          const secondaryParts = [
+            address.house_number,
+            address.suburb,
+            locality,
+            address.county,
+          ].filter(Boolean);
+          return {
+            id: `osm-${item.place_id}`,
+            primaryText: primary ?? item.display_name,
+            secondaryText: secondaryParts.join(", "),
+            coordinate,
+            source: "osm",
+          };
+        });
+        setPredictions(mapped);
       } catch (error) {
         if (!controller.signal.aborted) {
-          console.warn("Error fetching location suggestions", error);
+          console.warn("Error fetching OSM suggestions", error);
           setPredictions([]);
         }
       } finally {
@@ -299,18 +396,19 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
       clearTimeout(timeoutId);
       setSearchLoading(false);
     };
-  }, [visible, searchQuery, sessionToken, canUsePlacesApi, searchEnabled, trimmedApiKey, isWeb]);
+  }, [visible, searchQuery, sessionToken, canUseGooglePlaces, trimmedApiKey, isWeb]);
 
-  const formatPredictionLabel = React.useCallback((prediction: PlacesAutocompletePrediction) => {
-    const primary = prediction.structured_formatting?.main_text ?? prediction.description;
-    const secondary = prediction.structured_formatting?.secondary_text;
-    return secondary ? `${primary}, ${secondary}` : primary;
+  const formatPredictionLabel = React.useCallback((prediction: LocationPrediction) => {
+    if (prediction.secondaryText) {
+      return `${prediction.primaryText}, ${prediction.secondaryText}`;
+    }
+    return prediction.primaryText;
   }, []);
 
   const fetchPlaceCoordinate = React.useCallback(
     async (placeId: string): Promise<MapCoordinate | null> => {
       if (isWeb) {
-        if (!canUsePlacesApi || !placesServiceRef.current) {
+        if (!canUseGooglePlaces || !placesServiceRef.current) {
           return null;
         }
 
@@ -332,7 +430,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         });
       }
 
-      if (!searchEnabled) {
+      if (!hasGooglePlacesKey) {
         return null;
       }
 
@@ -369,11 +467,11 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
 
       return null;
     },
-    [isWeb, canUsePlacesApi, searchEnabled, trimmedApiKey],
+    [isWeb, canUseGooglePlaces, hasGooglePlacesKey, trimmedApiKey],
   );
 
   const handlePredictionSelect = React.useCallback(
-    async (prediction: PlacesAutocompletePrediction) => {
+    async (prediction: LocationPrediction) => {
       if (hidePredictionsTimeoutRef.current) {
         clearTimeout(hidePredictionsTimeoutRef.current);
         hidePredictionsTimeoutRef.current = null;
@@ -384,10 +482,17 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         const label = formatPredictionLabel(prediction);
         setSearchQuery(label);
 
-        const coordinate = await fetchPlaceCoordinate(prediction.place_id);
-        if (coordinate) {
-          setSelectedCoordinate(coordinate);
-          const region = createRegionFromCoordinate(coordinate);
+        if (prediction.source === "google" && prediction.placeId) {
+          const coordinate = await fetchPlaceCoordinate(prediction.placeId);
+          if (coordinate) {
+            setSelectedCoordinate(coordinate);
+            const region = createRegionFromCoordinate(coordinate);
+            setMapRegion(region);
+            setFocusRegion(region);
+          }
+        } else if (prediction.coordinate) {
+          setSelectedCoordinate(prediction.coordinate);
+          const region = createRegionFromCoordinate(prediction.coordinate);
           setMapRegion(region);
           setFocusRegion(region);
         }
@@ -450,10 +555,7 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
   }, []);
 
   const shouldShowPredictions =
-    searchEnabled &&
-    (isWeb ? canUsePlacesApi : true) &&
-    isSearchFocused &&
-    (searchLoading || predictions.length > 0);
+    isSearchFocused && searchQuery.trim().length >= 2 && (searchLoading || predictions.length > 0);
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">
@@ -467,16 +569,13 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
         </View>
 
         <View style={styles.searchSection}>
-          <View
-            style={[styles.searchInputWrapper, !searchEnabled ? styles.searchInputDisabled : null]}
-          >
+          <View style={styles.searchInputWrapper}>
             <TextInput
               style={styles.searchInput}
               placeholder={searchPlaceholder}
               placeholderTextColor="#9CA3AF"
               value={searchQuery}
               onChangeText={(text) => setSearchQuery(text)}
-              editable={searchEnabled}
               onFocus={handleSearchFocus}
               onBlur={handleSearchBlur}
               autoCorrect={false}
@@ -486,9 +585,10 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               <ActivityIndicator size="small" color="#61758A" style={styles.searchSpinner} />
             ) : null}
           </View>
-          {!searchEnabled ? (
+          {!hasGooglePlacesKey ? (
             <Text style={styles.searchHelper}>
-              Configura tu clave de Google Maps para habilitar la búsqueda de direcciones.
+              Estamos usando datos abiertos de OpenStreetMap. Agrega tu clave de Google Maps para
+              obtener resultados más precisos.
             </Text>
           ) : null}
           {shouldShowPredictions ? (
@@ -500,16 +600,14 @@ const LocationPickerModal: React.FC<LocationPickerModalProps> = ({
               ) : (
                 predictions.map((prediction) => (
                   <TouchableOpacity
-                    key={prediction.place_id}
+                    key={prediction.id}
                     onPress={() => handlePredictionSelect(prediction)}
                     style={styles.predictionItem}
                   >
-                    <Text style={styles.predictionPrimaryText}>
-                      {prediction.structured_formatting?.main_text ?? prediction.description}
-                    </Text>
-                    {prediction.structured_formatting?.secondary_text ? (
+                    <Text style={styles.predictionPrimaryText}>{prediction.primaryText}</Text>
+                    {prediction.secondaryText ? (
                       <Text style={styles.predictionSecondaryText}>
-                        {prediction.structured_formatting.secondary_text}
+                        {prediction.secondaryText}
                       </Text>
                     ) : null}
                   </TouchableOpacity>
@@ -619,9 +717,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-  },
-  searchInputDisabled: {
-    opacity: 0.6,
   },
   searchInput: {
     flex: 1,
