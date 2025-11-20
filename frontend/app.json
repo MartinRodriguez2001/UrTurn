@@ -39,9 +39,20 @@
       "package": "com.mrjuantapia.urturn"
     },
     "web": {
+      "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "meta": {
+        "themeColor": "#ffffff",
+        "viewport": "width=device-width, initial-scale=1, shrink-to-fit=no"
+      },
+      "display": "standalone",
+      "shortName": "UrTurn",
+      "backgroundColor": "#ffffff",
+      "scope": "/",
+      "startUrl": "/"
     },
+    
     "plugins": [
       "expo-router",
       [
