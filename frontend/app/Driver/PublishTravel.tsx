@@ -9,7 +9,6 @@ import { TravelCreateData } from "@/types/travel";
 import { Vehicle } from "@/types/vehicle";
 import { resolveGoogleMapsApiKey } from "@/utils/googleMaps";
 import { loadGoogleMapsApi } from "@/utils/googleMapsLoader";
-import { openWebDatePicker, openWebTimePicker } from "@/utils/webDateTime";
 import { decodePolyline } from "@/utils/polyline";
 import { Feather } from "@expo/vector-icons";
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -549,31 +548,11 @@ export default function PublishTravel() {
     setShowStartTimePicker(false);
   };
 
-  const openDatePicker = async () => {
-    if (Platform.OS === "web") {
-      const selectedDate = await openWebDatePicker({
-        initialDate: formData.startDate,
-        minDate: new Date(),
-        maxDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      });
-      if (selectedDate) {
-        applySelectedDate(selectedDate);
-      }
-      return;
-    }
+  const openDatePicker = () => {
     setShowDatePicker(true);
   };
 
-  const openTimePicker = async () => {
-    if (Platform.OS === "web") {
-      const selectedTime = await openWebTimePicker({
-        initialTime: formData.startTime,
-      });
-      if (selectedTime) {
-        applySelectedTime(selectedTime);
-      }
-      return;
-    }
+  const openTimePicker = () => {
     setShowStartTimePicker(true);
   };
 
@@ -768,7 +747,7 @@ export default function PublishTravel() {
       </View>
 
       {/* Date/Time Pickers */}
-      {Platform.OS === "ios" ? (
+      {Platform.OS === "ios" || Platform.OS === "web" ? (
         <>
           <IOSCalendarPickerModal
             visible={showDatePicker}

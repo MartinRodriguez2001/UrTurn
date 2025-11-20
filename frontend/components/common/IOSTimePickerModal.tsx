@@ -1,9 +1,17 @@
 import DateTimePicker, {
-    type DateTimePickerEvent,
-    type IOSNativeProps,
+  type DateTimePickerEvent,
+  type IOSNativeProps,
 } from "@react-native-community/datetimepicker";
 import React, { useEffect, useMemo, useState } from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 type IOSTimePickerModalProps = {
   visible: boolean;
@@ -16,6 +24,18 @@ type IOSTimePickerModalProps = {
 
 const ORANGE = "#F99F7C";
 
+const clampToInterval = (time: Date, interval: number) => {
+  const sanitized = new Date(time);
+  sanitized.setSeconds(0, 0);
+  if (interval > 1) {
+    const minutes = sanitized.getMinutes();
+    sanitized.setMinutes(minutes - (minutes % interval));
+  }
+  return sanitized;
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
 const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
   visible,
   initialTime,
@@ -24,7 +44,9 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
   onCancel,
   onConfirm,
 }) => {
-  const [selectedTime, setSelectedTime] = useState(new Date(initialTime));
+  const [selectedTime, setSelectedTime] = useState(() =>
+    clampToInterval(initialTime, minuteInterval)
+  );
 
   const formattedTime = useMemo(
     () =>
@@ -36,13 +58,22 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
     [selectedTime]
   );
 
+  const hourOptions = useMemo(() => Array.from({ length: 24 }, (_, index) => index), []);
+
+  const minuteOptions = useMemo(() => {
+    const values: number[] = [];
+    for (let minute = 0; minute < 60; minute += minuteInterval) {
+      values.push(minute);
+    }
+    return values;
+  }, [minuteInterval]);
+
   useEffect(() => {
     if (visible) {
-      const synced = new Date(initialTime);
-      synced.setSeconds(0, 0);
+      const synced = clampToInterval(initialTime, minuteInterval);
       setSelectedTime(synced);
     }
-  }, [initialTime, visible]);
+  }, [initialTime, minuteInterval, visible]);
 
   const handleChange = (_event: DateTimePickerEvent, date?: Date) => {
     if (date) {
@@ -50,6 +81,22 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
       sanitized.setSeconds(0, 0);
       setSelectedTime(sanitized);
     }
+  };
+
+  const handleSelectHour = (hour: number) => {
+    setSelectedTime((prev) => {
+      const updated = new Date(prev);
+      updated.setHours(hour);
+      return updated;
+    });
+  };
+
+  const handleSelectMinute = (minute: number) => {
+    setSelectedTime((prev) => {
+      const updated = new Date(prev);
+      updated.setMinutes(minute);
+      return updated;
+    });
   };
 
   const handleConfirm = () => {
@@ -67,6 +114,27 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
     themeVariant: "light" as const,
   } satisfies IOSNativeProps;
 
+  const renderWebPicker = () => (
+    <View style={styles.webPickerContainer}>
+      <Text style={styles.webPickerLabel}>Ajusta manualmente</Text>
+      <View style={styles.webPickerRow}>
+        <WebPickerColumn
+          label="Hora"
+          options={hourOptions}
+          selectedValue={selectedTime.getHours()}
+          onSelect={handleSelectHour}
+        />
+        <Text style={styles.webPickerSeparator}>:</Text>
+        <WebPickerColumn
+          label="Minutos"
+          options={minuteOptions}
+          selectedValue={selectedTime.getMinutes()}
+          onSelect={handleSelectMinute}
+        />
+      </View>
+    </View>
+  );
+
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onCancel}>
       <View style={styles.overlay}>
@@ -76,7 +144,7 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
             <Text style={styles.previewLabel}>Hora seleccionada</Text>
             <Text style={styles.previewValue}>{formattedTime}</Text>
           </View>
-          <DateTimePicker {...pickerProps} />
+          {Platform.OS === "web" ? renderWebPicker() : <DateTimePicker {...pickerProps} />}
           <View style={styles.actions}>
             <TouchableOpacity style={styles.secondaryButton} onPress={onCancel}>
               <Text style={styles.secondaryLabel}>Cancelar</Text>
@@ -92,6 +160,48 @@ const IOSTimePickerModal: React.FC<IOSTimePickerModalProps> = ({
 };
 
 export default IOSTimePickerModal;
+
+type WebPickerColumnProps = {
+  label: string;
+  options: number[];
+  selectedValue: number;
+  onSelect: (value: number) => void;
+};
+
+const WebPickerColumn = ({
+  label,
+  options,
+  selectedValue,
+  onSelect,
+}: WebPickerColumnProps) => (
+  <View style={styles.webColumn}>
+    <Text style={styles.webColumnLabel}>{label}</Text>
+    <ScrollView
+      style={styles.webColumnScroll}
+      contentContainerStyle={styles.webColumnContent}
+      showsVerticalScrollIndicator={false}
+    >
+      {options.map((value) => {
+        const isSelected = selectedValue === value;
+        return (
+          <TouchableOpacity
+            key={`${label}-${value}`}
+            style={[styles.webOption, isSelected && styles.webOptionSelected]}
+            onPress={() => onSelect(value)}
+            accessibilityRole="button"
+          >
+            <Text
+              style={[styles.webOptionText, isSelected && styles.webOptionTextSelected]}
+            >
+              {pad(value)}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+      <View style={styles.webBottomSpacer} />
+    </ScrollView>
+  </View>
+);
 
 const styles = StyleSheet.create({
   overlay: {
@@ -179,5 +289,78 @@ const styles = StyleSheet.create({
     fontFamily: "Plus Jakarta Sans",
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+  webPickerContainer: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FFE2D4",
+    backgroundColor: "#FFF7F2",
+    padding: 16,
+    marginBottom: 16,
+  },
+  webPickerLabel: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#F99F7C",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  webPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  webPickerSeparator: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 32,
+    fontWeight: "700",
+    color: "#F99F7C",
+    marginHorizontal: 8,
+  },
+  webColumn: {
+    width: 96,
+  },
+  webColumnLabel: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#9CA3AF",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  webColumnScroll: {
+    maxHeight: 200,
+  },
+  webColumnContent: {
+    gap: 8,
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+  webOption: {
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#F3F4F6",
+    backgroundColor: "#FFFFFF",
+  },
+  webOptionSelected: {
+    borderColor: ORANGE,
+    backgroundColor: "#FFECE2",
+  },
+  webOptionText: {
+    fontFamily: "Plus Jakarta Sans",
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#6B7280",
+    textAlign: "center",
+  },
+  webOptionTextSelected: {
+    color: ORANGE,
+  },
+  webBottomSpacer: {
+    height: 4,
   },
 });
